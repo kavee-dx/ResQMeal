@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.*
+
+# Expo
+.expo/
+.expo-shared/
+
+# React Native builds
+android/
+ios/
+
+# Logs
+*.log
+
+# Build output
+dist/
+build/
+
+# Backend uploads
+backend/src/uploads/*
+
+# Keep uploads folder
+!backend/src/uploads/.gitkeep
+
+# IDE settings
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db

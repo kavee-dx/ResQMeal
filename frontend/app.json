@@ -4,15 +4,11 @@
     "slug": "resqmeal",
     "version": "1.0.0",
     "orientation": "portrait",
-
     "icon": "./assets/images/icon.png",
-
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "icon": "./assets/images/icon.png"
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -22,11 +18,9 @@
       },
       "predictiveBackGestureEnabled": false
     },
-
     "web": {
       "favicon": "./assets/images/favicon.png"
     },
-
     "plugins": [
       [
         "expo-splash-screen",
@@ -35,9 +29,10 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
-
     "experiments": {
       "reactCompiler": true
     }

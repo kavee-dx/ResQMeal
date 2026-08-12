@@ -6,7 +6,7 @@ import { RootStackParamList } from "./types";
 
 import SplashScreen from "../screens/SplashScreen";
 import LoginScreen from "../screens/LoginScreen";
-import RegisterScreen from "../screens/RegisterScreen";
+import RegisterScreen from "../screens/dushani-RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
 
 

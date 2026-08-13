@@ -18,12 +18,9 @@ export default function AppNavigator() {
     <NavigationContainer>
 
       <Stack.Navigator
-        initialRouteName="Splash"
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-
+  initialRouteName="Register"   // ← temporarily, instead of "Splash"
+  screenOptions={{ headerShown: false }}
+>
         <Stack.Screen
           name="Splash"
           component={SplashScreen}

@@ -23,6 +23,7 @@ import {
   Spacing,
   Typography,
 } from '@/constants/theme';
+import api from '../services/api';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -842,14 +843,27 @@ export default function RegisterScreen({ navigation }: Props) {
         payload,
       );
 
-      Alert.alert(
-        'Ready to Register',
-        'Your registration form is valid.',
+      const response = await api.post(
+        '/auth/register',
+        payload,
       );
+
+      Alert.alert(
+        'Registration successful',
+        response.data?.message ??
+          'Your account has been created.',
+      );
+
+      navigation?.navigate?.('Login');
     } catch (err: any) {
+      const message =
+        err?.response?.data?.message ??
+        err?.message ??
+        'Something went wrong.';
+
       Alert.alert(
         'Registration failed',
-        err?.message ?? 'Something went wrong.',
+        message,
       );
     } finally {
       setSubmitting(false);

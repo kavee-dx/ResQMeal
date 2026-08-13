@@ -8,7 +8,7 @@
 // If the profile step fails, the User record is rolled back so we never end
 // up with an orphaned account.
 
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 
 const User = require("../models/dushani-User");
 const DonorProfile = require("../models/dushani-DonorProfile");
@@ -16,10 +16,11 @@ const RecipientProfile = require("../models/dushani-RecipientProfile");
 const NGOProfile = require("../models/dushani-NGOProfile");
 const VolunteerProfile = require("../models/dushani-VolunteerProfile");
 
-// const {
-//   generateVerificationCode,
-//   getExpiryDate,
-// } = require("../utils/dushani-otp");
+const {
+  generateVerificationCode,
+  getExpiryDate,
+} = require("../utils/dushani-otp");
+const { sendVerificationEmail } = require("../utils/dushani-email");
 
 const SALT_ROUNDS = 10;
 
@@ -215,11 +216,7 @@ async function registerUser(input) {
     throw err;
   }
 
-  console.log(
-    `[Verification] Code for ${
-      email ?? input.phoneNumber
-    }: ${verificationCode}`
-  );
+  await sendVerificationEmail(email || input.phoneNumber, verificationCode);
 
   return {
     user,

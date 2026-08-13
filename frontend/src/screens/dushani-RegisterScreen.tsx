@@ -323,6 +323,9 @@ export default function RegisterScreen({ navigation }: Props) {
   const [errors, setErrors] =
     useState<Record<string, string>>({});
 
+  const [touched, setTouched] =
+    useState<Record<string, boolean>>({});
+
   const [submitting, setSubmitting] = useState(false);
 
   const isBusinessDonor =
@@ -337,21 +340,323 @@ export default function RegisterScreen({ navigation }: Props) {
   const needsVehicleNumber =
     VEHICLE_TYPES_REQUIRING_NUMBER.includes(form.vehicleType);
 
+  const sriLankanPhonePrefixes = {
+    mobile: ['070', '071', '072', '074', '075', '076', '077', '078', '079'],
+    landline: [
+      '011', '021', '023', '024', '025', '026', '027', '031', '032', '033', '034',
+      '035', '036', '037', '038', '041', '045', '047', '052', '054', '055', '057',
+      '058', '061', '062', '063', '064', '065', '066', '067', '068', '069',
+    ],
+  } as const;
+
+  function isValidSriLankanPhone(value: string): boolean {
+    const digits = value.replace(/\D/g, '');
+
+    if (!/^\d{10}$/.test(digits)) {
+      return false;
+    }
+
+    const prefix = digits.slice(0, 3);
+
+    return (
+      sriLankanPhonePrefixes.mobile.includes(prefix as (typeof sriLankanPhonePrefixes.mobile)[number]) ||
+      sriLankanPhonePrefixes.landline.includes(prefix as (typeof sriLankanPhonePrefixes.landline)[number])
+    );
+  }
+
+  const freeEmailDomains = [
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'outlook.com',
+    'icloud.com',
+    'protonmail.com',
+  ];
+
+  function isAllowedEmailAddress(value: string): boolean {
+    if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      return false;
+    }
+
+    const domain = value.split('@')[1]?.toLowerCase();
+    if (!domain || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain)) {
+      return false;
+    }
+
+    if (freeEmailDomains.includes(domain)) {
+      return true;
+    }
+
+    return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/i.test(
+      domain,
+    );
+  }
+
+  function hasStrongPassword(value: string): boolean {
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(value);
+  }
+
+  function hasLettersAndNumbers(value: string): boolean {
+    return /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z0-9\s,./#-]+$/.test(value.trim());
+  }
+
+  function getValidationErrors(
+    nextForm: FormState,
+    touchedFields: Record<string, boolean> = {},
+  ): Record<string, string> {
+    const next: Record<string, string> = {};
+    const isTouched = (field: string) =>
+      Object.keys(touchedFields).length === 0 || !!touchedFields[field];
+
+    const req = (
+      value: string,
+      field: string,
+      message: string,
+    ) => {
+      if (isTouched(field) && (!value || value.trim().length < 2)) {
+        next[field] = message;
+      }
+    };
+
+    if (
+      isTouched('phoneNumber') &&
+      nextForm.phoneNumber.trim().length > 0 &&
+      !isValidSriLankanPhone(nextForm.phoneNumber)
+    ) {
+      next.phoneNumber = 'Enter a valid 10-digit local phone number.';
+    }
+
+    if (
+      isTouched('password') &&
+      nextForm.password.length > 0 &&
+      !hasStrongPassword(nextForm.password)
+    ) {
+      next.password = 'Password must be 8+ chars with lowercase, uppercase and a number.';
+    }
+
+    if (
+      isTouched('confirmPassword') &&
+      nextForm.confirmPassword.length > 0 &&
+      nextForm.password !== nextForm.confirmPassword
+    ) {
+      next.confirmPassword = 'Passwords do not match.';
+    }
+
+    if (isTouched('address') && nextForm.address.trim().length > 0 && !hasLettersAndNumbers(nextForm.address)) {
+      next.address = 'Address must contain both letters and numbers.';
+    }
+    req(nextForm.address, 'address', 'Address is required.');
+    req(nextForm.district, 'district', 'District is required.');
+    req(nextForm.city, 'city', 'City is required.');
+
+    if (nextForm.role === 'DONOR') {
+      if (nextForm.donorType === 'INDIVIDUAL') {
+        req(nextForm.fullName, 'fullName', 'Full name is required.');
+
+        if (
+          isTouched('email') &&
+          nextForm.email &&
+          !isAllowedEmailAddress(nextForm.email)
+        ) {
+          next.email = 'Use a valid business email or free webmail address.';
+        }
+      } else {
+        if (nextForm.donorType === 'OTHER') {
+          req(
+            nextForm.specifiedDonorType,
+            'specifiedDonorType',
+            'Please specify your donor type.',
+          );
+        }
+
+        req(
+          nextForm.businessName,
+          'businessName',
+          'Business name is required.',
+        );
+        req(
+          nextForm.authorizedPerson,
+          'authorizedPerson',
+          'Authorized person is required.',
+        );
+        req(
+          nextForm.position,
+          'position',
+          'Position is required.',
+        );
+        req(
+          nextForm.businessRegistrationNumber,
+          'businessRegistrationNumber',
+          'Business registration number is required.',
+        );
+
+        if (
+          isTouched('businessContactNumber') &&
+          nextForm.businessContactNumber.trim() &&
+          !isValidSriLankanPhone(nextForm.businessContactNumber)
+        ) {
+          next.businessContactNumber =
+            'Enter a valid 10-digit local business number.';
+        }
+      }
+    }
+
+    if (nextForm.role === 'RECIPIENT') {
+      if (!isOrganizationRecipient) {
+        req(nextForm.fullName, 'fullName', 'Full name is required.');
+
+        if (
+          isTouched('email') &&
+          nextForm.email &&
+          !isAllowedEmailAddress(nextForm.email)
+        ) {
+          next.email = 'Use a valid business email or free webmail address.';
+        }
+      } else {
+        if (nextForm.recipientType === 'OTHER') {
+          req(
+            nextForm.specifiedRecipientType,
+            'specifiedRecipientType',
+            'Please specify your recipient type.',
+          );
+        }
+
+        req(
+          nextForm.organizationName,
+          'organizationName',
+          'Organization name is required.',
+        );
+        req(
+          nextForm.organizationRegistrationNumber,
+          'organizationRegistrationNumber',
+          'Organization registration number is required.',
+        );
+        req(
+          nextForm.authorizedPerson,
+          'authorizedPerson',
+          'Authorized person is required.',
+        );
+        req(
+          nextForm.position,
+          'position',
+          'Position is required.',
+        );
+
+        if (
+          isTouched('email') &&
+          nextForm.email &&
+          !isAllowedEmailAddress(nextForm.email)
+        ) {
+          next.email = 'Use a valid business email or free webmail address.';
+        }
+      }
+
+      const people = Number(nextForm.peopleNeedingFood);
+      if (
+        isTouched('peopleNeedingFood') &&
+        (!Number.isInteger(people) || people < 1)
+      ) {
+        next.peopleNeedingFood = 'Enter the number of people needing food.';
+      }
+
+      if (
+        isTouched('foodRequirements') &&
+        nextForm.foodRequirements.length === 0
+      ) {
+        next.foodRequirements = 'Select at least one food requirement.';
+      }
+    }
+
+    if (nextForm.role === 'NGO') {
+      req(
+        nextForm.organizationName,
+        'organizationName',
+        'Organization name is required.',
+      );
+      req(
+        nextForm.ngoRegistrationNumber,
+        'ngoRegistrationNumber',
+        'NGO registration number is required.',
+      );
+
+      if (nextForm.organizationType === 'OTHER') {
+        req(
+          nextForm.specifiedOrganizationType,
+          'specifiedOrganizationType',
+          'Please specify your organization type.',
+        );
+      }
+
+      req(
+        nextForm.authorizedPerson,
+        'authorizedPerson',
+        'Authorized person is required.',
+      );
+      req(
+        nextForm.position,
+        'position',
+        'Position is required.',
+      );
+
+      if (
+        isTouched('email') &&
+        nextForm.email &&
+        !isAllowedEmailAddress(nextForm.email)
+      ) {
+        next.email = 'Use a valid business email or free webmail address.';
+      }
+    }
+
+    if (nextForm.role === 'VOLUNTEER') {
+      req(nextForm.fullName, 'fullName', 'Full name is required.');
+
+      if (
+        isTouched('email') &&
+        nextForm.email &&
+        !isAllowedEmailAddress(nextForm.email)
+      ) {
+        next.email = 'Use a valid business email or free webmail address.';
+      }
+
+      if (
+        isTouched('vehicleNumber') &&
+        needsVehicleNumber &&
+        !nextForm.vehicleNumber.trim()
+      ) {
+        next.vehicleNumber =
+          'Vehicle number is required for this vehicle type.';
+      }
+
+      req(
+        nextForm.preferredDeliveryArea,
+        'preferredDeliveryArea',
+        'Preferred delivery area is required.',
+      );
+    }
+
+    return next;
+  }
+
   function update<K extends keyof FormState>(
     field: K,
     value: FormState[K],
   ) {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-
-    if (errors[field as string]) {
-      setErrors((prev) => ({
+    setForm((prev) => {
+      const nextForm = {
         ...prev,
-        [field as string]: '',
-      }));
-    }
+        [field]: value,
+      } as FormState;
+
+      const nextTouched = {
+        ...touched,
+        [field as string]: true,
+      };
+
+      setTouched(nextTouched);
+      setErrors(getValidationErrors(nextForm, nextTouched));
+
+      return nextForm;
+    });
   }
 
   function toggleFoodRequirement(item: string) {
@@ -374,236 +679,18 @@ export default function RegisterScreen({ navigation }: Props) {
     }));
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  const phoneRegex = /^[0-9+\-\s]{7,20}$/;
-
   function validate(): boolean {
-    const next: Record<string, string> = {};
-
-    const req = (
-      value: string,
-      field: string,
-      message: string,
-    ) => {
-      if (!value || value.trim().length < 2) {
-        next[field] = message;
-      }
-    };
-
-    if (!phoneRegex.test(form.phoneNumber)) {
-      next.phoneNumber = 'Enter a valid phone number.';
-    }
-
-    if (form.password.length < 8) {
-      next.password =
-        'Password must be at least 8 characters.';
-    }
-
-    if (form.password !== form.confirmPassword) {
-      next.confirmPassword = 'Passwords do not match.';
-    }
-
-    req(
-      form.address,
-      'address',
-      'Address is required.',
+    const allTouched = Object.keys(form).reduce(
+      (acc, key) => ({
+        ...acc,
+        [key]: true,
+      }),
+      {} as Record<string, boolean>,
     );
 
-    req(
-      form.district,
-      'district',
-      'District is required.',
-    );
-
-    req(
-      form.city,
-      'city',
-      'City is required.',
-    );
-
-    if (form.role === 'DONOR') {
-      if (form.donorType === 'INDIVIDUAL') {
-        req(
-          form.fullName,
-          'fullName',
-          'Full name is required.',
-        );
-
-        if (!emailRegex.test(form.email)) {
-          next.email = 'Enter a valid email address.';
-        }
-      } else {
-        if (form.donorType === 'OTHER') {
-          req(
-            form.specifiedDonorType,
-            'specifiedDonorType',
-            'Please specify your donor type.',
-          );
-        }
-
-        req(
-          form.businessName,
-          'businessName',
-          'Business name is required.',
-        );
-
-        req(
-          form.authorizedPerson,
-          'authorizedPerson',
-          'Authorized person is required.',
-        );
-
-        req(
-          form.position,
-          'position',
-          'Position is required.',
-        );
-
-        req(
-          form.businessRegistrationNumber,
-          'businessRegistrationNumber',
-          'Business registration number is required.',
-        );
-
-        if (!phoneRegex.test(form.businessContactNumber)) {
-          next.businessContactNumber =
-            'Enter a valid business contact number.';
-        }
-      }
-    }
-
-    if (form.role === 'RECIPIENT') {
-      if (!isOrganizationRecipient) {
-        req(
-          form.fullName,
-          'fullName',
-          'Full name is required.',
-        );
-
-        if (!emailRegex.test(form.email)) {
-          next.email = 'Enter a valid email address.';
-        }
-      } else {
-        if (form.recipientType === 'OTHER') {
-          req(
-            form.specifiedRecipientType,
-            'specifiedRecipientType',
-            'Please specify your recipient type.',
-          );
-        }
-
-        req(
-          form.organizationName,
-          'organizationName',
-          'Organization name is required.',
-        );
-
-        req(
-          form.organizationRegistrationNumber,
-          'organizationRegistrationNumber',
-          'Organization registration number is required.',
-        );
-
-        req(
-          form.authorizedPerson,
-          'authorizedPerson',
-          'Authorized person is required.',
-        );
-
-        req(
-          form.position,
-          'position',
-          'Position is required.',
-        );
-
-        if (
-          form.email &&
-          !emailRegex.test(form.email)
-        ) {
-          next.email = 'Enter a valid email address.';
-        }
-      }
-
-      const people = Number(form.peopleNeedingFood);
-
-      if (!Number.isInteger(people) || people < 1) {
-        next.peopleNeedingFood =
-          'Enter the number of people needing food.';
-      }
-
-      if (form.foodRequirements.length === 0) {
-        next.foodRequirements =
-          'Select at least one food requirement.';
-      }
-    }
-
-    if (form.role === 'NGO') {
-      req(
-        form.organizationName,
-        'organizationName',
-        'Organization name is required.',
-      );
-
-      req(
-        form.ngoRegistrationNumber,
-        'ngoRegistrationNumber',
-        'NGO registration number is required.',
-      );
-
-      if (form.organizationType === 'OTHER') {
-        req(
-          form.specifiedOrganizationType,
-          'specifiedOrganizationType',
-          'Please specify your organization type.',
-        );
-      }
-
-      req(
-        form.authorizedPerson,
-        'authorizedPerson',
-        'Authorized person is required.',
-      );
-
-      req(
-        form.position,
-        'position',
-        'Position is required.',
-      );
-
-      if (!emailRegex.test(form.email)) {
-        next.email = 'Enter a valid email address.';
-      }
-    }
-
-    if (form.role === 'VOLUNTEER') {
-      req(
-        form.fullName,
-        'fullName',
-        'Full name is required.',
-      );
-
-      if (!emailRegex.test(form.email)) {
-        next.email = 'Enter a valid email address.';
-      }
-
-      if (
-        needsVehicleNumber &&
-        !form.vehicleNumber.trim()
-      ) {
-        next.vehicleNumber =
-          'Vehicle number is required for this vehicle type.';
-      }
-
-      req(
-        form.preferredDeliveryArea,
-        'preferredDeliveryArea',
-        'Preferred delivery area is required.',
-      );
-    }
-
+    const next = getValidationErrors(form, allTouched);
+    setTouched(allTouched);
     setErrors(next);
-
     return Object.keys(next).length === 0;
   }
 
@@ -969,11 +1056,13 @@ export default function RegisterScreen({ navigation }: Props) {
               label="Phone Number"
               placeholder="+94 77 123 4567"
               value={form.phoneNumber}
-              onChangeText={(value) =>
-                update('phoneNumber', value)
-              }
+              onChangeText={(value) => {
+                const digits = value.replace(/\D/g, '').slice(0, 10);
+                update('phoneNumber', digits);
+              }}
               error={errors.phoneNumber}
-              keyboardType="phone-pad"
+              keyboardType="number-pad"
+              maxLength={10}
             />
 
             <Field
@@ -1460,18 +1549,15 @@ function DonorFields({
           <Field
             icon="call-outline"
             label="Business Contact Number"
-            placeholder="+94 77 123 4567"
+            placeholder="077 123 4567"
             value={form.businessContactNumber}
-            onChangeText={(value: string) =>
-              update(
-                'businessContactNumber',
-                value,
-              )
-            }
-            error={
-              errors.businessContactNumber
-            }
-            keyboardType="phone-pad"
+            onChangeText={(value: string) => {
+              const digits = value.replace(/\D/g, '').slice(0, 10);
+              update('businessContactNumber', digits);
+            }}
+            error={errors.businessContactNumber}
+            keyboardType="number-pad"
+            maxLength={10}
           />
 
           <Field
@@ -1484,6 +1570,7 @@ function DonorFields({
             }
             keyboardType="email-address"
             autoCapitalize="none"
+            textContentType="emailAddress"
             optional
           />
 
@@ -2263,10 +2350,13 @@ function Field({
 
   const [focused, setFocused] =
     useState(false);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
   const disabled =
     editable === false;
-
+  const isSecureField =
+    inputProps.secureTextEntry === true;
   const borderColor = error
     ? theme.error
     : focused
@@ -2372,6 +2462,9 @@ function Field({
           placeholderTextColor={
             theme.inputPlaceholder
           }
+          secureTextEntry={
+            isSecureField && !showPassword
+          }
           onFocus={(event) => {
             setFocused(true);
             onFocus?.(event);
@@ -2402,8 +2495,49 @@ function Field({
               inputProps.multiline
                 ? 'top'
                 : 'center',
+
+            shadowColor: 'transparent',
+            shadowOpacity: 0,
+            shadowRadius: 0,
+            elevation: 0,
+            backgroundColor: 'transparent',
           }}
+          selectionColor={theme.primary}
         />
+
+        {isSecureField && (
+          <TouchableOpacity
+            onPress={() =>
+              setShowPassword((prev) => !prev)
+            }
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={
+              showPassword
+                ? 'Hide password'
+                : 'Show password'
+            }
+            style={{
+              marginLeft: Spacing.two,
+            }}
+          >
+            <Ionicons
+              name={
+                showPassword
+                  ? 'eye-off-outline'
+                  : 'eye-outline'
+              }
+              size={18}
+              color={
+                error
+                  ? theme.error
+                  : focused
+                    ? theme.primary
+                    : theme.textSecondary
+              }
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {error ? (

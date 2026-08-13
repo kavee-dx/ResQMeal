@@ -6,4 +6,15 @@
   body {
     @apply bg-white;
   }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    box-shadow: none;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

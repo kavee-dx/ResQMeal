@@ -1,4 +1,14 @@
-import { Platform } from 'react-native';
+/**
+ * ============================================================
+ * ResQMeal Theme
+ * ============================================================
+ *
+ * Shared theme for Android, iOS and Web.
+ *
+ * IMPORTANT:
+ * No platform-specific fonts are used here.
+ * The same fontFamily value is used everywhere.
+ */
 
 export const Colors = {
   light: {
@@ -16,18 +26,12 @@ export const Colors = {
     // --------------------------------------------------------
     // Backgrounds
     // --------------------------------------------------------
-
-    // Overall app background
     background: '#E4EFE7',
-
-    // Registration/form background
     formBackground: '#DCE9DF',
 
-    // Main surfaces - intentionally NOT white
     surface: '#F1F7F2',
     surfaceSoft: '#E8F2EB',
 
-    // Small UI areas
     backgroundElement: '#D7E6DB',
     backgroundSelected: '#D0E4D5',
 
@@ -64,16 +68,14 @@ export const Colors = {
     borderFocus: '#2F7D4F',
 
     // --------------------------------------------------------
-    // Form elements
+    // Form
     // --------------------------------------------------------
-
-    // Input is also NOT white
     inputBackground: '#E7F1EA',
     inputPlaceholder: '#8B9991',
     inputText: '#243B2D',
 
     // --------------------------------------------------------
-    // Brand soft colors
+    // Soft colors
     // --------------------------------------------------------
     primarySoft: '#E4F1E9',
     secondarySoft: '#FDECD6',
@@ -136,14 +138,14 @@ export const Colors = {
     borderFocus: '#4FAF70',
 
     // --------------------------------------------------------
-    // Form elements
+    // Form
     // --------------------------------------------------------
     inputBackground: '#202D25',
     inputPlaceholder: '#7F8E84',
     inputText: '#F4F8F5',
 
     // --------------------------------------------------------
-    // Brand soft colors
+    // Soft colors
     // --------------------------------------------------------
     primarySoft: '#1E3327',
     secondarySoft: '#3A2E18',
@@ -157,43 +159,25 @@ export type ThemeColor =
 
 /**
  * ============================================================
- * Typography
+ * Fonts
  * ============================================================
  *
- * ResQMeal uses Nunito Sans throughout the application.
+ * Same font family for Web, Android and iOS.
  *
- * Make sure Nunito Sans is loaded in your root Expo layout.
+ * "System" avoids Web font fallback problems when a custom
+ * Nunito Sans font has not been loaded.
  */
 
-export const Fonts = Platform.select({
-  ios: {
-    sans: 'NunitoSans-Regular',
-    serif: 'Georgia',
-    rounded: 'NunitoSans-Regular',
-    mono: 'Menlo',
-  },
+export const Fonts = {
+  sans: 'System',
+  sansMedium: 'System',
+  sansSemiBold: 'System',
+  sansBold: 'System',
 
-  android: {
-    sans: 'NunitoSans-Regular',
-    serif: 'serif',
-    rounded: 'NunitoSans-Regular',
-    mono: 'monospace',
-  },
-
-  default: {
-    sans: 'NunitoSans-Regular',
-    serif: 'serif',
-    rounded: 'NunitoSans-Regular',
-    mono: 'monospace',
-  },
-
-  web: {
-    sans: 'Nunito Sans',
-    serif: 'Georgia',
-    rounded: 'Nunito Sans',
-    mono: 'monospace',
-  },
-});
+  serif: 'serif',
+  rounded: 'System',
+  mono: 'monospace',
+} as const;
 
 
 /**
@@ -232,55 +216,81 @@ export const Radius = {
 
 /**
  * ============================================================
- * Typography Scale
+ * Typography
  * ============================================================
  */
 
 export const Typography = {
+  // ----------------------------------------------------------
+  // Headings
+  // ----------------------------------------------------------
+
   h1: {
-    fontFamily: 'NunitoSans-Bold',
+    fontFamily: Fonts.sansBold,
     fontSize: 32,
     lineHeight: 40,
     fontWeight: '700' as const,
   },
 
   h2: {
-    fontFamily: 'NunitoSans-Bold',
+    fontFamily: Fonts.sansBold,
     fontSize: 26,
     lineHeight: 34,
     fontWeight: '700' as const,
   },
 
   h3: {
-    fontFamily: 'NunitoSans-SemiBold',
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 20,
     lineHeight: 28,
     fontWeight: '600' as const,
   },
 
+  // ----------------------------------------------------------
+  // Body
+  // ----------------------------------------------------------
+
   body: {
-    fontFamily: 'NunitoSans-Regular',
+    fontFamily: Fonts.sans,
     fontSize: 15,
     lineHeight: 23,
     fontWeight: '400' as const,
   },
 
   bodyMedium: {
-    fontFamily: 'NunitoSans-Medium',
+    fontFamily: Fonts.sansMedium,
     fontSize: 15,
     lineHeight: 23,
     fontWeight: '500' as const,
   },
 
   bodySmall: {
-    fontFamily: 'NunitoSans-Regular',
+    fontFamily: Fonts.sans,
     fontSize: 13,
     lineHeight: 20,
     fontWeight: '400' as const,
   },
 
+  // ----------------------------------------------------------
+  // Labels
+  // ----------------------------------------------------------
+
+  label: {
+    fontFamily: Fonts.sansSemiBold,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600' as const,
+  },
+
+  labelStrong: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700' as const,
+  },
+
   caption: {
-    fontFamily: 'NunitoSans-SemiBold',
+    fontFamily: Fonts.sansSemiBold,
     fontSize: 11,
     lineHeight: 16,
     fontWeight: '600' as const,
@@ -288,25 +298,40 @@ export const Typography = {
     letterSpacing: 0.5,
   },
 
-  label: {
-    fontFamily: 'NunitoSans-SemiBold',
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600' as const,
-  },
+  // ----------------------------------------------------------
+  // Buttons
+  // ----------------------------------------------------------
 
   button: {
-    fontFamily: 'NunitoSans-Bold',
+    fontFamily: Fonts.sansBold,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '700' as const,
   },
 
+  buttonSmall: {
+    fontFamily: Fonts.sansBold,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '700' as const,
+  },
+
+  // ----------------------------------------------------------
+  // Inputs
+  // ----------------------------------------------------------
+
   input: {
-    fontFamily: 'NunitoSans-Regular',
+    fontFamily: Fonts.sans,
     fontSize: 15,
     lineHeight: 20,
     fontWeight: '400' as const,
+  },
+
+  inputMedium: {
+    fontFamily: Fonts.sansMedium,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '500' as const,
   },
 };
 
@@ -366,28 +391,22 @@ export const Shadows = {
  * ============================================================
  */
 
-export const BottomTabInset =
-  Platform.select({
-    ios: 50,
-    android: 80,
-  }) ?? 0;
+export const BottomTabInset = 50;
 
 export const MaxContentWidth = 800;
 
 
 /**
  * ============================================================
- * Form Design
+ * Form Theme
  * ============================================================
  */
 
 export const FormTheme = {
-  screenBackground: Colors.light.formBackground,
+  screenBackground: Colors.light.background,
 
-  // Registration card is soft green, not white
   cardBackground: Colors.light.formBackground,
 
-  // Inputs are slightly different from the card
   inputBackground: Colors.light.inputBackground,
 
   inputBorder: Colors.light.border,

@@ -17,13 +17,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import {
+  Colors,
   Radius,
   Shadows,
   Spacing,
   Typography,
 } from '@/constants/theme';
-
-import { useTheme } from '@/hooks/use-theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -102,46 +101,18 @@ const DONOR_TYPES: {
   value: DonorType;
   icon: IconName;
 }[] = [
-  {
-    label: 'Individual',
-    value: 'INDIVIDUAL',
-    icon: 'person-outline',
-  },
-  {
-    label: 'Hotel',
-    value: 'HOTEL',
-    icon: 'bed-outline',
-  },
-  {
-    label: 'Restaurant',
-    value: 'RESTAURANT',
-    icon: 'restaurant-outline',
-  },
-  {
-    label: 'Bakery',
-    value: 'BAKERY',
-    icon: 'fast-food-outline',
-  },
-  {
-    label: 'Supermarket',
-    value: 'SUPERMARKET',
-    icon: 'cart-outline',
-  },
-  {
-    label: 'Catering',
-    value: 'CATERING',
-    icon: 'restaurant-outline',
-  },
+  { label: 'Individual', value: 'INDIVIDUAL', icon: 'person-outline' },
+  { label: 'Hotel', value: 'HOTEL', icon: 'bed-outline' },
+  { label: 'Restaurant', value: 'RESTAURANT', icon: 'restaurant-outline' },
+  { label: 'Bakery', value: 'BAKERY', icon: 'fast-food-outline' },
+  { label: 'Supermarket', value: 'SUPERMARKET', icon: 'cart-outline' },
+  { label: 'Catering', value: 'CATERING', icon: 'restaurant-outline' },
   {
     label: 'Event Organizer',
     value: 'EVENT_ORGANIZER',
     icon: 'calendar-outline',
   },
-  {
-    label: 'Other',
-    value: 'OTHER',
-    icon: 'ellipsis-horizontal-outline',
-  },
+  { label: 'Other', value: 'OTHER', icon: 'ellipsis-horizontal-outline' },
 ];
 
 const RECIPIENT_TYPES: {
@@ -149,41 +120,21 @@ const RECIPIENT_TYPES: {
   value: RecipientType;
   icon: IconName;
 }[] = [
-  {
-    label: 'Individual',
-    value: 'INDIVIDUAL',
-    icon: 'person-outline',
-  },
-  {
-    label: 'Family',
-    value: 'FAMILY',
-    icon: 'people-outline',
-  },
-  {
-    label: 'Charity',
-    value: 'CHARITY',
-    icon: 'heart-outline',
-  },
+  { label: 'Individual', value: 'INDIVIDUAL', icon: 'person-outline' },
+  { label: 'Family', value: 'FAMILY', icon: 'people-outline' },
+  { label: 'Charity', value: 'CHARITY', icon: 'heart-outline' },
   {
     label: 'Community Center',
     value: 'COMMUNITY_CENTER',
     icon: 'home-outline',
   },
-  {
-    label: 'School',
-    value: 'SCHOOL',
-    icon: 'school-outline',
-  },
+  { label: 'School', value: 'SCHOOL', icon: 'school-outline' },
   {
     label: 'Disaster Relief',
     value: 'DISASTER_RELIEF_ORGANIZATION',
     icon: 'alert-circle-outline',
   },
-  {
-    label: 'Other',
-    value: 'OTHER',
-    icon: 'ellipsis-horizontal-outline',
-  },
+  { label: 'Other', value: 'OTHER', icon: 'ellipsis-horizontal-outline' },
 ];
 
 const NGO_TYPES: {
@@ -196,11 +147,7 @@ const NGO_TYPES: {
     value: 'NON_PROFIT_ORGANIZATION',
     icon: 'business-outline',
   },
-  {
-    label: 'Charity',
-    value: 'CHARITY',
-    icon: 'heart-outline',
-  },
+  { label: 'Charity', value: 'CHARITY', icon: 'heart-outline' },
   {
     label: 'Community',
     value: 'COMMUNITY_ORGANIZATION',
@@ -216,11 +163,7 @@ const NGO_TYPES: {
     value: 'SOCIAL_SERVICE_ORGANIZATION',
     icon: 'hand-left-outline',
   },
-  {
-    label: 'Other',
-    value: 'OTHER',
-    icon: 'ellipsis-horizontal-outline',
-  },
+  { label: 'Other', value: 'OTHER', icon: 'ellipsis-horizontal-outline' },
 ];
 
 const VEHICLE_TYPES: {
@@ -228,41 +171,17 @@ const VEHICLE_TYPES: {
   value: VehicleType;
   icon: IconName;
 }[] = [
-  {
-    label: 'Walking',
-    value: 'WALKING',
-    icon: 'walk-outline',
-  },
-  {
-    label: 'Bicycle',
-    value: 'BICYCLE',
-    icon: 'bicycle-outline',
-  },
-  {
-    label: 'Motorbike',
-    value: 'MOTORBIKE',
-    icon: 'speedometer-outline',
-  },
+  { label: 'Walking', value: 'WALKING', icon: 'walk-outline' },
+  { label: 'Bicycle', value: 'BICYCLE', icon: 'bicycle-outline' },
+  { label: 'Motorbike', value: 'MOTORBIKE', icon: 'speedometer-outline' },
   {
     label: 'Three-Wheeler',
     value: 'THREE_WHEELER',
     icon: 'car-sport-outline',
   },
-  {
-    label: 'Car',
-    value: 'CAR',
-    icon: 'car-outline',
-  },
-  {
-    label: 'Van',
-    value: 'VAN',
-    icon: 'bus-outline',
-  },
-  {
-    label: 'Other',
-    value: 'OTHER',
-    icon: 'ellipsis-horizontal-outline',
-  },
+  { label: 'Car', value: 'CAR', icon: 'car-outline' },
+  { label: 'Van', value: 'VAN', icon: 'bus-outline' },
+  { label: 'Other', value: 'OTHER', icon: 'ellipsis-horizontal-outline' },
 ];
 
 const VEHICLE_TYPES_REQUIRING_NUMBER: VehicleType[] = [
@@ -277,38 +196,14 @@ const FOOD_OPTIONS: {
   label: string;
   icon: IconName;
 }[] = [
-  {
-    label: 'Rice',
-    icon: 'restaurant-outline',
-  },
-  {
-    label: 'Vegetables',
-    icon: 'leaf-outline',
-  },
-  {
-    label: 'Fruits',
-    icon: 'nutrition-outline',
-  },
-  {
-    label: 'Bread',
-    icon: 'fast-food-outline',
-  },
-  {
-    label: 'Milk',
-    icon: 'cafe-outline',
-  },
-  {
-    label: 'Dry Rations',
-    icon: 'cube-outline',
-  },
-  {
-    label: 'Meal Packets',
-    icon: 'bag-handle-outline',
-  },
-  {
-    label: 'Drinking Water',
-    icon: 'water-outline',
-  },
+  { label: 'Rice', icon: 'restaurant-outline' },
+  { label: 'Vegetables', icon: 'leaf-outline' },
+  { label: 'Fruits', icon: 'nutrition-outline' },
+  { label: 'Bread', icon: 'fast-food-outline' },
+  { label: 'Milk', icon: 'cafe-outline' },
+  { label: 'Dry Rations', icon: 'cube-outline' },
+  { label: 'Meal Packets', icon: 'bag-handle-outline' },
+  { label: 'Drinking Water', icon: 'water-outline' },
 ];
 
 type FormState = {
@@ -403,17 +298,32 @@ const INITIAL_STATE: FormState = {
 
 type Props = NativeStackScreenProps<any, 'Register'>;
 
+/**
+ * ============================================================
+ * REGISTER SCREEN
+ * ============================================================
+ *
+ * IMPORTANT:
+ * This screen intentionally uses Colors.light directly.
+ *
+ * There is NO useTheme() here.
+ *
+ * Therefore:
+ * Android = same colors
+ * iOS     = same colors
+ * Web     = same colors
+ *
+ * The screen will not automatically switch to dark colors.
+ */
 export default function RegisterScreen({ navigation }: Props) {
-  const theme = useTheme();
+  const theme = Colors.light;
 
-  const [form, setForm] =
-    useState<FormState>(INITIAL_STATE);
+  const [form, setForm] = useState<FormState>(INITIAL_STATE);
 
   const [errors, setErrors] =
     useState<Record<string, string>>({});
 
-  const [submitting, setSubmitting] =
-    useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const isBusinessDonor =
     form.role === 'DONOR' &&
@@ -425,9 +335,7 @@ export default function RegisterScreen({ navigation }: Props) {
     form.recipientType !== 'FAMILY';
 
   const needsVehicleNumber =
-    VEHICLE_TYPES_REQUIRING_NUMBER.includes(
-      form.vehicleType,
-    );
+    VEHICLE_TYPES_REQUIRING_NUMBER.includes(form.vehicleType);
 
   function update<K extends keyof FormState>(
     field: K,
@@ -448,8 +356,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
   function toggleFoodRequirement(item: string) {
     setForm((prev) => {
-      const has =
-        prev.foodRequirements.includes(item);
+      const has = prev.foodRequirements.includes(item);
 
       return {
         ...prev,
@@ -467,11 +374,9 @@ export default function RegisterScreen({ navigation }: Props) {
     }));
   }
 
-  const emailRegex =
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const phoneRegex =
-    /^[0-9+\-\s]{7,20}$/;
+  const phoneRegex = /^[0-9+\-\s]{7,20}$/;
 
   function validate(): boolean {
     const next: Record<string, string> = {};
@@ -487,8 +392,7 @@ export default function RegisterScreen({ navigation }: Props) {
     };
 
     if (!phoneRegex.test(form.phoneNumber)) {
-      next.phoneNumber =
-        'Enter a valid phone number.';
+      next.phoneNumber = 'Enter a valid phone number.';
     }
 
     if (form.password.length < 8) {
@@ -496,11 +400,8 @@ export default function RegisterScreen({ navigation }: Props) {
         'Password must be at least 8 characters.';
     }
 
-    if (
-      form.password !== form.confirmPassword
-    ) {
-      next.confirmPassword =
-        'Passwords do not match.';
+    if (form.password !== form.confirmPassword) {
+      next.confirmPassword = 'Passwords do not match.';
     }
 
     req(
@@ -530,8 +431,7 @@ export default function RegisterScreen({ navigation }: Props) {
         );
 
         if (!emailRegex.test(form.email)) {
-          next.email =
-            'Enter a valid email address.';
+          next.email = 'Enter a valid email address.';
         }
       } else {
         if (form.donorType === 'OTHER') {
@@ -566,11 +466,7 @@ export default function RegisterScreen({ navigation }: Props) {
           'Business registration number is required.',
         );
 
-        if (
-          !phoneRegex.test(
-            form.businessContactNumber,
-          )
-        ) {
+        if (!phoneRegex.test(form.businessContactNumber)) {
           next.businessContactNumber =
             'Enter a valid business contact number.';
         }
@@ -586,8 +482,7 @@ export default function RegisterScreen({ navigation }: Props) {
         );
 
         if (!emailRegex.test(form.email)) {
-          next.email =
-            'Enter a valid email address.';
+          next.email = 'Enter a valid email address.';
         }
       } else {
         if (form.recipientType === 'OTHER') {
@@ -626,26 +521,18 @@ export default function RegisterScreen({ navigation }: Props) {
           form.email &&
           !emailRegex.test(form.email)
         ) {
-          next.email =
-            'Enter a valid email address.';
+          next.email = 'Enter a valid email address.';
         }
       }
 
-      const people = Number(
-        form.peopleNeedingFood,
-      );
+      const people = Number(form.peopleNeedingFood);
 
-      if (
-        !Number.isInteger(people) ||
-        people < 1
-      ) {
+      if (!Number.isInteger(people) || people < 1) {
         next.peopleNeedingFood =
           'Enter the number of people needing food.';
       }
 
-      if (
-        form.foodRequirements.length === 0
-      ) {
+      if (form.foodRequirements.length === 0) {
         next.foodRequirements =
           'Select at least one food requirement.';
       }
@@ -664,9 +551,7 @@ export default function RegisterScreen({ navigation }: Props) {
         'NGO registration number is required.',
       );
 
-      if (
-        form.organizationType === 'OTHER'
-      ) {
+      if (form.organizationType === 'OTHER') {
         req(
           form.specifiedOrganizationType,
           'specifiedOrganizationType',
@@ -687,8 +572,7 @@ export default function RegisterScreen({ navigation }: Props) {
       );
 
       if (!emailRegex.test(form.email)) {
-        next.email =
-          'Enter a valid email address.';
+        next.email = 'Enter a valid email address.';
       }
     }
 
@@ -700,8 +584,7 @@ export default function RegisterScreen({ navigation }: Props) {
       );
 
       if (!emailRegex.test(form.email)) {
-        next.email =
-          'Enter a valid email address.';
+        next.email = 'Enter a valid email address.';
       }
 
       if (
@@ -734,65 +617,46 @@ export default function RegisterScreen({ navigation }: Props) {
         role: form.role,
         phoneNumber: form.phoneNumber,
         password: form.password,
-        confirmPassword:
-          form.confirmPassword,
+        confirmPassword: form.confirmPassword,
         address: form.address,
         district: form.district,
         city: form.city,
-        profilePicture:
-          form.profilePicture || undefined,
+        profilePicture: form.profilePicture || undefined,
       };
 
       if (form.role === 'DONOR') {
-        payload.donorType =
-          form.donorType;
+        payload.donorType = form.donorType;
 
-        if (
-          form.donorType === 'INDIVIDUAL'
-        ) {
-          payload.fullName =
-            form.fullName;
-
-          payload.email =
-            form.email;
+        if (form.donorType === 'INDIVIDUAL') {
+          payload.fullName = form.fullName;
+          payload.email = form.email;
         } else {
           payload.specifiedDonorType =
             form.donorType === 'OTHER'
               ? form.specifiedDonorType
               : undefined;
 
-          payload.businessName =
-            form.businessName;
-
+          payload.businessName = form.businessName;
           payload.authorizedPerson =
             form.authorizedPerson;
-
-          payload.position =
-            form.position;
-
+          payload.position = form.position;
           payload.businessRegistrationNumber =
             form.businessRegistrationNumber;
-
           payload.businessContactNumber =
             form.businessContactNumber;
-
           payload.businessEmail =
             form.businessEmail || undefined;
-
           payload.businessLogo =
             form.businessLogo || undefined;
-
           payload.website =
             form.website || undefined;
-
           payload.description =
             form.description || undefined;
         }
       }
 
       if (form.role === 'RECIPIENT') {
-        payload.recipientType =
-          form.recipientType;
+        payload.recipientType = form.recipientType;
 
         payload.peopleNeedingFood =
           Number(form.peopleNeedingFood);
@@ -801,15 +665,11 @@ export default function RegisterScreen({ navigation }: Props) {
           form.foodRequirements;
 
         payload.specialRequirements =
-          form.specialRequirements ||
-          undefined;
+          form.specialRequirements || undefined;
 
         if (!isOrganizationRecipient) {
-          payload.fullName =
-            form.fullName;
-
-          payload.email =
-            form.email;
+          payload.fullName = form.fullName;
+          payload.email = form.email;
         } else {
           payload.specifiedRecipientType =
             form.recipientType === 'OTHER'
@@ -825,22 +685,19 @@ export default function RegisterScreen({ navigation }: Props) {
           payload.authorizedPerson =
             form.authorizedPerson;
 
-          payload.position =
-            form.position;
+          payload.position = form.position;
 
           payload.email =
             form.email || undefined;
 
           payload.organizationLogo =
-            form.organizationLogo ||
-            undefined;
+            form.organizationLogo || undefined;
 
           payload.website =
             form.website || undefined;
 
           payload.description =
-            form.description ||
-            undefined;
+            form.description || undefined;
         }
       }
 
@@ -862,33 +719,24 @@ export default function RegisterScreen({ navigation }: Props) {
         payload.authorizedPerson =
           form.authorizedPerson;
 
-        payload.position =
-          form.position;
+        payload.position = form.position;
 
-        payload.email =
-          form.email;
+        payload.email = form.email;
 
         payload.organizationLogo =
-          form.organizationLogo ||
-          undefined;
+          form.organizationLogo || undefined;
 
         payload.website =
           form.website || undefined;
 
         payload.description =
-          form.description ||
-          undefined;
+          form.description || undefined;
       }
 
       if (form.role === 'VOLUNTEER') {
-        payload.fullName =
-          form.fullName;
-
-        payload.email =
-          form.email;
-
-        payload.vehicleType =
-          form.vehicleType;
+        payload.fullName = form.fullName;
+        payload.email = form.email;
+        payload.vehicleType = form.vehicleType;
 
         payload.vehicleNumber =
           needsVehicleNumber
@@ -899,31 +747,8 @@ export default function RegisterScreen({ navigation }: Props) {
           form.preferredDeliveryArea;
 
         payload.preferredDeliveryTime =
-          form.preferredDeliveryTime ||
-          undefined;
+          form.preferredDeliveryTime || undefined;
       }
-
-      /*
-       * Connect your API here:
-       *
-       * const res = await registerUser(payload);
-       *
-       * if (res.success) {
-       *   const email =
-       *     (payload.email as string) ||
-       *     form.email;
-       *
-       *   navigation.navigate(
-       *     'VerifyAccount',
-       *     { email },
-       *   );
-       * } else {
-       *   Alert.alert(
-       *     'Registration failed',
-       *     res.message ?? 'Please try again.',
-       *   );
-       * }
-       */
 
       console.log(
         'Registration payload:',
@@ -937,8 +762,7 @@ export default function RegisterScreen({ navigation }: Props) {
     } catch (err: any) {
       Alert.alert(
         'Registration failed',
-        err?.message ??
-          'Something went wrong.',
+        err?.message ?? 'Something went wrong.',
       );
     } finally {
       setSubmitting(false);
@@ -949,7 +773,7 @@ export default function RegisterScreen({ navigation }: Props) {
     <KeyboardAvoidingView
       style={{
         flex: 1,
-        backgroundColor: theme.background,
+        backgroundColor: Colors.light.background,
       }}
       behavior={
         Platform.OS === 'ios'
@@ -988,7 +812,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 height: 68,
                 borderRadius: 22,
                 backgroundColor:
-                  theme.primaryLight,
+                  Colors.light.primaryLight,
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: Spacing.three,
@@ -997,14 +821,14 @@ export default function RegisterScreen({ navigation }: Props) {
               <Ionicons
                 name="restaurant"
                 size={32}
-                color={theme.primary}
+                color={Colors.light.primary}
               />
             </View>
 
             <Text
               style={{
                 ...Typography.h1,
-                color: theme.text,
+                color: Colors.light.text,
                 textAlign: 'center',
               }}
             >
@@ -1014,7 +838,7 @@ export default function RegisterScreen({ navigation }: Props) {
             <Text
               style={{
                 ...Typography.body,
-                color: theme.textSecondary,
+                color: Colors.light.textSecondary,
                 textAlign: 'center',
                 marginTop: Spacing.one,
                 maxWidth: 420,
@@ -1038,7 +862,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   height: 3,
                   borderRadius: 3,
                   backgroundColor:
-                    theme.primary,
+                    Colors.light.primary,
                 }}
               />
 
@@ -1048,7 +872,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   height: 8,
                   borderRadius: 8,
                   backgroundColor:
-                    theme.secondary,
+                    Colors.light.secondary,
                   marginHorizontal: 8,
                 }}
               />
@@ -1059,7 +883,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   height: 3,
                   borderRadius: 3,
                   backgroundColor:
-                    theme.primary,
+                    Colors.light.primary,
                 }}
               />
             </View>
@@ -1070,17 +894,14 @@ export default function RegisterScreen({ navigation }: Props) {
           <View
             style={{
               backgroundColor:
-                theme.formBackground,
+                Colors.light.formBackground,
               borderRadius: Radius.xl,
               borderWidth: 1,
-              borderColor:
-                theme.border,
+              borderColor: Colors.light.border,
               padding: Spacing.four,
               ...Shadows.card,
             }}
           >
-            {/* ROLE */}
-
             <SectionHeader
               icon="people-outline"
               title="Account Type"
@@ -1091,14 +912,9 @@ export default function RegisterScreen({ navigation }: Props) {
               options={ROLES}
               selected={form.role}
               onSelect={(value) =>
-                update(
-                  'role',
-                  value as Role,
-                )
+                update('role', value as Role)
               }
             />
-
-            {/* DONOR */}
 
             {form.role === 'DONOR' && (
               <DonorFields
@@ -1108,8 +924,6 @@ export default function RegisterScreen({ navigation }: Props) {
                 isBusiness={isBusinessDonor}
               />
             )}
-
-            {/* RECIPIENT */}
 
             {form.role === 'RECIPIENT' && (
               <RecipientFields
@@ -1125,8 +939,6 @@ export default function RegisterScreen({ navigation }: Props) {
               />
             )}
 
-            {/* NGO */}
-
             {form.role === 'NGO' && (
               <NgoFields
                 form={form}
@@ -1134,8 +946,6 @@ export default function RegisterScreen({ navigation }: Props) {
                 errors={errors}
               />
             )}
-
-            {/* VOLUNTEER */}
 
             {form.role === 'VOLUNTEER' && (
               <VolunteerFields
@@ -1147,8 +957,6 @@ export default function RegisterScreen({ navigation }: Props) {
                 }
               />
             )}
-
-            {/* CONTACT */}
 
             <SectionHeader
               icon="shield-checkmark-outline"
@@ -1162,10 +970,7 @@ export default function RegisterScreen({ navigation }: Props) {
               placeholder="+94 77 123 4567"
               value={form.phoneNumber}
               onChangeText={(value) =>
-                update(
-                  'phoneNumber',
-                  value,
-                )
+                update('phoneNumber', value)
               }
               error={errors.phoneNumber}
               keyboardType="phone-pad"
@@ -1177,10 +982,7 @@ export default function RegisterScreen({ navigation }: Props) {
               placeholder="Create a strong password"
               value={form.password}
               onChangeText={(value) =>
-                update(
-                  'password',
-                  value,
-                )
+                update('password', value)
               }
               error={errors.password}
               secureTextEntry
@@ -1192,18 +994,11 @@ export default function RegisterScreen({ navigation }: Props) {
               placeholder="Re-enter your password"
               value={form.confirmPassword}
               onChangeText={(value) =>
-                update(
-                  'confirmPassword',
-                  value,
-                )
+                update('confirmPassword', value)
               }
-              error={
-                errors.confirmPassword
-              }
+              error={errors.confirmPassword}
               secureTextEntry
             />
-
-            {/* LOCATION */}
 
             <SectionHeader
               icon="location-outline"
@@ -1217,10 +1012,7 @@ export default function RegisterScreen({ navigation }: Props) {
               placeholder="Enter your address"
               value={form.address}
               onChangeText={(value) =>
-                update(
-                  'address',
-                  value,
-                )
+                update('address', value)
               }
               error={errors.address}
             />
@@ -1231,48 +1023,34 @@ export default function RegisterScreen({ navigation }: Props) {
                 gap: Spacing.two,
               }}
             >
-              <View
-                style={{
-                  flex: 1,
-                }}
-              >
+              <View style={{ flex: 1 }}>
                 <Field
                   icon="map-outline"
                   label="District"
                   placeholder="District"
                   value={form.district}
                   onChangeText={(value) =>
-                    update(
-                      'district',
-                      value,
-                    )
+                    update('district', value)
                   }
                   error={errors.district}
                 />
               </View>
 
-              <View
-                style={{
-                  flex: 1,
-                }}
-              >
+              <View style={{ flex: 1 }}>
                 <Field
                   icon="business-outline"
                   label="City"
                   placeholder="City"
                   value={form.city}
                   onChangeText={(value) =>
-                    update(
-                      'city',
-                      value,
-                    )
+                    update('city', value)
                   }
                   error={errors.city}
                 />
               </View>
             </View>
 
-            {/* REGISTER BUTTON */}
+            {/* REGISTER */}
 
             <TouchableOpacity
               onPress={handleSubmit}
@@ -1284,21 +1062,17 @@ export default function RegisterScreen({ navigation }: Props) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor:
-                  theme.primary,
-                borderRadius:
-                  Radius.md,
-                marginTop:
-                  Spacing.two,
-                opacity: submitting
-                  ? 0.7
-                  : 1,
+                  Colors.light.primary,
+                borderRadius: Radius.md,
+                marginTop: Spacing.two,
+                opacity: submitting ? 0.7 : 1,
                 ...Shadows.button,
               }}
             >
               {submitting ? (
                 <ActivityIndicator
                   color={
-                    theme.textOnPrimary
+                    Colors.light.textOnPrimary
                   }
                 />
               ) : (
@@ -1307,7 +1081,7 @@ export default function RegisterScreen({ navigation }: Props) {
                     name="checkmark-circle-outline"
                     size={21}
                     color={
-                      theme.textOnPrimary
+                      Colors.light.textOnPrimary
                     }
                     style={{
                       marginRight: 8,
@@ -1318,7 +1092,7 @@ export default function RegisterScreen({ navigation }: Props) {
                     style={{
                       ...Typography.button,
                       color:
-                        theme.textOnPrimary,
+                        Colors.light.textOnPrimary,
                     }}
                   >
                     Create Account
@@ -1341,7 +1115,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 style={{
                   ...Typography.bodySmall,
                   color:
-                    theme.textSecondary,
+                    Colors.light.textSecondary,
                 }}
               >
                 Already have an account?
@@ -1349,9 +1123,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
               <TouchableOpacity
                 onPress={() =>
-                  navigation.navigate(
-                    'Login',
-                  )
+                  navigation.navigate('Login')
                 }
                 activeOpacity={0.7}
               >
@@ -1359,7 +1131,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   style={{
                     ...Typography.label,
                     color:
-                      theme.primary,
+                      Colors.light.primary,
                     marginLeft: 5,
                   }}
                 >
@@ -1382,16 +1154,14 @@ export default function RegisterScreen({ navigation }: Props) {
             <Ionicons
               name="leaf-outline"
               size={15}
-              color={
-                theme.primary
-              }
+              color={Colors.light.primary}
             />
 
             <Text
               style={{
                 ...Typography.bodySmall,
                 color:
-                  theme.textSecondary,
+                  Colors.light.textSecondary,
                 marginLeft: 5,
               }}
             >
@@ -1422,7 +1192,7 @@ function RoleGrid({
   selected: string;
   onSelect: (value: string) => void;
 }) {
-  const theme = useTheme();
+  const theme = Colors.light;
 
   return (
     <View
@@ -1441,38 +1211,32 @@ function RoleGrid({
           <TouchableOpacity
             key={option.value}
             onPress={() =>
-              onSelect(
-                option.value,
-              )
+              onSelect(option.value)
             }
             activeOpacity={0.82}
             style={{
               width: '48%',
               minHeight: 104,
-              padding:
-                Spacing.three,
-              borderRadius:
-                Radius.md,
-              borderWidth:
-                active ? 1.5 : 1,
-              borderColor:
-                active
-                  ? theme.primary
-                  : theme.border,
-              backgroundColor:
-                active
-                  ? theme.primaryLight
-                  : theme.backgroundElement,
+              padding: Spacing.three,
+              borderRadius: Radius.md,
+              borderWidth: active ? 1.5 : 1,
+              borderColor: active
+                ? theme.primary
+                : theme.border,
+
+              // IMPORTANT:
+              // Same selected/unselected colors
+              // on mobile and Web.
+              backgroundColor: active
+                ? theme.primaryLight
+                : theme.backgroundElement,
             }}
           >
             <View
               style={{
-                flexDirection:
-                  'row',
-                justifyContent:
-                  'space-between',
-                alignItems:
-                  'flex-start',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
               }}
             >
               <View
@@ -1480,26 +1244,19 @@ function RoleGrid({
                   width: 38,
                   height: 38,
                   borderRadius: 12,
-                  alignItems:
-                    'center',
-                  justifyContent:
-                    'center',
-                  backgroundColor:
-                    active
-                      ? theme.primary
-                      : theme.surface,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: active
+                    ? theme.primary
+                    : theme.surface,
                 }}
               >
                 <Ionicons
-                  name={
-                    option.icon
-                  }
+                  name={option.icon}
                   size={19}
-                  color={
-                    active
-                      ? theme.textOnPrimary
-                      : theme.primary
-                  }
+                  color={active
+                    ? theme.textOnPrimary
+                    : theme.primary}
                 />
               </View>
 
@@ -1511,10 +1268,8 @@ function RoleGrid({
                     borderRadius: 20,
                     backgroundColor:
                       theme.primary,
-                    alignItems:
-                      'center',
-                    justifyContent:
-                      'center',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
                   <Ionicons
@@ -1531,10 +1286,8 @@ function RoleGrid({
             <Text
               style={{
                 ...Typography.label,
-                color:
-                  theme.text,
-                marginTop:
-                  Spacing.two,
+                color: theme.text,
+                marginTop: Spacing.two,
               }}
             >
               {option.label}
@@ -1543,8 +1296,7 @@ function RoleGrid({
             <Text
               style={{
                 ...Typography.bodySmall,
-                color:
-                  theme.textSecondary,
+                color: theme.textSecondary,
                 fontSize: 11,
                 marginTop: 2,
               }}
@@ -1581,10 +1333,7 @@ function DonorFields({
         options={DONOR_TYPES}
         selected={form.donorType}
         onSelect={(value) =>
-          update(
-            'donorType',
-            value,
-          )
+          update('donorType', value)
         }
       />
 
@@ -1596,14 +1345,9 @@ function DonorFields({
             placeholder="Enter your full name"
             value={form.fullName}
             onChangeText={(value: string) =>
-              update(
-                'fullName',
-                value,
-              )
+              update('fullName', value)
             }
-            error={
-              errors.fullName
-            }
+            error={errors.fullName}
           />
 
           <Field
@@ -1612,10 +1356,7 @@ function DonorFields({
             placeholder="you@example.com"
             value={form.email}
             onChangeText={(value: string) =>
-              update(
-                'email',
-                value,
-              )
+              update('email', value)
             }
             error={errors.email}
             keyboardType="email-address"
@@ -1626,32 +1367,22 @@ function DonorFields({
             icon="image-outline"
             label="Profile Picture URL"
             placeholder="Optional"
-            value={
-              form.profilePicture
-            }
+            value={form.profilePicture}
             onChangeText={(value: string) =>
-              update(
-                'profilePicture',
-                value,
-              )
+              update('profilePicture', value)
             }
             optional
           />
         </>
       ) : (
         <>
-          {form.donorType ===
-            'OTHER' && (
+          {form.donorType === 'OTHER' && (
             <Field
               icon="create-outline"
               label="Specify Donor Type"
               placeholder="Enter donor type"
-              value={
-                form.specifiedDonorType
-              }
-              onChangeText={(
-                value: string,
-              ) =>
+              value={form.specifiedDonorType}
+              onChangeText={(value: string) =>
                 update(
                   'specifiedDonorType',
                   value,
@@ -1667,24 +1398,16 @@ function DonorFields({
             icon="storefront-outline"
             label="Business Name"
             placeholder="Enter business name"
-            value={
-              form.businessName
-            }
+            value={form.businessName}
             onChangeText={(value: string) =>
-              update(
-                'businessName',
-                value,
-              )
+              update('businessName', value)
             }
-            error={
-              errors.businessName
-            }
+            error={errors.businessName}
           />
 
           <InlineHint
             text={`Business Type: ${
-              form.donorType ===
-              'OTHER'
+              form.donorType === 'OTHER'
                 ? form.specifiedDonorType ||
                   'Not specified'
                 : form.donorType
@@ -1695,36 +1418,25 @@ function DonorFields({
             icon="person-outline"
             label="Authorized Person"
             placeholder="Full name"
-            value={
-              form.authorizedPerson
-            }
+            value={form.authorizedPerson}
             onChangeText={(value: string) =>
               update(
                 'authorizedPerson',
                 value,
               )
             }
-            error={
-              errors.authorizedPerson
-            }
+            error={errors.authorizedPerson}
           />
 
           <Field
             icon="briefcase-outline"
             label="Position"
             placeholder="e.g. Manager"
-            value={
-              form.position
-            }
+            value={form.position}
             onChangeText={(value: string) =>
-              update(
-                'position',
-                value,
-              )
+              update('position', value)
             }
-            error={
-              errors.position
-            }
+            error={errors.position}
           />
 
           <Field
@@ -1734,9 +1446,7 @@ function DonorFields({
             value={
               form.businessRegistrationNumber
             }
-            onChangeText={(
-              value: string,
-            ) =>
+            onChangeText={(value: string) =>
               update(
                 'businessRegistrationNumber',
                 value,
@@ -1751,12 +1461,8 @@ function DonorFields({
             icon="call-outline"
             label="Business Contact Number"
             placeholder="+94 77 123 4567"
-            value={
-              form.businessContactNumber
-            }
-            onChangeText={(
-              value: string,
-            ) =>
+            value={form.businessContactNumber}
+            onChangeText={(value: string) =>
               update(
                 'businessContactNumber',
                 value,
@@ -1772,14 +1478,9 @@ function DonorFields({
             icon="mail-outline"
             label="Business Email"
             placeholder="Optional"
-            value={
-              form.businessEmail
-            }
+            value={form.businessEmail}
             onChangeText={(value: string) =>
-              update(
-                'businessEmail',
-                value,
-              )
+              update('businessEmail', value)
             }
             keyboardType="email-address"
             autoCapitalize="none"
@@ -1790,14 +1491,9 @@ function DonorFields({
             icon="image-outline"
             label="Business Logo URL"
             placeholder="Optional"
-            value={
-              form.businessLogo
-            }
+            value={form.businessLogo}
             onChangeText={(value: string) =>
-              update(
-                'businessLogo',
-                value,
-              )
+              update('businessLogo', value)
             }
             optional
           />
@@ -1808,10 +1504,7 @@ function DonorFields({
             placeholder="https://example.com"
             value={form.website}
             onChangeText={(value: string) =>
-              update(
-                'website',
-                value,
-              )
+              update('website', value)
             }
             optional
           />
@@ -1820,14 +1513,9 @@ function DonorFields({
             icon="document-outline"
             label="Description"
             placeholder="Tell us about your business..."
-            value={
-              form.description
-            }
+            value={form.description}
             onChangeText={(value: string) =>
-              update(
-                'description',
-                value,
-              )
+              update('description', value)
             }
             multiline
             optional
@@ -1862,10 +1550,7 @@ function RecipientFields({
         options={RECIPIENT_TYPES}
         selected={form.recipientType}
         onSelect={(value) =>
-          update(
-            'recipientType',
-            value,
-          )
+          update('recipientType', value)
         }
       />
 
@@ -1877,14 +1562,9 @@ function RecipientFields({
             placeholder="Enter your full name"
             value={form.fullName}
             onChangeText={(value: string) =>
-              update(
-                'fullName',
-                value,
-              )
+              update('fullName', value)
             }
-            error={
-              errors.fullName
-            }
+            error={errors.fullName}
           />
 
           <Field
@@ -1893,10 +1573,7 @@ function RecipientFields({
             placeholder="you@example.com"
             value={form.email}
             onChangeText={(value: string) =>
-              update(
-                'email',
-                value,
-              )
+              update('email', value)
             }
             error={errors.email}
             keyboardType="email-address"
@@ -1907,32 +1584,22 @@ function RecipientFields({
             icon="image-outline"
             label="Profile Picture URL"
             placeholder="Optional"
-            value={
-              form.profilePicture
-            }
+            value={form.profilePicture}
             onChangeText={(value: string) =>
-              update(
-                'profilePicture',
-                value,
-              )
+              update('profilePicture', value)
             }
             optional
           />
         </>
       ) : (
         <>
-          {form.recipientType ===
-            'OTHER' && (
+          {form.recipientType === 'OTHER' && (
             <Field
               icon="create-outline"
               label="Specify Recipient Type"
               placeholder="Enter recipient type"
-              value={
-                form.specifiedRecipientType
-              }
-              onChangeText={(
-                value: string,
-              ) =>
+              value={form.specifiedRecipientType}
+              onChangeText={(value: string) =>
                 update(
                   'specifiedRecipientType',
                   value,
@@ -1948,18 +1615,11 @@ function RecipientFields({
             icon="business-outline"
             label="Organization Name"
             placeholder="Enter organization name"
-            value={
-              form.organizationName
-            }
+            value={form.organizationName}
             onChangeText={(value: string) =>
-              update(
-                'organizationName',
-                value,
-              )
+              update('organizationName', value)
             }
-            error={
-              errors.organizationName
-            }
+            error={errors.organizationName}
           />
 
           <Field
@@ -1969,9 +1629,7 @@ function RecipientFields({
             value={
               form.organizationRegistrationNumber
             }
-            onChangeText={(
-              value: string,
-            ) =>
+            onChangeText={(value: string) =>
               update(
                 'organizationRegistrationNumber',
                 value,
@@ -1986,36 +1644,25 @@ function RecipientFields({
             icon="person-outline"
             label="Authorized Person"
             placeholder="Full name"
-            value={
-              form.authorizedPerson
-            }
+            value={form.authorizedPerson}
             onChangeText={(value: string) =>
               update(
                 'authorizedPerson',
                 value,
               )
             }
-            error={
-              errors.authorizedPerson
-            }
+            error={errors.authorizedPerson}
           />
 
           <Field
             icon="briefcase-outline"
             label="Position"
             placeholder="e.g. Coordinator"
-            value={
-              form.position
-            }
+            value={form.position}
             onChangeText={(value: string) =>
-              update(
-                'position',
-                value,
-              )
+              update('position', value)
             }
-            error={
-              errors.position
-            }
+            error={errors.position}
           />
 
           <Field
@@ -2024,10 +1671,7 @@ function RecipientFields({
             placeholder="Optional"
             value={form.email}
             onChangeText={(value: string) =>
-              update(
-                'email',
-                value,
-              )
+              update('email', value)
             }
             error={errors.email}
             keyboardType="email-address"
@@ -2039,9 +1683,7 @@ function RecipientFields({
             icon="image-outline"
             label="Organization Logo URL"
             placeholder="Optional"
-            value={
-              form.organizationLogo
-            }
+            value={form.organizationLogo}
             onChangeText={(value: string) =>
               update(
                 'organizationLogo',
@@ -2057,10 +1699,7 @@ function RecipientFields({
             placeholder="https://example.com"
             value={form.website}
             onChangeText={(value: string) =>
-              update(
-                'website',
-                value,
-              )
+              update('website', value)
             }
             optional
           />
@@ -2069,14 +1708,9 @@ function RecipientFields({
             icon="document-outline"
             label="Description"
             placeholder="Tell us about your organization..."
-            value={
-              form.description
-            }
+            value={form.description}
             onChangeText={(value: string) =>
-              update(
-                'description',
-                value,
-              )
+              update('description', value)
             }
             multiline
             optional
@@ -2088,57 +1722,38 @@ function RecipientFields({
         icon="people-outline"
         label="Number of People Needing Food"
         placeholder="e.g. 5"
-        value={
-          form.peopleNeedingFood
-        }
+        value={form.peopleNeedingFood}
         onChangeText={(value: string) =>
           update(
             'peopleNeedingFood',
-            value.replace(
-              /[^0-9]/g,
-              '',
-            ),
+            value.replace(/[^0-9]/g, ''),
           )
         }
-        error={
-          errors.peopleNeedingFood
-        }
+        error={errors.peopleNeedingFood}
         keyboardType="number-pad"
       />
 
       <SelectionRow
         title="Food Requirements"
-        options={FOOD_OPTIONS.map(
-          (food) => ({
-            label: food.label,
-            value: food.label,
-            icon: food.icon,
-          }),
-        )}
-        selected={
-          form.foodRequirements
-        }
-        onSelect={
-          toggleFoodRequirement
-        }
+        options={FOOD_OPTIONS.map((food) => ({
+          label: food.label,
+          value: food.label,
+          icon: food.icon,
+        }))}
+        selected={form.foodRequirements}
+        onSelect={toggleFoodRequirement}
         multi
       />
 
       {errors.foodRequirements ? (
-        <ErrorText
-          text={
-            errors.foodRequirements
-          }
-        />
+        <ErrorText text={errors.foodRequirements} />
       ) : null}
 
       <Field
         icon="alert-circle-outline"
         label="Special Requirements"
         placeholder="Allergies, dietary needs, or other information..."
-        value={
-          form.specialRequirements
-        }
+        value={form.specialRequirements}
         onChangeText={(value: string) =>
           update(
             'specialRequirements',
@@ -2173,27 +1788,18 @@ function NgoFields({
         icon="business-outline"
         label="Organization Name"
         placeholder="Enter organization name"
-        value={
-          form.organizationName
-        }
+        value={form.organizationName}
         onChangeText={(value: string) =>
-          update(
-            'organizationName',
-            value,
-          )
+          update('organizationName', value)
         }
-        error={
-          errors.organizationName
-        }
+        error={errors.organizationName}
       />
 
       <Field
         icon="document-text-outline"
         label="NGO Registration Number"
         placeholder="Registration number"
-        value={
-          form.ngoRegistrationNumber
-        }
+        value={form.ngoRegistrationNumber}
         onChangeText={(value: string) =>
           update(
             'ngoRegistrationNumber',
@@ -2208,9 +1814,7 @@ function NgoFields({
       <SelectionRow
         title="Organization Type"
         options={NGO_TYPES}
-        selected={
-          form.organizationType
-        }
+        selected={form.organizationType}
         onSelect={(value) =>
           update(
             'organizationType',
@@ -2219,15 +1823,12 @@ function NgoFields({
         }
       />
 
-      {form.organizationType ===
-        'OTHER' && (
+      {form.organizationType === 'OTHER' && (
         <Field
           icon="create-outline"
           label="Specify Organization Type"
           placeholder="Enter organization type"
-          value={
-            form.specifiedOrganizationType
-          }
+          value={form.specifiedOrganizationType}
           onChangeText={(value: string) =>
             update(
               'specifiedOrganizationType',
@@ -2244,18 +1845,14 @@ function NgoFields({
         icon="person-outline"
         label="Authorized Person"
         placeholder="Full name"
-        value={
-          form.authorizedPerson
-        }
+        value={form.authorizedPerson}
         onChangeText={(value: string) =>
           update(
             'authorizedPerson',
             value,
           )
         }
-        error={
-          errors.authorizedPerson
-        }
+        error={errors.authorizedPerson}
       />
 
       <Field
@@ -2264,10 +1861,7 @@ function NgoFields({
         placeholder="e.g. Director"
         value={form.position}
         onChangeText={(value: string) =>
-          update(
-            'position',
-            value,
-          )
+          update('position', value)
         }
         error={errors.position}
       />
@@ -2278,10 +1872,7 @@ function NgoFields({
         placeholder="organization@example.com"
         value={form.email}
         onChangeText={(value: string) =>
-          update(
-            'email',
-            value,
-          )
+          update('email', value)
         }
         error={errors.email}
         keyboardType="email-address"
@@ -2292,9 +1883,7 @@ function NgoFields({
         icon="image-outline"
         label="Organization Logo URL"
         placeholder="Optional"
-        value={
-          form.organizationLogo
-        }
+        value={form.organizationLogo}
         onChangeText={(value: string) =>
           update(
             'organizationLogo',
@@ -2310,10 +1899,7 @@ function NgoFields({
         placeholder="https://example.com"
         value={form.website}
         onChangeText={(value: string) =>
-          update(
-            'website',
-            value,
-          )
+          update('website', value)
         }
         optional
       />
@@ -2324,10 +1910,7 @@ function NgoFields({
         placeholder="Tell us about your organization..."
         value={form.description}
         onChangeText={(value: string) =>
-          update(
-            'description',
-            value,
-          )
+          update('description', value)
         }
         multiline
         optional
@@ -2360,10 +1943,7 @@ function VolunteerFields({
         placeholder="Enter your full name"
         value={form.fullName}
         onChangeText={(value: string) =>
-          update(
-            'fullName',
-            value,
-          )
+          update('fullName', value)
         }
         error={errors.fullName}
       />
@@ -2374,10 +1954,7 @@ function VolunteerFields({
         placeholder="you@example.com"
         value={form.email}
         onChangeText={(value: string) =>
-          update(
-            'email',
-            value,
-          )
+          update('email', value)
         }
         error={errors.email}
         keyboardType="email-address"
@@ -2388,9 +1965,7 @@ function VolunteerFields({
         icon="image-outline"
         label="Profile Picture URL"
         placeholder="Optional"
-        value={
-          form.profilePicture
-        }
+        value={form.profilePicture}
         onChangeText={(value: string) =>
           update(
             'profilePicture',
@@ -2403,9 +1978,7 @@ function VolunteerFields({
       <SelectionRow
         title="Vehicle Type"
         options={VEHICLE_TYPES}
-        selected={
-          form.vehicleType
-        }
+        selected={form.vehicleType}
         onSelect={(value) =>
           update(
             'vehicleType',
@@ -2419,18 +1992,14 @@ function VolunteerFields({
           icon="card-outline"
           label="Vehicle Number"
           placeholder="e.g. WP ABC-1234"
-          value={
-            form.vehicleNumber
-          }
+          value={form.vehicleNumber}
           onChangeText={(value: string) =>
             update(
               'vehicleNumber',
               value,
             )
           }
-          error={
-            errors.vehicleNumber
-          }
+          error={errors.vehicleNumber}
         />
       )}
 
@@ -2438,9 +2007,7 @@ function VolunteerFields({
         icon="navigate-outline"
         label="Preferred Delivery Area"
         placeholder="e.g. Colombo, Negombo"
-        value={
-          form.preferredDeliveryArea
-        }
+        value={form.preferredDeliveryArea}
         onChangeText={(value: string) =>
           update(
             'preferredDeliveryArea',
@@ -2456,9 +2023,7 @@ function VolunteerFields({
         icon="time-outline"
         label="Preferred Delivery Time"
         placeholder="e.g. 9:00 AM - 12:00 PM"
-        value={
-          form.preferredDeliveryTime
-        }
+        value={form.preferredDeliveryTime}
         onChangeText={(value: string) =>
           update(
             'preferredDeliveryTime',
@@ -2484,22 +2049,19 @@ function SectionHeader({
   title: string;
   subtitle: string;
 }) {
-  const theme = useTheme();
+  const theme = Colors.light;
 
   return (
     <View
       style={{
         marginTop: Spacing.four,
-        marginBottom:
-          Spacing.three,
+        marginBottom: Spacing.three,
       }}
     >
       <View
         style={{
-          flexDirection:
-            'row',
-          alignItems:
-            'center',
+          flexDirection: 'row',
+          alignItems: 'center',
         }}
       >
         <View
@@ -2509,33 +2071,23 @@ function SectionHeader({
             borderRadius: 10,
             backgroundColor:
               theme.primaryLight,
-            alignItems:
-              'center',
-            justifyContent:
-              'center',
-            marginRight:
-              Spacing.two,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: Spacing.two,
           }}
         >
           <Ionicons
             name={icon}
             size={17}
-            color={
-              theme.primary
-            }
+            color={theme.primary}
           />
         </View>
 
-        <View
-          style={{
-            flex: 1,
-          }}
-        >
+        <View style={{ flex: 1 }}>
           <Text
             style={{
               ...Typography.h3,
-              color:
-                theme.text,
+              color: theme.text,
             }}
           >
             {title}
@@ -2544,8 +2096,7 @@ function SectionHeader({
           <Text
             style={{
               ...Typography.bodySmall,
-              color:
-                theme.textSecondary,
+              color: theme.textSecondary,
               marginTop: 1,
             }}
           >
@@ -2557,10 +2108,8 @@ function SectionHeader({
       <View
         style={{
           height: 1,
-          backgroundColor:
-            theme.border,
-          marginTop:
-            Spacing.three,
+          backgroundColor: theme.border,
+          marginTop: Spacing.three,
         }}
       />
     </View>
@@ -2588,32 +2137,25 @@ function SelectionRow({
   onSelect: (value: string) => void;
   multi?: boolean;
 }) {
-  const theme = useTheme();
+  const theme = Colors.light;
 
-  const isSelected = (
-    value: string,
-  ) => {
+  const isSelected = (value: string) => {
     return multi
-      ? (selected as string[]).includes(
-          value,
-        )
+      ? (selected as string[]).includes(value)
       : selected === value;
   };
 
   return (
     <View
       style={{
-        marginBottom:
-          Spacing.three,
+        marginBottom: Spacing.three,
       }}
     >
       <Text
         style={{
           ...Typography.label,
-          color:
-            theme.text,
-          marginBottom:
-            Spacing.two,
+          color: theme.text,
+          marginBottom: Spacing.two,
         }}
       >
         {title}
@@ -2621,104 +2163,77 @@ function SelectionRow({
 
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={
-          false
-        }
+        showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
-          paddingRight:
-            Spacing.two,
+          paddingRight: Spacing.two,
         }}
       >
-        {options.map(
-          (option) => {
-            const active =
-              isSelected(
-                option.value,
-              );
+        {options.map((option) => {
+          const active =
+            isSelected(option.value);
 
-            return (
-              <TouchableOpacity
-                key={
-                  option.value
-                }
-                onPress={() =>
-                  onSelect(
-                    option.value,
-                  )
-                }
-                activeOpacity={
-                  0.8
-                }
+          return (
+            <TouchableOpacity
+              key={option.value}
+              onPress={() =>
+                onSelect(option.value)
+              }
+              activeOpacity={0.8}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 9,
+                paddingHorizontal: 13,
+                borderRadius: Radius.pill,
+                borderWidth: 1,
+
+                borderColor: active
+                  ? theme.primary
+                  : theme.border,
+
+                backgroundColor: active
+                  ? theme.primary
+                  : theme.backgroundElement,
+
+                marginRight: Spacing.two,
+              }}
+            >
+              <Ionicons
+                name={option.icon}
+                size={14}
+                color={active
+                  ? theme.textOnPrimary
+                  : theme.textSecondary}
                 style={{
-                  flexDirection:
-                    'row',
-                  alignItems:
-                    'center',
-                  paddingVertical:
-                    9,
-                  paddingHorizontal:
-                    13,
-                  borderRadius:
-                    Radius.pill,
-                  borderWidth:
-                    1,
-                  borderColor:
-                    active
-                      ? theme.primary
-                      : theme.border,
-                  backgroundColor:
-                    active
-                      ? theme.primary
-                      : theme.backgroundElement,
-                  marginRight:
-                    Spacing.two,
+                  marginRight: 6,
+                }}
+              />
+
+              <Text
+                style={{
+                  ...Typography.button,
+                  fontSize: 12,
+                  color: active
+                    ? theme.textOnPrimary
+                    : theme.text,
                 }}
               >
+                {option.label}
+              </Text>
+
+              {multi && active && (
                 <Ionicons
-                  name={
-                    option.icon
-                  }
-                  size={14}
-                  color={
-                    active
-                      ? theme.textOnPrimary
-                      : theme.textSecondary
-                  }
+                  name="checkmark"
+                  size={13}
+                  color={theme.textOnPrimary}
                   style={{
-                    marginRight: 6,
+                    marginLeft: 5,
                   }}
                 />
-
-                <Text
-                  style={{
-                    ...Typography.button,
-                    fontSize: 12,
-                    color:
-                      active
-                        ? theme.textOnPrimary
-                        : theme.text,
-                  }}
-                >
-                  {option.label}
-                </Text>
-
-                {multi &&
-                  active && (
-                    <Ionicons
-                      name="checkmark"
-                      size={13}
-                      color={
-                        theme.textOnPrimary
-                      }
-                      style={{
-                        marginLeft: 5,
-                      }}
-                    />
-                  )}
-              </TouchableOpacity>
-            );
-          },
-        )}
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -2743,10 +2258,8 @@ function Field({
   editable?: boolean;
   icon?: IconName;
   optional?: boolean;
-} & React.ComponentProps<
-  typeof TextInput
->) {
-  const theme = useTheme();
+} & React.ComponentProps<typeof TextInput>) {
+  const theme = Colors.light;
 
   const [focused, setFocused] =
     useState(false);
@@ -2754,34 +2267,29 @@ function Field({
   const disabled =
     editable === false;
 
-  const borderColor =
-    error
-      ? theme.error
-      : focused
-        ? theme.borderFocus
-        : theme.border;
+  const borderColor = error
+    ? theme.error
+    : focused
+      ? theme.borderFocus
+      : theme.border;
 
   return (
     <View
       style={{
-        marginBottom:
-          Spacing.three,
+        marginBottom: Spacing.three,
       }}
     >
       <View
         style={{
-          flexDirection:
-            'row',
-          alignItems:
-            'center',
+          flexDirection: 'row',
+          alignItems: 'center',
           marginBottom: 6,
         }}
       >
         <Text
           style={{
             ...Typography.label,
-            color:
-              theme.text,
+            color: theme.text,
           }}
         >
           {label}
@@ -2791,8 +2299,7 @@ function Field({
           <Text
             style={{
               ...Typography.bodySmall,
-              color:
-                theme.textSecondary,
+              color: theme.textSecondary,
               fontSize: 11,
               marginLeft: 5,
             }}
@@ -2804,29 +2311,34 @@ function Field({
 
       <View
         style={{
-          flexDirection:
-            'row',
+          flexDirection: 'row',
           alignItems:
             inputProps.multiline
               ? 'flex-start'
               : 'center',
+
           minHeight:
             inputProps.multiline
               ? 110
               : 52,
+
           borderWidth:
             focused && !error
               ? 1.5
               : 1,
+
           borderColor,
-          borderRadius:
-            Radius.md,
-          backgroundColor:
-            disabled
-              ? theme.backgroundElement
-              : theme.surface,
-          paddingHorizontal:
-            Spacing.three,
+
+          borderRadius: Radius.md,
+
+          // FIXED COLOR
+          // Same Web + Android + iOS
+          backgroundColor: disabled
+            ? theme.backgroundElement
+            : theme.inputBackground,
+
+          paddingHorizontal: Spacing.three,
+
           paddingVertical:
             inputProps.multiline
               ? Spacing.two
@@ -2845,8 +2357,7 @@ function Field({
                   : theme.textSecondary
             }
             style={{
-              marginRight:
-                Spacing.two,
+              marginRight: Spacing.two,
               marginTop:
                 inputProps.multiline
                   ? 3
@@ -2857,38 +2368,36 @@ function Field({
 
         <TextInput
           {...inputProps}
-          editable={
-            editable
-          }
+          editable={editable}
           placeholderTextColor={
             theme.inputPlaceholder
           }
           onFocus={(event) => {
             setFocused(true);
-            onFocus?.(
-              event,
-            );
+            onFocus?.(event);
           }}
           onBlur={(event) => {
             setFocused(false);
-            onBlur?.(
-              event,
-            );
+            onBlur?.(event);
           }}
           style={{
             ...Typography.input,
             flex: 1,
+
             color: disabled
               ? theme.textSecondary
               : theme.inputText,
+
             paddingVertical:
               inputProps.multiline
                 ? Spacing.two
                 : 0,
+
             minHeight:
               inputProps.multiline
                 ? 85
                 : undefined,
+
             textAlignVertical:
               inputProps.multiline
                 ? 'top'
@@ -2900,19 +2409,15 @@ function Field({
       {error ? (
         <View
           style={{
-            flexDirection:
-              'row',
-            alignItems:
-              'center',
+            flexDirection: 'row',
+            alignItems: 'center',
             marginTop: 5,
           }}
         >
           <Ionicons
             name="alert-circle"
             size={13}
-            color={
-              theme.error
-            }
+            color={theme.error}
             style={{
               marginRight: 4,
             }}
@@ -2921,8 +2426,7 @@ function Field({
           <Text
             style={{
               ...Typography.bodySmall,
-              color:
-                theme.error,
+              color: theme.error,
               fontSize: 11,
               flex: 1,
             }}
@@ -2944,33 +2448,25 @@ function InlineHint({
 }: {
   text: string;
 }) {
-  const theme = useTheme();
+  const theme = Colors.light;
 
   return (
     <View
       style={{
-        flexDirection:
-          'row',
-        alignItems:
-          'center',
+        flexDirection: 'row',
+        alignItems: 'center',
         backgroundColor:
           theme.primaryLight,
-        borderRadius:
-          Radius.sm,
-        paddingVertical:
-          Spacing.two,
-        paddingHorizontal:
-          Spacing.three,
-        marginBottom:
-          Spacing.three,
+        borderRadius: Radius.sm,
+        paddingVertical: Spacing.two,
+        paddingHorizontal: Spacing.three,
+        marginBottom: Spacing.three,
       }}
     >
       <Ionicons
         name="information-circle-outline"
         size={16}
-        color={
-          theme.primary
-        }
+        color={theme.primary}
         style={{
           marginRight: 7,
         }}
@@ -2979,8 +2475,7 @@ function InlineHint({
       <Text
         style={{
           ...Typography.bodySmall,
-          color:
-            theme.primaryDark,
+          color: theme.primaryDark,
           fontSize: 12,
           flex: 1,
         }}
@@ -3000,26 +2495,21 @@ function ErrorText({
 }: {
   text: string;
 }) {
-  const theme = useTheme();
+  const theme = Colors.light;
 
   return (
     <View
       style={{
-        flexDirection:
-          'row',
-        alignItems:
-          'center',
+        flexDirection: 'row',
+        alignItems: 'center',
         marginTop: -Spacing.one,
-        marginBottom:
-          Spacing.three,
+        marginBottom: Spacing.three,
       }}
     >
       <Ionicons
         name="alert-circle"
         size={13}
-        color={
-          theme.error
-        }
+        color={theme.error}
         style={{
           marginRight: 4,
         }}
@@ -3028,8 +2518,7 @@ function ErrorText({
       <Text
         style={{
           ...Typography.bodySmall,
-          color:
-            theme.error,
+          color: theme.error,
           fontSize: 11,
           flex: 1,
         }}

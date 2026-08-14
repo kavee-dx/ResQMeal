@@ -20,7 +20,14 @@ import {
 } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
-type Props = NativeStackScreenProps<any, 'Splash'>;
+import type {
+  RootStackParamList,
+} from "../navigation/types";
+
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  "Splash"
+>;
 
 /**
  * ============================================================

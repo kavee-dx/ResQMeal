@@ -20,8 +20,8 @@ const ERROR_MESSAGES = {
   },
 
   USER_NOT_FOUND: {
-    status: 404,
-    message: "No account found with this email address.",
+    status: 401,
+    message: "Incorrect email or password.",
   },
 
   INVALID_CREDENTIALS: {

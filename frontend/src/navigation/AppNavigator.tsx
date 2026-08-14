@@ -8,6 +8,7 @@ import SplashScreen from "../screens/SplashScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/dushani-RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
+import VerifyAccountScreen from "../screens/dushani-VerifyAccountScreen";
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -34,6 +35,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Register"
           component={RegisterScreen}
+        />
+
+        <Stack.Screen
+          name="VerifyAccount"
+          component={VerifyAccountScreen}
         />
 
         <Stack.Screen

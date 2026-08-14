@@ -11,6 +11,7 @@
 //   404 -> no account found
 
 const { loginUser } = require("../services/kaveesha-loginService");
+const { signToken } = require("../utils/kaveesha-jwt");
 
 const ERROR_MESSAGES = {
   MISSING_CREDENTIALS: {
@@ -57,6 +58,7 @@ function handleKnownError(error, res) {
 async function login(req, res) {
   try {
     const user = await loginUser(req.body);
+    const token = signToken(user);
 
     return res.status(200).json({
       success: true,
@@ -65,6 +67,10 @@ async function login(req, res) {
       // Top-level role, so response.data.role works directly
       // on the frontend without digging into user.role.
       role: user.role,
+
+      // Session token — frontend stores this and sends it as
+      // "Authorization: Bearer <token>" on protected requests.
+      token,
 
       user: {
         id: user._id,

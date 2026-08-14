@@ -6,23 +6,48 @@ import {
   createNativeStackNavigator,
 } from "@react-navigation/native-stack";
 
-import { RootStackParamList } from "./types";
+import { RootStackParamList, Role, getHomeRouteForRole } from "./types";
 
 import SplashScreen from "../screens/kaveesha-SplashScreen";
 import LoginScreen from "../screens/kaveesha-LoginScreen";
 import ForgotPasswordScreen from "../screens/kaveesha-ForgotPasswordScreen";
 import RegisterScreen from "../screens/dushani-RegisterScreen";
 import VerifyAccountScreen from "../screens/dushani-VerifyAccountScreen";
-import HomeScreen from "../screens/HomeScreen";
+import DonorHomeScreen from "../screens/kaveesha-DonorHomeScreen";
+import RecipientHomeScreen from "../screens/kaveesha-RecipientHomeScreen";
+import NgoHomeScreen from "../screens/kaveesha-NgoHomeScreen";
+import VolunteerHomeScreen from "../screens/kaveesha-VolunteerHomeScreen";
 
 const Stack =
   createNativeStackNavigator<RootStackParamList>();
 
-export default function AppNavigator() {
+type InitialAuth = {
+  token: string | null;
+  role: Role | null;
+  fullName: string | null;
+};
+
+type Props = {
+  initialAuth: InitialAuth;
+};
+
+export default function AppNavigator({ initialAuth }: Props) {
+  // If a valid token + role are already stored, skip straight to
+  // that role's Home screen instead of Splash → Login.
+  const hasSession = Boolean(initialAuth.token && initialAuth.role);
+
+  const initialRouteName = hasSession && initialAuth.role
+    ? getHomeRouteForRole(initialAuth.role)
+    : "Splash";
+
+  const homeInitialParams = hasSession
+    ? { fullName: initialAuth.fullName ?? "" }
+    : undefined;
+
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Splash"
+        initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: false,
         }}
@@ -53,8 +78,35 @@ export default function AppNavigator() {
         />
 
         <Stack.Screen
-          name="Home"
-          component={HomeScreen}
+          name="DonorHome"
+          component={DonorHomeScreen}
+          initialParams={
+            initialRouteName === "DonorHome" ? homeInitialParams : undefined
+          }
+        />
+
+        <Stack.Screen
+          name="RecipientHome"
+          component={RecipientHomeScreen}
+          initialParams={
+            initialRouteName === "RecipientHome" ? homeInitialParams : undefined
+          }
+        />
+
+        <Stack.Screen
+          name="NgoHome"
+          component={NgoHomeScreen}
+          initialParams={
+            initialRouteName === "NgoHome" ? homeInitialParams : undefined
+          }
+        />
+
+        <Stack.Screen
+          name="VolunteerHome"
+          component={VolunteerHomeScreen}
+          initialParams={
+            initialRouteName === "VolunteerHome" ? homeInitialParams : undefined
+          }
         />
       </Stack.Navigator>
     </NavigationContainer>

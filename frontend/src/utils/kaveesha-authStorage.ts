@@ -1,10 +1,9 @@
-// frontend/src/utils/kaveesha-authStorage.ts
-
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
 const TOKEN_KEY = "resqmeal_auth_token";
 const ROLE_KEY = "resqmeal_user_role";
+const NAME_KEY = "resqmeal_user_name";
 
 export type StoredRole =
   | "DONOR"
@@ -48,11 +47,12 @@ async function deleteSecureItem(
 }
 
 /**
- * Save the JWT and user role after successful login.
+ * Save the JWT, user role, and display name after successful login.
  */
 export async function saveSession(
   token: string,
   role: StoredRole,
+  fullName: string,
 ): Promise<void> {
   if (!token) {
     throw new Error("Cannot save an empty authentication token.");
@@ -60,6 +60,7 @@ export async function saveSession(
 
   await setSecureItem(TOKEN_KEY, token);
   await setSecureItem(ROLE_KEY, role);
+  await setSecureItem(NAME_KEY, fullName ?? "");
 }
 
 /**
@@ -88,11 +89,19 @@ export async function getRole(): Promise<StoredRole | null> {
 }
 
 /**
+ * Get the saved display name.
+ */
+export async function getFullName(): Promise<string | null> {
+  return getSecureItem(NAME_KEY);
+}
+
+/**
  * Remove the current login session.
  */
 export async function clearSession(): Promise<void> {
   await deleteSecureItem(TOKEN_KEY);
   await deleteSecureItem(ROLE_KEY);
+  await deleteSecureItem(NAME_KEY);
 }
 
 /**

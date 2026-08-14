@@ -24,7 +24,14 @@ import {
 import api from '../services/api';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
-type Props = NativeStackScreenProps<any, 'ForgotPassword'>;
+import type {
+  RootStackParamList,
+} from "../navigation/types";
+
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  "ForgotPassword"
+>;
 
 /**
  * ============================================================

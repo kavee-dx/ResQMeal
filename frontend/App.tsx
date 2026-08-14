@@ -3,6 +3,7 @@ import "./global.css";
 import { useCallback } from "react";
 import { View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
+
 import {
   useFonts,
   Poppins_400Regular,
@@ -13,9 +14,11 @@ import {
 
 import AppNavigator from "./src/navigation/AppNavigator";
 
-// Keep the native splash screen visible until fonts are ready.
+// Keep the native Expo splash screen visible
+// until the application fonts are completely loaded.
 SplashScreen.preventAutoHideAsync().catch(() => {
-  // no-op: safe to ignore if already prevented / not supported on web
+  // Safe to ignore if the splash screen has already
+  // been prevented or the platform does not support it.
 });
 
 export default function App() {
@@ -32,14 +35,17 @@ export default function App() {
     }
   }, [fontsLoaded]);
 
-  // Render nothing until Poppins is loaded, so no screen ever
-  // flashes with the fallback system font first.
+  // Don't render the application until the fonts
+  // are ready. This prevents a system-font flash.
   if (!fontsLoaded) {
     return null;
   }
 
   return (
-    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+    <View
+      style={{ flex: 1 }}
+      onLayout={onLayoutRootView}
+    >
       <AppNavigator />
     </View>
   );

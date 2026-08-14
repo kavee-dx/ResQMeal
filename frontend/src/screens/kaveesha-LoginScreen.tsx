@@ -1,4 +1,15 @@
 import React, { useState } from 'react';
+import { saveSession } from '../utils/kaveesha-authStorage';
+import type { RootStackParamList, Role } from "../navigation/types";
+function isValidRole(value: unknown): value is Role {
+  return (
+    value === "DONOR" ||
+    value === "RECIPIENT" ||
+    value === "NGO" ||
+    value === "VOLUNTEER"
+  );
+}
+
 
 import {
   ActivityIndicator,
@@ -27,7 +38,10 @@ import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
-type Props = NativeStackScreenProps<any, 'Login'>;
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  "Login"
+>;
 
 type StatusBanner = {
   type: 'success' | 'error';
@@ -94,73 +108,104 @@ export default function LoginScreen({ navigation }: Props) {
     return Object.keys(next).length === 0;
   }
 
-  function routeForRole(role: string) {
-    // Home screens per role can be split out later
-    // (DonorHome, RecipientHome, NgoHome, VolunteerHome).
-    // For now everything lands on the shared Home screen
-    // with the role passed along so it can branch internally.
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Home', params: { role } }],
-    });
-  }
-
+  
   async function handleLogin() {
-    setBanner(null);
+  setBanner(null);
+  setErrors({});
 
-    if (!validate()) return;
-
-    setSubmitting(true);
-
-    try {
-      const response = await api.post('/auth/login', {
-        email: email.trim().toLowerCase(),
-        password,
-      });
-
-      const data = response.data ?? {};
-      const role: string = data.role ?? data.user?.role;
-
-      setBanner({
-        type: 'success',
-        message: data.message ?? 'Login successful. Welcome back!',
-      });
-
-      setTimeout(() => {
-        if (role) {
-          routeForRole(role);
-        } else {
-          navigation.reset({
-            index: 0,
-            routes: [{ name: 'Home' }],
-          });
-        }
-      }, 700);
-    } catch (err: any) {
-      const status = err?.response?.status;
-      const serverMessage = err?.response?.data?.message;
-
-      let message = serverMessage ?? 'Something went wrong. Please try again.';
-
-      if (status === 403) {
-        message =
-          serverMessage ??
-          'Your account is not verified yet. Please wait for approval.';
-      } else if (status === 401) {
-        message =
-          serverMessage ?? 'Incorrect email or password. Please try again.';
-      } else if (status === 404) {
-        message =
-          serverMessage ?? 'No account found with this email address.';
-      } else if (!err?.response) {
-        message = 'Unable to reach the server. Check your connection.';
-      }
-
-      setBanner({ type: 'error', message });
-    } finally {
-      setSubmitting(false);
-    }
+  if (!validate()) {
+    return;
   }
+
+  setSubmitting(true);
+
+  try {
+    const response = await api.post("/auth/login", {
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    const data = response.data ?? {};
+
+    const token = data.token;
+
+    const rawRole =
+      data.role ??
+      data.user?.role;
+
+    if (!token) {
+      throw new Error(
+        "Login succeeded but the server did not return an authentication token.",
+      );
+    }
+
+    if (!isValidRole(rawRole)) {
+      throw new Error(
+        "Login succeeded but the server returned an invalid user role.",
+      );
+    }
+
+    await saveSession(token, rawRole);
+
+    setBanner({
+      type: "success",
+      message:
+        data.message ??
+        "Login successful! Welcome back to ResQMeal.",
+    });
+
+    setTimeout(() => {
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: "Home",
+            params: {
+              role: rawRole,
+            },
+          },
+        ],
+      });
+    }, 1000);
+  } catch (err: any) {
+    const status = err?.response?.status;
+
+    const serverMessage =
+      err?.response?.data?.message;
+
+    let message =
+      "Something went wrong. Please try again.";
+
+    if (!err?.response) {
+      message =
+        "Unable to connect to the server. Please check your internet connection.";
+    } else if (status === 401) {
+      message =
+        "Incorrect email or password. Please try again.";
+    } else if (status === 403) {
+      message =
+        serverMessage ??
+        "Your account has not been verified yet. Please verify your account first.";
+    } else if (status === 429) {
+      message =
+        "Too many login attempts. Please wait a few minutes and try again.";
+    } else if (status >= 500) {
+      message =
+        "The server is temporarily unavailable. Please try again later.";
+    } else if (serverMessage) {
+      message = serverMessage;
+    } else if (err?.message) {
+      message = err.message;
+    }
+
+    setBanner({
+      type: "error",
+      message,
+    });
+  } finally {
+    setSubmitting(false);
+  }
+}
 
   return (
     <KeyboardAvoidingView

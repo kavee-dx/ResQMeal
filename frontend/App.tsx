@@ -1,9 +1,8 @@
 import "./global.css";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
-
 import {
   useFonts,
   Poppins_400Regular,
@@ -13,12 +12,12 @@ import {
 } from "@expo-google-fonts/poppins";
 
 import AppNavigator from "./src/navigation/AppNavigator";
+import { getToken, getRole, getFullName } from "./src/utils/kaveesha-authStorage";
+import type { Role } from "./src/navigation/types";
 
-// Keep the native Expo splash screen visible
-// until the application fonts are completely loaded.
+// Keep the native splash screen visible until fonts are ready.
 SplashScreen.preventAutoHideAsync().catch(() => {
-  // Safe to ignore if the splash screen has already
-  // been prevented or the platform does not support it.
+  // no-op: safe to ignore if already prevented / not supported on web
 });
 
 export default function App() {
@@ -29,24 +28,39 @@ export default function App() {
     Poppins_700Bold,
   });
 
+  const [authChecked, setAuthChecked] = useState(false);
+  const [initialAuth, setInitialAuth] = useState<{
+    token: string | null;
+    role: Role | null;
+    fullName: string | null;
+  }>({ token: null, role: null, fullName: null });
+
+  useEffect(() => {
+    (async () => {
+      const token = await getToken();
+      const role = await getRole();
+      const fullName = await getFullName();
+      setInitialAuth({ token, role, fullName });
+      setAuthChecked(true);
+    })();
+  }, []);
+
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded) {
+    if (fontsLoaded && authChecked) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, authChecked]);
 
-  // Don't render the application until the fonts
-  // are ready. This prevents a system-font flash.
-  if (!fontsLoaded) {
+  // Render nothing until Poppins is loaded and the stored session
+  // has been checked, so no screen ever flashes with the wrong
+  // initial route or the fallback system font.
+  if (!fontsLoaded || !authChecked) {
     return null;
   }
 
   return (
-    <View
-      style={{ flex: 1 }}
-      onLayout={onLayoutRootView}
-    >
-      <AppNavigator />
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <AppNavigator initialAuth={initialAuth} />
     </View>
   );
 }

@@ -2,6 +2,13 @@ const bcrypt = require("bcryptjs");
 
 const User = require("../models/dushani-User");
 
+// A pre-hashed dummy value, so bcrypt.compare always has real work
+// to do even when no user was found — keeps response timing
+// consistent between "no such email" and "wrong password", so
+// an attacker can't tell which case happened by measuring speed.
+const DUMMY_HASH =
+  "$2a$10$CwTycUXWue0Thq9StjUM0uJ8bTfeKmzB6D8v5A4gY.G7Y3q7z0i9K";
+
 async function loginUser({ email, password }) {
   const normalizedEmail = String(email || "")
     .trim()
@@ -17,16 +24,14 @@ async function loginUser({ email, password }) {
     email: normalizedEmail,
   }).select("+password");
 
-  if (!user) {
-    throw new Error("USER_NOT_FOUND");
-  }
-
+  // Always compare against something, real hash or dummy,
+  // so timing doesn't reveal whether the user exists.
   const isMatch = await bcrypt.compare(
     password,
-    user.password,
+    user ? user.password : DUMMY_HASH,
   );
 
-  if (!isMatch) {
+  if (!user || !isMatch) {
     throw new Error("INVALID_CREDENTIALS");
   }
 

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { saveSession } from '../utils/kaveesha-authStorage';
 import type { RootStackParamList, Role } from "../navigation/types";
+import { getHomeRouteForRole } from "../navigation/types";
+
 function isValidRole(value: unknown): value is Role {
   return (
     value === "DONOR" ||
@@ -9,7 +11,6 @@ function isValidRole(value: unknown): value is Role {
     value === "VOLUNTEER"
   );
 }
-
 
 import {
   ActivityIndicator,
@@ -48,29 +49,6 @@ type StatusBanner = {
   message: string;
 } | null;
 
-/**
- * ============================================================
- * LOGIN SCREEN
- * ============================================================
- *
- * Same visual language as RegisterScreen:
- * - Colors.light used directly (no useTheme)
- * - Same Field / SectionHeader look and feel
- *
- * Typography note:
- * - Uses useAppTypography() instead of the raw Typography
- *   import, so every Text on this screen renders in Poppins
- *   (loaded via @expo-google-fonts/poppins in App.tsx),
- *   consistently on phone, tablet, and web.
- *
- * Flow:
- *  1. User enters email + password
- *  2. POST /auth/login
- *  3. Backend returns the user's role + verification status
- *  4. Unverified users are blocked with a clear message
- *  5. Verified users see a success banner, then are routed
- *     to their role-specific home screen
- */
 export default function LoginScreen({ navigation }: Props) {
   const theme = Colors.light;
   const T = useAppTypography();
@@ -108,104 +86,104 @@ export default function LoginScreen({ navigation }: Props) {
     return Object.keys(next).length === 0;
   }
 
-  
   async function handleLogin() {
-  setBanner(null);
-  setErrors({});
+    setBanner(null);
+    setErrors({});
 
-  if (!validate()) {
-    return;
-  }
-
-  setSubmitting(true);
-
-  try {
-    const response = await api.post("/auth/login", {
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    const data = response.data ?? {};
-
-    const token = data.token;
-
-    const rawRole =
-      data.role ??
-      data.user?.role;
-
-    if (!token) {
-      throw new Error(
-        "Login succeeded but the server did not return an authentication token.",
-      );
+    if (!validate()) {
+      return;
     }
 
-    if (!isValidRole(rawRole)) {
-      throw new Error(
-        "Login succeeded but the server returned an invalid user role.",
-      );
-    }
+    setSubmitting(true);
 
-    await saveSession(token, rawRole);
-
-    setBanner({
-      type: "success",
-      message:
-        data.message ??
-        "Login successful! Welcome back to ResQMeal.",
-    });
-
-    setTimeout(() => {
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "Home",
-            params: {
-              role: rawRole,
-            },
-          },
-        ],
+    try {
+      const response = await api.post("/auth/login", {
+        email: email.trim().toLowerCase(),
+        password,
       });
-    }, 1000);
-  } catch (err: any) {
-    const status = err?.response?.status;
 
-    const serverMessage =
-      err?.response?.data?.message;
+      const data = response.data ?? {};
 
-    let message =
-      "Something went wrong. Please try again.";
+      const token = data.token;
 
-    if (!err?.response) {
-      message =
-        "Unable to connect to the server. Please check your internet connection.";
-    } else if (status === 401) {
-      message =
-        "Incorrect email or password. Please try again.";
-    } else if (status === 403) {
-      message =
-        serverMessage ??
-        "Your account has not been verified yet. Please verify your account first.";
-    } else if (status === 429) {
-      message =
-        "Too many login attempts. Please wait a few minutes and try again.";
-    } else if (status >= 500) {
-      message =
-        "The server is temporarily unavailable. Please try again later.";
-    } else if (serverMessage) {
-      message = serverMessage;
-    } else if (err?.message) {
-      message = err.message;
+      const rawRole =
+        data.role ??
+        data.user?.role;
+
+      const fullName: string =
+        data.user?.fullName ?? "";
+
+      if (!token) {
+        throw new Error(
+          "Login succeeded but the server did not return an authentication token.",
+        );
+      }
+
+      if (!isValidRole(rawRole)) {
+        throw new Error(
+          "Login succeeded but the server returned an invalid user role.",
+        );
+      }
+
+      await saveSession(token, rawRole, fullName);
+
+      setBanner({
+        type: "success",
+        message:
+          data.message ??
+          "Login successful! Welcome back to ResQMeal.",
+      });
+
+      setTimeout(() => {
+        navigation.reset({
+          index: 0,
+          routes: [
+            {
+              name: getHomeRouteForRole(rawRole),
+              params: { fullName },
+            },
+          ],
+        });
+      }, 1000);
+    } catch (err: any) {
+      const status = err?.response?.status;
+
+      const serverMessage =
+        err?.response?.data?.message;
+
+      let message =
+        "Something went wrong. Please try again.";
+
+      if (!err?.response) {
+        message =
+          "Unable to connect to the server. Please check your internet connection.";
+      } else if (status === 401) {
+        message =
+          "Incorrect email or password. Please try again.";
+      } else if (status === 403) {
+        message =
+          serverMessage ??
+          "Your account has not been verified yet. Please verify your account first.";
+      } else if (status === 429) {
+        message =
+          "Too many login attempts. Please wait a few minutes and try again.";
+      } else if (status >= 500) {
+        message =
+          "The server is temporarily unavailable. Please try again later.";
+      } else if (serverMessage) {
+        message = serverMessage;
+      } else if (err?.message) {
+        message = err.message;
+      }
+
+      setBanner({
+        type: "error",
+        message,
+      });
+    } finally {
+      setSubmitting(false);
     }
-
-    setBanner({
-      type: "error",
-      message,
-    });
-  } finally {
-    setSubmitting(false);
   }
-}
 
   return (
     <KeyboardAvoidingView
@@ -233,8 +211,6 @@ export default function LoginScreen({ navigation }: Props) {
             maxWidth: 480,
           }}
         >
-          {/* HEADER */}
-
           <View
             style={{
               alignItems: 'center',
@@ -281,8 +257,6 @@ export default function LoginScreen({ navigation }: Props) {
               Log in to continue rescuing food with ResQMeal.
             </Text>
           </View>
-
-          {/* CARD */}
 
           <View
             style={{
@@ -394,8 +368,6 @@ export default function LoginScreen({ navigation }: Props) {
               )}
             </TouchableOpacity>
 
-            {/* REGISTER LINK */}
-
             <View
               style={{
                 flexDirection: 'row',
@@ -432,8 +404,6 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
           </View>
 
-          {/* FOOTER */}
-
           <View
             style={{
               flexDirection: 'row',
@@ -463,10 +433,6 @@ export default function LoginScreen({ navigation }: Props) {
     </KeyboardAvoidingView>
   );
 }
-
-/* ============================================================
-   STATUS MESSAGE (success / error banner)
-============================================================ */
 
 function StatusMessage({
   type,
@@ -523,10 +489,6 @@ function StatusMessage({
     </View>
   );
 }
-
-/* ============================================================
-   INPUT FIELD
-============================================================ */
 
 function Field({
   label,

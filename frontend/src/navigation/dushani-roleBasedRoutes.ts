@@ -1,4 +1,6 @@
-
+// Defines which navigation options/menu items are visible for each user role,
+// and which screen a user should land on after login/verification.
+// Consumed by AppNavigator
 export type Role = "DONOR" | "RECIPIENT" | "NGO" | "VOLUNTEER";
 
 export type MenuItem = {

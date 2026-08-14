@@ -23,7 +23,7 @@ import {
   Spacing,
 } from '@/constants/theme';
 import api from '../services/api';
-import { useResponsiveTypography } from '../hooks/kaveesha-useResponsiveTypography';
+import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -44,11 +44,10 @@ type StatusBanner = {
  * - Same Field / SectionHeader look and feel
  *
  * Typography note:
- * - Uses useResponsiveTypography() instead of the raw
- *   Typography import. On native (iOS/Android) and on
- *   narrow web widths it behaves identically to before.
- *   On web at desktop/laptop widths (>=1024px) it swaps
- *   the font family to "Poppins" for a more polished look.
+ * - Uses useAppTypography() instead of the raw Typography
+ *   import, so every Text on this screen renders in Poppins
+ *   (loaded via @expo-google-fonts/poppins in App.tsx),
+ *   consistently on phone, tablet, and web.
  *
  * Flow:
  *  1. User enters email + password
@@ -60,7 +59,7 @@ type StatusBanner = {
  */
 export default function LoginScreen({ navigation }: Props) {
   const theme = Colors.light;
-  const T = useResponsiveTypography();
+  const T = useAppTypography();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -432,7 +431,7 @@ function StatusMessage({
   message: string;
 }) {
   const theme = Colors.light;
-  const T = useResponsiveTypography();
+  const T = useAppTypography();
 
   const isSuccess = type === 'success';
 
@@ -499,7 +498,7 @@ function Field({
   onToggleSecure?: () => void;
 } & React.ComponentProps<typeof TextInput>) {
   const theme = Colors.light;
-  const T = useResponsiveTypography();
+  const T = useAppTypography();
 
   const [focused, setFocused] = useState(false);
 

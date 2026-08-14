@@ -20,9 +20,9 @@ import {
   Radius,
   Shadows,
   Spacing,
-  Typography,
 } from '@/constants/theme';
 import api from '../services/api';
+import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
 type Props = NativeStackScreenProps<any, 'ForgotPassword'>;
 
@@ -34,9 +34,13 @@ type Props = NativeStackScreenProps<any, 'ForgotPassword'>;
  * Minimal "enter your email, we send a reset link" flow.
  * Wire this to your real backend endpoint once it exists
  * (e.g. POST /auth/forgot-password).
+ *
+ * Uses useAppTypography() so text renders in Poppins on every
+ * platform, matching the rest of the app.
  */
 export default function ForgotPasswordScreen({ navigation }: Props) {
   const theme = Colors.light;
+  const T = useAppTypography();
 
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string>();
@@ -105,7 +109,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
             />
             <Text
               style={{
-                ...Typography.label,
+                ...T.label,
                 color: theme.text,
                 marginLeft: 6,
               }}
@@ -140,7 +144,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
             <Text
               style={{
-                ...Typography.h1,
+                ...T.h1,
                 color: theme.text,
                 textAlign: 'center',
               }}
@@ -150,7 +154,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
             <Text
               style={{
-                ...Typography.body,
+                ...T.body,
                 color: theme.textSecondary,
                 textAlign: 'center',
                 marginTop: Spacing.one,
@@ -193,7 +197,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                 />
                 <Text
                   style={{
-                    ...Typography.bodySmall,
+                    ...T.bodySmall,
                     color: theme.primaryDark,
                     flex: 1,
                   }}
@@ -206,7 +210,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
               <>
                 <Text
                   style={{
-                    ...Typography.label,
+                    ...T.label,
                     color: theme.text,
                     marginBottom: 6,
                   }}
@@ -249,7 +253,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                     keyboardType="email-address"
                     autoCapitalize="none"
                     style={{
-                      ...Typography.input,
+                      ...T.input,
                       flex: 1,
                       color: theme.inputText,
                     }}
@@ -260,7 +264,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                 {error ? (
                   <Text
                     style={{
-                      ...Typography.bodySmall,
+                      ...T.bodySmall,
                       color: theme.error,
                       fontSize: 11,
                       marginBottom: Spacing.three,
@@ -291,7 +295,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
                   ) : (
                     <Text
                       style={{
-                        ...Typography.button,
+                        ...T.button,
                         color: theme.textOnPrimary,
                       }}
                     >

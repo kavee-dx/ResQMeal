@@ -17,8 +17,8 @@ import {
   Radius,
   Shadows,
   Spacing,
-  Typography,
 } from '@/constants/theme';
+import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
 type Props = NativeStackScreenProps<any, 'Splash'>;
 
@@ -31,10 +31,12 @@ type Props = NativeStackScreenProps<any, 'Splash'>;
  * then automatically redirects to Login after a short delay.
  *
  * Uses Colors.light directly (same convention as RegisterScreen)
- * so behaviour is identical across Web / iOS / Android.
+ * and useAppTypography() so text renders in Poppins on every
+ * platform, matching the rest of the app.
  */
 export default function SplashScreen({ navigation }: Props) {
   const theme = Colors.light;
+  const T = useAppTypography();
 
   const fade = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.85)).current;
@@ -125,6 +127,7 @@ export default function SplashScreen({ navigation }: Props) {
         <Text
           style={[
             styles.title,
+            T.h1,
             { color: theme.text },
           ]}
         >
@@ -134,6 +137,7 @@ export default function SplashScreen({ navigation }: Props) {
         <Text
           style={[
             styles.tagline,
+            T.body,
             { color: theme.textSecondary },
           ]}
         >
@@ -175,6 +179,7 @@ export default function SplashScreen({ navigation }: Props) {
         <Text
           style={[
             styles.footerText,
+            T.bodySmall,
             { color: theme.textMuted },
           ]}
         >
@@ -223,12 +228,10 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    ...Typography.h1,
     letterSpacing: 0.3,
   },
 
   tagline: {
-    ...Typography.body,
     marginTop: Spacing.one,
   },
 
@@ -251,7 +254,6 @@ const styles = StyleSheet.create({
   },
 
   footerText: {
-    ...Typography.bodySmall,
     fontSize: 11,
   },
 });

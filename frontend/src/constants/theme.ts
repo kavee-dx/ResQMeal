@@ -1,15 +1,3 @@
-/**
- * ============================================================
- * ResQMeal Theme
- * ============================================================
- *
- * Shared theme for Android, iOS and Web.
- *
- * IMPORTANT:
- * No platform-specific fonts are used here.
- * The same fontFamily value is used everywhere.
- */
-
 export const Colors = {
   light: {
     // --------------------------------------------------------

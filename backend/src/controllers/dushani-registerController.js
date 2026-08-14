@@ -35,8 +35,25 @@ const ERROR_MESSAGES = {
 
   VEHICLE_NUMBER_REQUIRED: {
     status: 400,
-    message:
-      "Vehicle number is required for this vehicle type.",
+    message: "Vehicle number is required for this vehicle type.",
+  },
+
+  BUSINESS_REGISTRATION_REQUIRED: {
+    status: 400,
+    message: "Business registration number is required.",
+    field: "businessRegistrationNumber",
+  },
+
+  FOOD_REQUIREMENTS_REQUIRED: {
+    status: 400,
+    message: "Please select at least one food requirement.",
+    field: "foodRequirements",
+  },
+
+  PASSWORDS_DO_NOT_MATCH: {
+    status: 400,
+    message: "Passwords do not match.",
+    field: "confirmPassword",
   },
 };
 
@@ -44,18 +61,29 @@ function handleKnownError(error, res) {
   const known = ERROR_MESSAGES[error.message];
 
   if (known) {
-    return res.status(known.status).json({
+    const response = {
       success: false,
       message: known.message,
-    });
+    };
+
+    // Include field information for validation errors
+    if (known.field) {
+      response.errors = [
+        {
+          field: known.field,
+          message: known.message,
+        },
+      ];
+    }
+
+    return res.status(known.status).json(response);
   }
 
   console.error(error);
 
   return res.status(500).json({
     success: false,
-    message:
-      "Something went wrong. Please try again.",
+    message: "Something went wrong. Please try again.",
   });
 }
 

@@ -4,8 +4,9 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { RootStackParamList } from "./types";
 
-import SplashScreen from "../screens/SplashScreen";
-import LoginScreen from "../screens/LoginScreen";
+import SplashScreen from "../screens/kaveesha-SplashScreen";
+import LoginScreen from "../screens/kaveesha-LoginScreen";
+import ForgotPasswordScreen from "../screens/kaveesha-ForgotPasswordScreen";
 import RegisterScreen from "../screens/dushani-RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
 import VerifyAccountScreen from "../screens/dushani-VerifyAccountScreen";
@@ -19,9 +20,9 @@ export default function AppNavigator() {
     <NavigationContainer>
 
       <Stack.Navigator
-  initialRouteName="Register"   // ← temporarily, instead of "Splash"
-  screenOptions={{ headerShown: false }}
->
+        initialRouteName="Splash"
+        screenOptions={{ headerShown: false }}
+      >
         <Stack.Screen
           name="Splash"
           component={SplashScreen}
@@ -30,6 +31,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Login"
           component={LoginScreen}
+        />
+
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
         />
 
         <Stack.Screen

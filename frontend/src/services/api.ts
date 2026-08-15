@@ -1,16 +1,14 @@
 import axios from "axios";
-import {
-  getToken,
-  clearSession,
-} from "../utils/kaveesha-authStorage";
+import { getToken, clearSession } from "../utils/kaveesha-authStorage";
+import { PrivacySettings } from "@/types/amasha-privacySettings";
+import { NotificationSettings } from "@/types/amasha-notificationSettings";
 
-const RAW_API =
-  process.env.EXPO_PUBLIC_API_URL ||
-  "http://localhost:5000";
+const RAW_API = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
 
-export const API_BASE_URL = RAW_API
-  .replace(/\/api\/?$/i, "")
-  .replace(/\/+$/, "");
+export const API_BASE_URL = RAW_API.replace(/\/api\/?$/i, "").replace(
+  /\/+$/,
+  "",
+);
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -63,16 +61,13 @@ type ApiResponse<T = unknown> = {
 export async function registerUser(
   payload: RegisterPayload,
 ): Promise<ApiResponse> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/auth/register`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(payload),
+  });
 
   return res.json();
 }
@@ -81,19 +76,16 @@ export async function verifyAccount(
   email: string,
   code: string,
 ): Promise<ApiResponse> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/auth/verify`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email,
-        code,
-      }),
+  const res = await fetch(`${API_BASE_URL}/api/auth/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      email,
+      code,
+    }),
+  });
 
   return res.json();
 }
@@ -101,19 +93,64 @@ export async function verifyAccount(
 export async function resendVerificationCode(
   email: string,
 ): Promise<ApiResponse> {
-  const res = await fetch(
-    `${API_BASE_URL}/api/auth/verify/resend`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email,
-      }),
+  const res = await fetch(`${API_BASE_URL}/api/auth/verify/resend`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify({
+      email,
+    }),
+  });
 
+  return res.json();
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export async function getPrivacySettings(): Promise<
+  ApiResponse<{ data?: PrivacySettings }>
+> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/privacy/me`, {
+    method: "GET",
+    headers: await authHeaders(),
+  });
+  return res.json();
+}
+
+export async function updatePrivacySettings(
+  settings: PrivacySettings,
+): Promise<ApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/privacy/me`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(settings),
+  });
+  return res.json();
+}
+
+export async function getNotificationSettings(): Promise<ApiResponse<{ data?: NotificationSettings }>> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/notifications/me`, {
+    method: "GET",
+    headers: await authHeaders(),
+  });
+  return res.json();
+}
+ 
+export async function updateNotificationSettings(
+  settings: NotificationSettings
+): Promise<ApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/notifications/me`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(settings),
+  });
   return res.json();
 }
 

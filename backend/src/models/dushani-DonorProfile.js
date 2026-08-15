@@ -34,7 +34,6 @@ const donorProfileSchema = new Schema(
     businessRegistrationNumber: { type: String, trim: true },
     businessContactNumber: { type: String, trim: true },
     businessEmail: { type: String, trim: true, lowercase: true }, // optional
-    businessLogo: { type: String, trim: true }, // optional
     website: { type: String, trim: true }, // optional
     description: { type: String, trim: true }, // optional
   },

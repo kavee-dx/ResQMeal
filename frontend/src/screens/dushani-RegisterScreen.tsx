@@ -215,7 +215,6 @@ type FormState = {
   phoneNumber: string;
   password: string;
   confirmPassword: string;
-  profilePicture: string;
 
   address: string;
   district: string;
@@ -229,7 +228,6 @@ type FormState = {
   businessRegistrationNumber: string;
   businessContactNumber: string;
   businessEmail: string;
-  businessLogo: string;
   website: string;
   description: string;
 
@@ -237,7 +235,6 @@ type FormState = {
   specifiedRecipientType: string;
   organizationName: string;
   organizationRegistrationNumber: string;
-  organizationLogo: string;
   peopleNeedingFood: string;
   foodRequirements: string[];
   specialRequirements: string;
@@ -260,7 +257,6 @@ const INITIAL_STATE: FormState = {
   phoneNumber: '',
   password: '',
   confirmPassword: '',
-  profilePicture: '',
 
   address: '',
   district: '',
@@ -274,7 +270,6 @@ const INITIAL_STATE: FormState = {
   businessRegistrationNumber: '',
   businessContactNumber: '',
   businessEmail: '',
-  businessLogo: '',
   website: '',
   description: '',
 
@@ -282,7 +277,6 @@ const INITIAL_STATE: FormState = {
   specifiedRecipientType: '',
   organizationName: '',
   organizationRegistrationNumber: '',
-  organizationLogo: '',
   peopleNeedingFood: '',
   foodRequirements: [],
   specialRequirements: '',
@@ -741,7 +735,6 @@ export default function RegisterScreen({ navigation }: Props) {
         address: form.address,
         district: form.district,
         city: form.city,
-        profilePicture: form.profilePicture || undefined,
       };
 
       if (form.role === 'DONOR') {
@@ -767,8 +760,6 @@ export default function RegisterScreen({ navigation }: Props) {
           payload.businessEmail =
             form.businessEmail || undefined;
           payload.email = form.businessEmail || undefined;
-          payload.businessLogo =
-            form.businessLogo || undefined;
           payload.website =
             form.website || undefined;
           payload.description =
@@ -811,9 +802,6 @@ export default function RegisterScreen({ navigation }: Props) {
           payload.email =
             form.email || undefined;
 
-          payload.organizationLogo =
-            form.organizationLogo || undefined;
-
           payload.website =
             form.website || undefined;
 
@@ -843,9 +831,6 @@ export default function RegisterScreen({ navigation }: Props) {
         payload.position = form.position;
 
         payload.email = form.email;
-
-        payload.organizationLogo =
-          form.organizationLogo || undefined;
 
         payload.website =
           form.website || undefined;
@@ -1535,16 +1520,7 @@ function DonorFields({
             autoCapitalize="none"
           />
 
-          <Field
-            icon="image-outline"
-            label="Profile Picture URL"
-            placeholder="Optional"
-            value={form.profilePicture}
-            onChangeText={(value: string) =>
-              update('profilePicture', value)
-            }
-            optional
-          />
+
         </>
       ) : (
         <>
@@ -1658,17 +1634,6 @@ function DonorFields({
           />
 
           <Field
-            icon="image-outline"
-            label="Business Logo URL"
-            placeholder="Optional"
-            value={form.businessLogo}
-            onChangeText={(value: string) =>
-              update('businessLogo', value)
-            }
-            optional
-          />
-
-          <Field
             icon="globe-outline"
             label="Website"
             placeholder="https://example.com"
@@ -1750,16 +1715,7 @@ function RecipientFields({
             autoCapitalize="none"
           />
 
-          <Field
-            icon="image-outline"
-            label="Profile Picture URL"
-            placeholder="Optional"
-            value={form.profilePicture}
-            onChangeText={(value: string) =>
-              update('profilePicture', value)
-            }
-            optional
-          />
+
         </>
       ) : (
         <>
@@ -1846,20 +1802,6 @@ function RecipientFields({
             error={errors.email}
             keyboardType="email-address"
             autoCapitalize="none"
-            optional
-          />
-
-          <Field
-            icon="image-outline"
-            label="Organization Logo URL"
-            placeholder="Optional"
-            value={form.organizationLogo}
-            onChangeText={(value: string) =>
-              update(
-                'organizationLogo',
-                value,
-              )
-            }
             optional
           />
 
@@ -2050,20 +1992,6 @@ function NgoFields({
       />
 
       <Field
-        icon="image-outline"
-        label="Organization Logo URL"
-        placeholder="Optional"
-        value={form.organizationLogo}
-        onChangeText={(value: string) =>
-          update(
-            'organizationLogo',
-            value,
-          )
-        }
-        optional
-      />
-
-      <Field
         icon="globe-outline"
         label="Website"
         placeholder="https://example.com"
@@ -2129,20 +2057,6 @@ function VolunteerFields({
         error={errors.email}
         keyboardType="email-address"
         autoCapitalize="none"
-      />
-
-      <Field
-        icon="image-outline"
-        label="Profile Picture URL"
-        placeholder="Optional"
-        value={form.profilePicture}
-        onChangeText={(value: string) =>
-          update(
-            'profilePicture',
-            value,
-          )
-        }
-        optional
       />
 
       <SelectionRow

@@ -26,7 +26,6 @@ const ngoProfileSchema = new Schema(
     position: { type: String, required: true, trim: true },
     website: { type: String, trim: true }, // optional
     description: { type: String, trim: true }, // optional
-    organizationLogo: { type: String, trim: true }, // optional
   },
   { timestamps: true }
 );

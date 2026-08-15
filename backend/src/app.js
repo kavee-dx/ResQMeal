@@ -4,6 +4,7 @@ const cors = require("cors");
 const registrationRoutes = require("./routes/dushani-registrationRoutes");
 const loginRoutes = require("./routes/kaveesha-loginRoutes");
 const privacySettingsRoutes = require("./routes/amasha-privacySettingsRoutes");
+const notificationSettingsRoutes = require("./routes/amasha-notificationSettingsRoutes");
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", registrationRoutes);
 app.use("/api/auth", loginRoutes);
 app.use("/api/settings", privacySettingsRoutes);
+app.use("/api/settings", notificationSettingsRoutes);
 
 app.get("/api/test", (req, res) => {
   res.json({

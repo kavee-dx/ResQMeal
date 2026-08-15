@@ -3,6 +3,7 @@ import {
   getToken,
   clearSession,
 } from "../utils/kaveesha-authStorage";
+import { PrivacySettings } from "@/types/amasha-privacySettings";
 
 const RAW_API =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -114,6 +115,33 @@ export async function resendVerificationCode(
     },
   );
 
+  return res.json();
+}
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+ 
+export async function getPrivacySettings(): Promise<ApiResponse<{ data?: PrivacySettings }>> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/privacy/me`, {
+    method: "GET",
+    headers: await authHeaders(),
+  });
+  return res.json();
+}
+ 
+export async function updatePrivacySettings(
+  settings: PrivacySettings
+): Promise<ApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/settings/privacy/me`, {
+    method: "PUT",
+    headers: await authHeaders(),
+    body: JSON.stringify(settings),
+  });
   return res.json();
 }
 

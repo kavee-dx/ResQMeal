@@ -317,19 +317,6 @@ function validateRegistration(req, res, next) {
   }
 
   /*
-   * Optional profile picture URL
-   */
-  if (
-    body.profilePicture &&
-    !URL_REGEX.test(body.profilePicture)
-  ) {
-    push(
-      "profilePicture",
-      "Profile picture must be a valid URL."
-    );
-  }
-
-  /*
    * Optional website URL
    */
   if (

@@ -23,7 +23,7 @@ import {
   Spacing,
   Typography,
 } from '@/constants/theme';
-import api from '../services/api';
+import api, { resendVerificationCode } from '../services/api';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -215,7 +215,6 @@ type FormState = {
   phoneNumber: string;
   password: string;
   confirmPassword: string;
-  profilePicture: string;
 
   address: string;
   district: string;
@@ -229,7 +228,6 @@ type FormState = {
   businessRegistrationNumber: string;
   businessContactNumber: string;
   businessEmail: string;
-  businessLogo: string;
   website: string;
   description: string;
 
@@ -237,7 +235,6 @@ type FormState = {
   specifiedRecipientType: string;
   organizationName: string;
   organizationRegistrationNumber: string;
-  organizationLogo: string;
   peopleNeedingFood: string;
   foodRequirements: string[];
   specialRequirements: string;
@@ -260,7 +257,6 @@ const INITIAL_STATE: FormState = {
   phoneNumber: '',
   password: '',
   confirmPassword: '',
-  profilePicture: '',
 
   address: '',
   district: '',
@@ -274,7 +270,6 @@ const INITIAL_STATE: FormState = {
   businessRegistrationNumber: '',
   businessContactNumber: '',
   businessEmail: '',
-  businessLogo: '',
   website: '',
   description: '',
 
@@ -282,7 +277,6 @@ const INITIAL_STATE: FormState = {
   specifiedRecipientType: '',
   organizationName: '',
   organizationRegistrationNumber: '',
-  organizationLogo: '',
   peopleNeedingFood: '',
   foodRequirements: [],
   specialRequirements: '',
@@ -499,6 +493,22 @@ export default function RegisterScreen({ navigation }: Props) {
           next.businessContactNumber =
             'Enter a valid 10-digit local business number.';
         }
+        req(
+          nextForm.businessEmail,
+          'businessEmail',
+          'Business or personal email is required.',
+        );
+
+        if (
+          isTouched('businessEmail') &&
+          nextForm.businessEmail &&
+          !isAllowedEmailAddress(nextForm.businessEmail)
+        ) {
+          next.businessEmail = 'Enter a valid business or personal email address.';
+        }
+        if (nextForm.businessEmail && !isAllowedEmailAddress(nextForm.businessEmail)) {
+          next.businessEmail = 'Enter a valid business or personal email address.';
+        }
       }
     }
 
@@ -543,11 +553,13 @@ export default function RegisterScreen({ navigation }: Props) {
           'Position is required.',
         );
 
-        if (
-          isTouched('email') &&
-          nextForm.email &&
-          !isAllowedEmailAddress(nextForm.email)
-        ) {
+        req(
+          nextForm.email,
+          'email',
+          'Business or personal email is required.',
+        );
+
+        if (nextForm.email && !isAllowedEmailAddress(nextForm.email)) {
           next.email = 'Use a valid business email or free webmail address.';
         }
       }
@@ -599,11 +611,13 @@ export default function RegisterScreen({ navigation }: Props) {
         'Position is required.',
       );
 
-      if (
-        isTouched('email') &&
-        nextForm.email &&
-        !isAllowedEmailAddress(nextForm.email)
-      ) {
+      req(
+        nextForm.email,
+        'email',
+        'Business or personal email is required.',
+      );
+
+      if (nextForm.email && !isAllowedEmailAddress(nextForm.email)) {
         next.email = 'Use a valid business email or free webmail address.';
       }
     }
@@ -696,7 +710,19 @@ export default function RegisterScreen({ navigation }: Props) {
   }
 
   async function handleSubmit() {
-    if (!validate()) return;
+    console.log('handleSubmit invoked', { submitting, form });
+    if (!validate()) {
+      const firstErrors = Object.values(
+        getValidationErrors(form, Object.keys(form).reduce((acc, key) => ({ ...acc, [key]: true }), {} as Record<string, boolean>)),
+      );
+      Alert.alert(
+        'Fix form errors',
+        firstErrors.length > 0
+          ? firstErrors.slice(0, 4).join('\n')
+          : 'Please review the form and fill all required fields.',
+      );
+      return;
+    }
 
     setSubmitting(true);
 
@@ -709,7 +735,6 @@ export default function RegisterScreen({ navigation }: Props) {
         address: form.address,
         district: form.district,
         city: form.city,
-        profilePicture: form.profilePicture || undefined,
       };
 
       if (form.role === 'DONOR') {
@@ -734,8 +759,7 @@ export default function RegisterScreen({ navigation }: Props) {
             form.businessContactNumber;
           payload.businessEmail =
             form.businessEmail || undefined;
-          payload.businessLogo =
-            form.businessLogo || undefined;
+          payload.email = form.businessEmail || undefined;
           payload.website =
             form.website || undefined;
           payload.description =
@@ -778,9 +802,6 @@ export default function RegisterScreen({ navigation }: Props) {
           payload.email =
             form.email || undefined;
 
-          payload.organizationLogo =
-            form.organizationLogo || undefined;
-
           payload.website =
             form.website || undefined;
 
@@ -810,9 +831,6 @@ export default function RegisterScreen({ navigation }: Props) {
         payload.position = form.position;
 
         payload.email = form.email;
-
-        payload.organizationLogo =
-          form.organizationLogo || undefined;
 
         payload.website =
           form.website || undefined;
@@ -848,23 +866,56 @@ export default function RegisterScreen({ navigation }: Props) {
         payload,
       );
 
-      Alert.alert(
-        'Registration successful',
-        response.data?.message ??
-          'Your account has been created.',
-      );
+      if (response?.data?.success) {
+        Alert.alert(
+          'Registration successful',
+          response.data?.message ??
+            'Your account has been created. A verification code has been sent to your email.',
+        );
 
-      navigation?.navigate?.('Login');
+        const verificationEmail =
+          (payload as any).email || form.email || form.businessEmail;
+
+        // Backend already sends the verification code on successful registration,
+        // so do not call resend here to avoid duplicate OTP emails.
+        navigation?.navigate?.('VerifyAccount', { email: verificationEmail });
+      } else {
+        Alert.alert('Registration', response.data?.message ?? 'Registration completed.');
+      }
     } catch (err: any) {
-      const message =
-        err?.response?.data?.message ??
-        err?.message ??
-        'Something went wrong.';
+        console.error('Registration error', err?.response?.status, err?.response?.data || err?.message);
 
-      Alert.alert(
-        'Registration failed',
-        message,
-      );
+        const status = err?.response?.status;
+        const body = err?.response?.data;
+        const message = body?.message ?? err?.message ?? 'Something went wrong.';
+        // Map backend conflict errors to inline form errors when possible
+        if (status === 409) {
+          const lower = String(message).toLowerCase();
+          if (lower.includes('email')) {
+            setErrors((prev) => ({
+              ...prev,
+              email: 'Email is already registered.',
+              businessEmail: 'Email is already registered.',
+            }));
+            Alert.alert('Registration failed', 'Email is already registered.');
+            return;
+          }
+
+          if (lower.includes('phone')) {
+            setErrors((prev) => ({
+              ...prev,
+              phoneNumber: 'Phone number is already registered.',
+              businessContactNumber: 'Phone number is already registered.',
+            }));
+            Alert.alert('Registration failed', 'Phone number is already registered.');
+            return;
+          }
+        }
+
+        Alert.alert(
+          `Registration failed${status ? ` (${status})` : ''}`,
+          message + (body?.details ? `\n${body.details}` : ''),
+        );
     } finally {
       setSubmitting(false);
     }
@@ -884,7 +935,7 @@ export default function RegisterScreen({ navigation }: Props) {
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: Spacing.three,
@@ -1156,7 +1207,10 @@ export default function RegisterScreen({ navigation }: Props) {
             {/* REGISTER */}
 
             <TouchableOpacity
-              onPress={handleSubmit}
+              onPress={() => {
+                console.log('Create Account pressed');
+                handleSubmit();
+              }}
               disabled={submitting}
               activeOpacity={0.85}
               style={{
@@ -1466,16 +1520,7 @@ function DonorFields({
             autoCapitalize="none"
           />
 
-          <Field
-            icon="image-outline"
-            label="Profile Picture URL"
-            placeholder="Optional"
-            value={form.profilePicture}
-            onChangeText={(value: string) =>
-              update('profilePicture', value)
-            }
-            optional
-          />
+
         </>
       ) : (
         <>
@@ -1576,8 +1621,8 @@ function DonorFields({
 
           <Field
             icon="mail-outline"
-            label="Business Email"
-            placeholder="Optional"
+            label="Business or personal email"
+            placeholder="you@business.com"
             value={form.businessEmail}
             onChangeText={(value: string) =>
               update('businessEmail', value)
@@ -1585,18 +1630,7 @@ function DonorFields({
             keyboardType="email-address"
             autoCapitalize="none"
             textContentType="emailAddress"
-            optional
-          />
-
-          <Field
-            icon="image-outline"
-            label="Business Logo URL"
-            placeholder="Optional"
-            value={form.businessLogo}
-            onChangeText={(value: string) =>
-              update('businessLogo', value)
-            }
-            optional
+            error={errors.businessEmail}
           />
 
           <Field
@@ -1681,16 +1715,7 @@ function RecipientFields({
             autoCapitalize="none"
           />
 
-          <Field
-            icon="image-outline"
-            label="Profile Picture URL"
-            placeholder="Optional"
-            value={form.profilePicture}
-            onChangeText={(value: string) =>
-              update('profilePicture', value)
-            }
-            optional
-          />
+
         </>
       ) : (
         <>
@@ -1777,20 +1802,6 @@ function RecipientFields({
             error={errors.email}
             keyboardType="email-address"
             autoCapitalize="none"
-            optional
-          />
-
-          <Field
-            icon="image-outline"
-            label="Organization Logo URL"
-            placeholder="Optional"
-            value={form.organizationLogo}
-            onChangeText={(value: string) =>
-              update(
-                'organizationLogo',
-                value,
-              )
-            }
             optional
           />
 
@@ -1981,20 +1992,6 @@ function NgoFields({
       />
 
       <Field
-        icon="image-outline"
-        label="Organization Logo URL"
-        placeholder="Optional"
-        value={form.organizationLogo}
-        onChangeText={(value: string) =>
-          update(
-            'organizationLogo',
-            value,
-          )
-        }
-        optional
-      />
-
-      <Field
         icon="globe-outline"
         label="Website"
         placeholder="https://example.com"
@@ -2060,20 +2057,6 @@ function VolunteerFields({
         error={errors.email}
         keyboardType="email-address"
         autoCapitalize="none"
-      />
-
-      <Field
-        icon="image-outline"
-        label="Profile Picture URL"
-        placeholder="Optional"
-        value={form.profilePicture}
-        onChangeText={(value: string) =>
-          update(
-            'profilePicture',
-            value,
-          )
-        }
-        optional
       />
 
       <SelectionRow

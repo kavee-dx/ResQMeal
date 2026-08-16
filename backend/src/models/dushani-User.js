@@ -25,8 +25,6 @@ const userSchema = new Schema(
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ROLES, required: true },
 
-    profilePicture: { type: String, trim: true }, // also used as business/org logo
-
     address: { type: String, required: true, trim: true },
     district: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
@@ -35,6 +33,9 @@ const userSchema = new Schema(
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String, select: false },
     verificationCodeExpires: { type: Date, select: false },
+    // --- Password reset - Kaveesha)/
+    resetPasswordCode: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
   },
   { timestamps: true }
 );

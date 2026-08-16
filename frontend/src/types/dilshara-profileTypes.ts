@@ -3,6 +3,9 @@
 
 export type Role = 'DONOR' | 'RECIPIENT' | 'NGO' | 'VOLUNTEER';
 
+//restructed
+export type AccountStatus = 'active' | 'inactive' | 'restricted';
+
 export type DonorType =
   | 'INDIVIDUAL' | 'HOTEL' | 'RESTAURANT' | 'BAKERY'
   | 'SUPERMARKET' | 'CATERING' | 'EVENT_ORGANIZER' | 'OTHER';
@@ -30,6 +33,7 @@ export interface BaseProfile {
   address: string;
   district: string;
   city: string;
+  
 }
 
 export interface DonorProfile extends BaseProfile {
@@ -83,5 +87,18 @@ export interface VolunteerProfile extends BaseProfile {
   preferredDeliveryTime?: string;
 }
 
+
+export interface BaseProfile {
+  id: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber: string;
+  role: Role;
+  profilePicture?: string;
+  address: string;
+  district: string;
+  city: string;
+  accountStatus: AccountStatus; // NEW — RESQ-71
+}
 export type AnyProfile =
   | DonorProfile | RecipientProfile | NgoProfile | VolunteerProfile;

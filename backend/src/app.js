@@ -7,6 +7,8 @@ const privacySettingsRoutes = require("./routes/amasha-privacySettingsRoutes");
 const notificationSettingsRoutes = require("./routes/amasha-notificationSettingsRoutes");
 const accountDeletionRoutes = require("./routes/amasha-accountDeletionRoutes");
 
+const passwordResetRoutes = require("./routes/kaveesha-passwordResetRoutes");
+
 const app = express();
 
 // Middleware
@@ -22,6 +24,8 @@ app.use("/api/auth", loginRoutes);
 app.use("/api/settings", privacySettingsRoutes);
 app.use("/api/settings", notificationSettingsRoutes);
 app.use("/api/settings", accountDeletionRoutes);
+
+app.use("/api/auth", passwordResetRoutes);
 
 app.get("/api/test", (req, res) => {
   res.json({

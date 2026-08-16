@@ -106,6 +106,13 @@ export async function resendVerificationCode(
   return res.json();
 }
 
+export async function requestPasswordReset(
+  email: string,
+): Promise<ApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
 async function authHeaders(): Promise<Record<string, string>> {
   const token = await getToken();
   return {
@@ -124,6 +131,14 @@ export async function getPrivacySettings(): Promise<
   return res.json();
 }
 
+export async function verifyResetOtp(
+  email: string,
+  code: string,
+): Promise<ApiResponse<{ resetToken?: string }>> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/verify-reset-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
 export async function updatePrivacySettings(
   settings: PrivacySettings,
 ): Promise<ApiResponse> {
@@ -135,6 +150,14 @@ export async function updatePrivacySettings(
   return res.json();
 }
 
+export async function resetPassword(
+  resetToken: string,
+  newPassword: string,
+): Promise<ApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resetToken, newPassword }),
 export async function getNotificationSettings(): Promise<ApiResponse<{ data?: NotificationSettings }>> {
   const res = await fetch(`${API_BASE_URL}/api/settings/notifications/me`, {
     method: "GET",

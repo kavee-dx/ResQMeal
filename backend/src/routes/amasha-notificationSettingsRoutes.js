@@ -4,7 +4,7 @@ const router = express.Router();
 const {
   getNotificationSettings,
   updateNotificationSettings,
-} = require("../controllers/notificationSettingsController");
+} = require("../controllers/amasha-notificationSettingsController");
 
 const { requireAuth } = require("../middleware/kaveesha-authMiddleware");
 

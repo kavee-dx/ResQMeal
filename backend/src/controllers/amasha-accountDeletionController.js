@@ -1,9 +1,8 @@
 const bcrypt = require("bcryptjs");
 
 const User = require("../models/dushani-User");
-const PrivacySettings = require("../models/PrivacySettings");
-const NotificationSettings = require("../models/NotificationSettings");
-
+const PrivacySettings = require("../models/amasha-PrivacySettings");
+const NotificationSettings = require("../models/amasha-NotificationSettings");
 // DELETE /api/settings/account/me
 // body: { password: string }
 async function deleteAccount(req, res) {

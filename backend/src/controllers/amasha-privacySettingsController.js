@@ -1,4 +1,4 @@
-const PrivacySettings = require("../models/PrivacySettings");
+const PrivacySettings = require("../models/amasha-PrivacySettings");
 
 const DEFAULTS = {
   profileVisible: true,

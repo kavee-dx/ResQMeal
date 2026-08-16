@@ -35,6 +35,9 @@ const userSchema = new Schema(
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String, select: false },
     verificationCodeExpires: { type: Date, select: false },
+    // --- Password reset - Kaveesha)/
+    resetPasswordCode: { type: String, select: false },
+    resetPasswordExpires: { type: Date, select: false },
   },
   { timestamps: true }
 );

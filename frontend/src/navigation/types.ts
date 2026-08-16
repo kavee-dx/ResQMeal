@@ -17,6 +17,15 @@ export type RootStackParamList = {
 
   ForgotPassword: undefined;
 
+  VerifyResetOtp: {
+    email: string;
+  };
+
+  ResetPassword: {
+    email: string;
+    resetToken: string;
+  };
+
   Register: undefined;
 
   VerifyAccount: {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { requestPasswordReset } from '../services/api';
 
 import {
   ActivityIndicator,
@@ -58,29 +59,31 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
   }
 
-  async function handleSubmit() {
-    if (!email.trim() || !isValidEmail(email)) {
-      setError('Enter a valid email address.');
-      return;
-    }
+async function handleSubmit() {
+  if (!email.trim() || !isValidEmail(email)) {
+    setError('Enter a valid email address.');
+    return;
+  }
 
-    setError(undefined);
-    setSubmitting(true);
+  setError(undefined);
+  setSubmitting(true);
 
-    try {
-      await api.post('/auth/forgot-password', {
+  try {
+    const data = await requestPasswordReset(email.trim().toLowerCase());
+
+    if (data.success) {
+      navigation.navigate('VerifyResetOtp', {
         email: email.trim().toLowerCase(),
       });
-      setSent(true);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.message ??
-          'Something went wrong. Please try again.',
-      );
-    } finally {
-      setSubmitting(false);
+    } else {
+      setError(data.message ?? 'Something went wrong. Please try again.');
     }
+  } catch (err: any) {
+    setError('Unable to connect to the server. Please check your connection.');
+  } finally {
+    setSubmitting(false);
   }
+}
 
   return (
     <KeyboardAvoidingView

@@ -117,4 +117,39 @@ export async function resendVerificationCode(
   return res.json();
 }
 
+export async function requestPasswordReset(
+  email: string,
+): Promise<ApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return res.json();
+}
+
+export async function verifyResetOtp(
+  email: string,
+  code: string,
+): Promise<ApiResponse<{ resetToken?: string }>> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/verify-reset-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  return res.json();
+}
+
+export async function resetPassword(
+  resetToken: string,
+  newPassword: string,
+): Promise<ApiResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resetToken, newPassword }),
+  });
+  return res.json();
+}
+
 export default api;

@@ -17,6 +17,8 @@ import DonorHomeScreen from "../screens/kaveesha-DonorHomeScreen";
 import RecipientHomeScreen from "../screens/kaveesha-RecipientHomeScreen";
 import NgoHomeScreen from "../screens/kaveesha-NgoHomeScreen";
 import VolunteerHomeScreen from "../screens/kaveesha-VolunteerHomeScreen";
+import VerifyResetOtpScreen from '../screens/kaveesha-VerifyResetOtpScreen';
+import ResetPasswordScreen from '../screens/kaveesha-ResetPasswordScreen';
 
 const Stack =
   createNativeStackNavigator<RootStackParamList>();
@@ -66,6 +68,9 @@ export default function AppNavigator({ initialAuth }: Props) {
           name="ForgotPassword"
           component={ForgotPasswordScreen}
         />
+
+        <Stack.Screen name="VerifyResetOtp" component={VerifyResetOtpScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
         <Stack.Screen
           name="Register"

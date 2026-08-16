@@ -78,29 +78,48 @@ export default function ProfileScreen() {
     );
   }
 
+  // RESQ-71: restricted accounts can view their profile but can't edit it
+  const isRestricted = profile.accountStatus === 'restricted';
+
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <ThemedText type="subtitle" themeColor="text" style={styles.heading}>
         My Profile
       </ThemedText>
 
+      {isRestricted && (
+        <View style={styles.restrictedBanner}>
+          <ThemedText type="default" themeColor="error">
+            Your account is restricted. Profile editing is disabled — contact support for help.
+          </ThemedText>
+        </View>
+      )}
+
       <View style={styles.card}>
         <ProfileAvatar
           uri={profile.profilePicture}
-          isEditing={isEditing}
+          isEditing={isEditing && !isRestricted}
           onPickImage={handlePickImage}
         />
 
-        <CommonProfileFields profile={profile} isEditing={isEditing} onChange={handleChange} />
+        <CommonProfileFields
+          profile={profile}
+          isEditing={isEditing && !isRestricted}
+          onChange={handleChange}
+        />
 
         {profile.role === 'DONOR' && (
-          <DonorProfileDetails profile={profile} isEditing={isEditing} onChange={handleChange} />
+          <DonorProfileDetails
+            profile={profile}
+            isEditing={isEditing && !isRestricted}
+            onChange={handleChange}
+          />
         )}
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, isRestricted && styles.buttonDisabled]}
           onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
-          disabled={uploadingPhoto}
+          disabled={uploadingPhoto || isRestricted}
         >
           <ThemedText type="default" themeColor="textOnPrimary">
             {isEditing ? 'Save Changes' : 'Edit Profile'}
@@ -132,5 +151,14 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  buttonDisabled: {
+  backgroundColor: Colors.light.border,
+},
+  restrictedBanner: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.three,
+    marginBottom: Spacing.three,
   },
 });

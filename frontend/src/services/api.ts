@@ -113,6 +113,10 @@ export async function requestPasswordReset(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
+  });
+  return res.json();
+}
+
 async function authHeaders(): Promise<Record<string, string>> {
   const token = await getToken();
   return {
@@ -139,6 +143,10 @@ export async function verifyResetOtp(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code }),
+  });
+  return res.json();
+}
+
 export async function updatePrivacySettings(
   settings: PrivacySettings,
 ): Promise<ApiResponse> {
@@ -158,16 +166,22 @@ export async function resetPassword(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ resetToken, newPassword }),
-export async function getNotificationSettings(): Promise<ApiResponse<{ data?: NotificationSettings }>> {
+  });
+  return res.json();
+}
+
+export async function getNotificationSettings(): Promise<
+  ApiResponse<{ data?: NotificationSettings }>
+> {
   const res = await fetch(`${API_BASE_URL}/api/settings/notifications/me`, {
     method: "GET",
     headers: await authHeaders(),
   });
   return res.json();
 }
- 
+
 export async function updateNotificationSettings(
-  settings: NotificationSettings
+  settings: NotificationSettings,
 ): Promise<ApiResponse> {
   const res = await fetch(`${API_BASE_URL}/api/settings/notifications/me`, {
     method: "PUT",

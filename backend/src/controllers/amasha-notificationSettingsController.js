@@ -1,4 +1,4 @@
-const NotificationSettings = require("../models/NotificationSettings");
+const NotificationSettings = require("../models/amasha-NotificationSettings");
 
 const DEFAULTS = {
   nearbyFoodAlerts: true,

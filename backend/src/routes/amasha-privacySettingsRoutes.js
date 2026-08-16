@@ -4,7 +4,7 @@ const router = express.Router();
 const {
   getPrivacySettings,
   updatePrivacySettings,
-} = require("../controllers/privacySettingsController");
+} = require("../controllers/amasha-privacySettingsController");
 
 const { requireAuth } = require("../middleware/kaveesha-authMiddleware");
 

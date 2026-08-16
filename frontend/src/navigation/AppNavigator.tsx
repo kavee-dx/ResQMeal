@@ -12,6 +12,8 @@ import SplashScreen from "../screens/kaveesha-SplashScreen";
 import LoginScreen from "../screens/kaveesha-LoginScreen";
 import ForgotPasswordScreen from "../screens/kaveesha-ForgotPasswordScreen";
 import RegisterScreen from "../screens/dushani-RegisterScreen";
+import HomeScreen from "../screens/HomeScreen";
+import ProfileScreen from "../screens/dilshara-ProfileScreen";
 import VerifyAccountScreen from "../screens/dushani-VerifyAccountScreen";
 import DonorHomeScreen from "../screens/kaveesha-DonorHomeScreen";
 import RecipientHomeScreen from "../screens/kaveesha-RecipientHomeScreen";
@@ -49,6 +51,9 @@ export default function AppNavigator({ initialAuth }: Props) {
   return (
     <NavigationContainer>
       <Stack.Navigator
+  initialRouteName="Profile"   // ← temporarily, instead of "Splash"
+  screenOptions={{ headerShown: false }}
+>
         initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: false,
@@ -83,6 +88,11 @@ export default function AppNavigator({ initialAuth }: Props) {
         />
 
         <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+        />
+
+      </Stack.Navigator>
           name="DonorHome"
           component={DonorHomeScreen}
           initialParams={

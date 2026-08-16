@@ -20,6 +20,11 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth", registrationRoutes);
 
+app.use("/api/profile", require("./routes/dilshara-profileRoutes"));
+
+const uploadRoutes = require("./routes/dilshara-uploadRoutes"); 
+app.use("/api/upload", uploadRoutes); 
+
 const PORT = process.env.PORT || 5000;
 
 app.get("/api/test", (req, res) => {

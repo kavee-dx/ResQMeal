@@ -20,13 +20,18 @@ const {
   generateVerificationCode,
   getExpiryDate,
 } = require("../utils/dushani-otp");
-const { sendVerificationEmail } = require("../utils/dushani-email");
+
+const {
+  sendVerificationEmail,
+} = require("../utils/dushani-email");
 
 const SALT_ROUNDS = 10;
 
 function optional(v) {
   const trimmed =
-    typeof v === "string" ? v.trim() : v;
+    typeof v === "string"
+      ? v.trim()
+      : v;
 
   return trimmed || undefined;
 }
@@ -58,6 +63,19 @@ async function registerUser(input) {
   }
 
   // --------------------------------------------------------
+  // Password validation
+  // --------------------------------------------------------
+
+  if (
+    input.password !==
+    input.confirmPassword
+  ) {
+    throw new Error(
+      "PASSWORDS_DO_NOT_MATCH"
+    );
+  }
+
+  // --------------------------------------------------------
   // Donor validation
   // --------------------------------------------------------
 
@@ -71,6 +89,20 @@ async function registerUser(input) {
     );
   }
 
+  // Business donor types require a business
+  // registration number.
+  if (
+    input.role === "DONOR" &&
+    input.donorType !== "INDIVIDUAL" &&
+    !optional(
+      input.businessRegistrationNumber
+    )
+  ) {
+    throw new Error(
+      "BUSINESS_REGISTRATION_REQUIRED"
+    );
+  }
+
   // --------------------------------------------------------
   // Recipient validation
   // --------------------------------------------------------
@@ -78,10 +110,26 @@ async function registerUser(input) {
   if (
     input.role === "RECIPIENT" &&
     input.recipientType === "OTHER" &&
-    !optional(input.specifiedRecipientType)
+    !optional(
+      input.specifiedRecipientType
+    )
   ) {
     throw new Error(
       "SPECIFY_RECIPIENT_TYPE"
+    );
+  }
+
+  // At least one food requirement is required
+  // for every recipient.
+  if (
+    input.role === "RECIPIENT" &&
+    (!Array.isArray(
+      input.foodRequirements
+    ) ||
+      input.foodRequirements.length === 0)
+  ) {
+    throw new Error(
+      "FOOD_REQUIREMENTS_REQUIRED"
     );
   }
 
@@ -92,7 +140,9 @@ async function registerUser(input) {
   if (
     input.role === "NGO" &&
     input.organizationType === "OTHER" &&
-    !optional(input.specifiedOrganizationType)
+    !optional(
+      input.specifiedOrganizationType
+    )
   ) {
     throw new Error(
       "SPECIFY_NGO_TYPE"
@@ -103,18 +153,24 @@ async function registerUser(input) {
   // Volunteer validation
   // --------------------------------------------------------
 
-  if (input.role === "VOLUNTEER") {
+  if (
+    input.role === "VOLUNTEER"
+  ) {
     const needsVehicleNumber = [
       "MOTORBIKE",
       "THREE_WHEELER",
       "CAR",
       "VAN",
       "OTHER",
-    ].includes(input.vehicleType);
+    ].includes(
+      input.vehicleType
+    );
 
     if (
       needsVehicleNumber &&
-      !optional(input.vehicleNumber)
+      !optional(
+        input.vehicleNumber
+      )
     ) {
       throw new Error(
         "VEHICLE_NUMBER_REQUIRED"
@@ -143,21 +199,19 @@ async function registerUser(input) {
   // --------------------------------------------------------
 
   const user = await User.create({
-    fullName: optional(input.fullName),
+    fullName:
+      optional(input.fullName),
 
     email,
 
     phoneNumber:
       input.phoneNumber.trim(),
 
-    password: hashedPassword,
+    password:
+      hashedPassword,
 
-    role: input.role,
-
-    profilePicture:
-      optional(input.profilePicture) ||
-      optional(input.businessLogo) ||
-      optional(input.organizationLogo),
+    role:
+      input.role,
 
     address:
       input.address.trim(),
@@ -168,7 +222,8 @@ async function registerUser(input) {
     city:
       input.city.trim(),
 
-    isVerified: false,
+    isVerified:
+      false,
 
     verificationCode,
 
@@ -180,28 +235,36 @@ async function registerUser(input) {
     // Create role-specific profile
     // ------------------------------------------------------
 
-    if (input.role === "DONOR") {
+    if (
+      input.role === "DONOR"
+    ) {
       await createDonorProfile(
         user,
         input
       );
     }
 
-    if (input.role === "RECIPIENT") {
+    if (
+      input.role === "RECIPIENT"
+    ) {
       await createRecipientProfile(
         user,
         input
       );
     }
 
-    if (input.role === "NGO") {
+    if (
+      input.role === "NGO"
+    ) {
       await createNgoProfile(
         user,
         input
       );
     }
 
-    if (input.role === "VOLUNTEER") {
+    if (
+      input.role === "VOLUNTEER"
+    ) {
       await createVolunteerProfile(
         user,
         input
@@ -216,7 +279,10 @@ async function registerUser(input) {
     throw err;
   }
 
-  await sendVerificationEmail(email || input.phoneNumber, verificationCode);
+  await sendVerificationEmail(
+    email || input.phoneNumber,
+    verificationCode
+  );
 
   return {
     user,
@@ -233,10 +299,12 @@ async function createDonorProfile(
   input
 ) {
   const isBusiness =
-    input.donorType !== "INDIVIDUAL";
+    input.donorType !==
+    "INDIVIDUAL";
 
   await DonorProfile.create({
-    userId: user._id,
+    userId:
+      user._id,
 
     donorType:
       input.donorType,
@@ -246,23 +314,28 @@ async function createDonorProfile(
         input.specifiedDonorType
       ),
 
-    businessName: isBusiness
-      ? input.businessName
-      : undefined,
+    businessName:
+      isBusiness
+        ? input.businessName
+        : undefined,
 
-    businessType: isBusiness
-      ? input.donorType === "OTHER"
-        ? input.specifiedDonorType
-        : input.donorType
-      : undefined,
+    businessType:
+      isBusiness
+        ? input.donorType ===
+          "OTHER"
+          ? input.specifiedDonorType
+          : input.donorType
+        : undefined,
 
-    authorizedPerson: isBusiness
-      ? input.authorizedPerson
-      : undefined,
+    authorizedPerson:
+      isBusiness
+        ? input.authorizedPerson
+        : undefined,
 
-    position: isBusiness
-      ? input.position
-      : undefined,
+    position:
+      isBusiness
+        ? input.position
+        : undefined,
 
     businessRegistrationNumber:
       isBusiness
@@ -274,21 +347,26 @@ async function createDonorProfile(
         ? input.businessContactNumber
         : undefined,
 
-    businessEmail: isBusiness
-      ? optional(input.businessEmail)
-      : undefined,
+    businessEmail:
+      isBusiness
+        ? optional(
+            input.businessEmail
+          )
+        : undefined,
 
-    businessLogo: isBusiness
-      ? optional(input.businessLogo)
-      : undefined,
+    website:
+      isBusiness
+        ? optional(
+            input.website
+          )
+        : undefined,
 
-    website: isBusiness
-      ? optional(input.website)
-      : undefined,
-
-    description: isBusiness
-      ? optional(input.description)
-      : undefined,
+    description:
+      isBusiness
+        ? optional(
+            input.description
+          )
+        : undefined,
   });
 }
 
@@ -307,7 +385,8 @@ async function createRecipientProfile(
       "FAMILY";
 
   await RecipientProfile.create({
-    userId: user._id,
+    userId:
+      user._id,
 
     recipientType:
       input.recipientType,
@@ -339,12 +418,16 @@ async function createRecipientProfile(
 
     website:
       isOrganization
-        ? optional(input.website)
+        ? optional(
+            input.website
+          )
         : undefined,
 
     description:
       isOrganization
-        ? optional(input.description)
+        ? optional(
+            input.description
+          )
         : undefined,
 
     peopleNeedingFood:
@@ -371,7 +454,8 @@ async function createNgoProfile(
   input
 ) {
   await NGOProfile.create({
-    userId: user._id,
+    userId:
+      user._id,
 
     organizationName:
       input.organizationName,
@@ -394,13 +478,14 @@ async function createNgoProfile(
       input.position,
 
     website:
-      optional(input.website),
+      optional(
+        input.website
+      ),
 
     description:
-      optional(input.description),
-
-    organizationLogo:
-      optional(input.organizationLogo),
+      optional(
+        input.description
+      ),
   });
 }
 
@@ -413,13 +498,16 @@ async function createVolunteerProfile(
   input
 ) {
   await VolunteerProfile.create({
-    userId: user._id,
+    userId:
+      user._id,
 
     vehicleType:
       input.vehicleType,
 
     vehicleNumber:
-      optional(input.vehicleNumber),
+      optional(
+        input.vehicleNumber
+      ),
 
     preferredDeliveryArea:
       input.preferredDeliveryArea,

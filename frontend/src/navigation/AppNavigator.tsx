@@ -8,6 +8,7 @@ import SplashScreen from "../screens/SplashScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/dushani-RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
+import ProfileScreen from "../screens/dilshara-ProfileScreen";
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -18,7 +19,7 @@ export default function AppNavigator() {
     <NavigationContainer>
 
       <Stack.Navigator
-  initialRouteName="Register"   // ← temporarily, instead of "Splash"
+  initialRouteName="Profile"   // ← temporarily, instead of "Splash"
   screenOptions={{ headerShown: false }}
 >
         <Stack.Screen
@@ -39,6 +40,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
+        />
+
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
         />
 
       </Stack.Navigator>

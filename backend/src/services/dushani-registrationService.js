@@ -213,17 +213,6 @@ async function registerUser(input) {
     role:
       input.role,
 
-    profilePicture:
-      optional(
-        input.profilePicture
-      ) ||
-      optional(
-        input.businessLogo
-      ) ||
-      optional(
-        input.organizationLogo
-      ),
-
     address:
       input.address.trim(),
 
@@ -365,13 +354,6 @@ async function createDonorProfile(
           )
         : undefined,
 
-    businessLogo:
-      isBusiness
-        ? optional(
-            input.businessLogo
-          )
-        : undefined,
-
     website:
       isBusiness
         ? optional(
@@ -503,11 +485,6 @@ async function createNgoProfile(
     description:
       optional(
         input.description
-      ),
-
-    organizationLogo:
-      optional(
-        input.organizationLogo
       ),
   });
 }

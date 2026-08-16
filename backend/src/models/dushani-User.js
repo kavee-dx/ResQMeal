@@ -25,8 +25,6 @@ const userSchema = new Schema(
     password: { type: String, required: true, select: false },
     role: { type: String, enum: ROLES, required: true },
 
-    profilePicture: { type: String, trim: true }, // also used as business/org logo
-
     address: { type: String, required: true, trim: true },
     district: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },

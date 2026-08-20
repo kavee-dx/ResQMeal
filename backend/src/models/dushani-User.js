@@ -28,11 +28,20 @@ const userSchema = new Schema(
     address: { type: String, required: true, trim: true },
     district: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
+    profilePicture: { type: String, trim: true },
+
 
     // --- Account verification (Task 04) ---
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String, select: false },
     verificationCodeExpires: { type: Date, select: false },
+
+        // --- Account status (RESQ-72) ---
+    accountStatus: {
+      type: String,
+      enum: ["active", "inactive", "restricted"],
+      default: "active",
+    },
     // --- Password reset - Kaveesha)/
     resetPasswordCode: { type: String, select: false },
     resetPasswordExpires: { type: Date, select: false },

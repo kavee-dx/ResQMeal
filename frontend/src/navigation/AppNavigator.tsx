@@ -12,7 +12,6 @@ import SplashScreen from "../screens/kaveesha-SplashScreen";
 import LoginScreen from "../screens/kaveesha-LoginScreen";
 import ForgotPasswordScreen from "../screens/kaveesha-ForgotPasswordScreen";
 import RegisterScreen from "../screens/dushani-RegisterScreen";
-import HomeScreen from "../screens/HomeScreen";
 import ProfileScreen from "../screens/dilshara-ProfileScreen";
 import VerifyAccountScreen from "../screens/dushani-VerifyAccountScreen";
 import DonorHomeScreen from "../screens/kaveesha-DonorHomeScreen";
@@ -22,8 +21,7 @@ import VolunteerHomeScreen from "../screens/kaveesha-VolunteerHomeScreen";
 import VerifyResetOtpScreen from '../screens/kaveesha-VerifyResetOtpScreen';
 import ResetPasswordScreen from '../screens/kaveesha-ResetPasswordScreen';
 
-const Stack =
-  createNativeStackNavigator<RootStackParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 type InitialAuth = {
   token: string | null;
@@ -36,8 +34,6 @@ type Props = {
 };
 
 export default function AppNavigator({ initialAuth }: Props) {
-  // If a valid token + role are already stored, skip straight to
-  // that role's Home screen instead of Splash → Login.
   const hasSession = Boolean(initialAuth.token && initialAuth.role);
 
   const initialRouteName = hasSession && initialAuth.role
@@ -51,48 +47,19 @@ export default function AppNavigator({ initialAuth }: Props) {
   return (
     <NavigationContainer>
       <Stack.Navigator
-  initialRouteName="Profile"   // ← temporarily, instead of "Splash"
-  screenOptions={{ headerShown: false }}
->
         initialRouteName={initialRouteName}
-        screenOptions={{
-          headerShown: false,
-        }}
+        screenOptions={{ headerShown: false }}
       >
-        <Stack.Screen
-          name="Splash"
-          component={SplashScreen}
-        />
-
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-        />
-
-        <Stack.Screen
-          name="ForgotPassword"
-          component={ForgotPasswordScreen}
-        />
-
+        <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="VerifyResetOtp" component={VerifyResetOtpScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="VerifyAccount" component={VerifyAccountScreen} />
+        <Stack.Screen name="Profile" component={ProfileScreen} />
 
         <Stack.Screen
-          name="Register"
-          component={RegisterScreen}
-        />
-
-        <Stack.Screen
-          name="VerifyAccount"
-          component={VerifyAccountScreen}
-        />
-
-        <Stack.Screen
-          name="Profile"
-          component={ProfileScreen}
-        />
-
-      </Stack.Navigator>
           name="DonorHome"
           component={DonorHomeScreen}
           initialParams={

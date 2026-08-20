@@ -29,7 +29,6 @@ export type RootStackParamList = {
   Register: undefined;
   Home: undefined;
   Profile: undefined;
-};
 
   VerifyAccount: {
     email: string;

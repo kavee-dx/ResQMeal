@@ -3,6 +3,7 @@ import React, { useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -55,13 +56,13 @@ export default function SplashScreen({ navigation }: Props) {
         toValue: 1,
         duration: 650,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
       Animated.timing(scale, {
         toValue: 1,
         duration: 650,
         easing: Easing.out(Easing.back(1.4)),
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }),
     ]).start();
 
@@ -70,12 +71,12 @@ export default function SplashScreen({ navigation }: Props) {
         Animated.timing(dotFade, {
           toValue: 1,
           duration: 550,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
         Animated.timing(dotFade, {
           toValue: 0.3,
           duration: 550,
-          useNativeDriver: true,
+          useNativeDriver: Platform.OS !== 'web',
         }),
       ]),
     ).start();

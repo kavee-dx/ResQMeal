@@ -30,6 +30,22 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
       }}
       showsVerticalScrollIndicator={false}
     >
+      
+
+      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+        
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Profile")}
+          style={{ marginRight: Spacing.two, padding: 6 }}
+        >
+          <Ionicons name="person-circle-outline" size={28} color={ACCENT} />
+        </TouchableOpacity>
+
+        <LogoutButton navigation={navigation} compact />
+      </View>
+
+
       <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
         <View style={{ flex: 1 }}>
           <HomeHeader fullName={fullName} roleLabel="Recipient" accentColor={ACCENT} />

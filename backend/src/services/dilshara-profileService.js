@@ -30,6 +30,7 @@ async function getMergedProfile(userId) {
     address: user.address,
     district: user.district,
     city: user.city,
+    accountStatus: user.accountStatus, 
     ...(roleProfile ? roleProfile.toObject() : {}),
   };
 }
@@ -37,6 +38,11 @@ async function getMergedProfile(userId) {
 async function updateMergedProfile(userId, updates) {
   const user = await User.findById(userId);
   if (!user) throw new Error("USER_NOT_FOUND");
+
+ // enforced server-side so it can't be bypassed by skipping the UI check.
+  if (user.accountStatus === "restricted" || user.accountStatus === "inactive") {
+    throw new Error("ACCOUNT_NOT_ACTIVE");
+  }
 
   const USER_FIELDS = [
     "fullName", "email", "phoneNumber",

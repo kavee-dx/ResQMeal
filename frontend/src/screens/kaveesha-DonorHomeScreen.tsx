@@ -34,6 +34,15 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
         <View style={{ flex: 1 }}>
           <HomeHeader fullName={fullName} roleLabel="Donor" accentColor={ACCENT} />
         </View>
+
+        {/* TEMP: quick access to Profile for testing — remove or replace with proper nav later */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate("Profile")}
+          style={{ marginRight: Spacing.two, padding: 6 }}
+        >
+          <Ionicons name="person-circle-outline" size={28} color={ACCENT} />
+        </TouchableOpacity>
+
         <LogoutButton navigation={navigation} compact />
       </View>
 

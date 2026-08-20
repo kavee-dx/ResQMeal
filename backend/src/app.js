@@ -6,9 +6,9 @@ const loginRoutes = require("./routes/kaveesha-loginRoutes");
 const privacySettingsRoutes = require("./routes/amasha-privacySettingsRoutes");
 const notificationSettingsRoutes = require("./routes/amasha-notificationSettingsRoutes");
 const accountDeletionRoutes = require("./routes/amasha-accountDeletionRoutes");
-
+const profileRoutes = require("./routes/dilshara-profileRoutes");
 const passwordResetRoutes = require("./routes/kaveesha-passwordResetRoutes");
-
+const uploadRoutes = require("./routes/dilshara-uploadRoutes");
 const app = express();
 
 // Middleware
@@ -26,7 +26,8 @@ app.use("/api/settings", notificationSettingsRoutes);
 app.use("/api/settings", accountDeletionRoutes);
 
 app.use("/api/auth", passwordResetRoutes);
-
+app.use("/api/profile", profileRoutes);
+app.use("/api/upload", uploadRoutes);
 app.get("/api/test", (req, res) => {
   res.json({
     message: "Frontend connected to backend successfully",

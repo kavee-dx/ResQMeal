@@ -31,9 +31,10 @@ export default function ProfileScreen() {
     setProfile((prev) => (prev ? { ...prev, [field]: value } : prev));
   }
 
-  async function handlePickImage() {
+   async function handlePickImage() {
+    console.log('picker triggered');
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -44,7 +45,8 @@ export default function ProfileScreen() {
     setUploadingPhoto(true);
     try {
       const url = await uploadProfilePicture(result.assets[0].uri);
-      handleChange('profilePicture', url);
+      const updated = await updateMyProfile({ ...profile, profilePicture: url });
+      setProfile(updated);
     } catch (err) {
       console.error('Upload failed:', err);
       // TODO: show an error toast/message to the user

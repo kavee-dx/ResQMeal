@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { ThemedText } from '@/components/themed-text';
 import { ProfileAvatar } from '@/components/dilshara-ProfileAvatar';
 import { CommonProfileFields } from '@/components/dilshara-CommonProfileFields';
 import { DonorProfileDetails } from '@/components/dilshara-DonorProfileDetails';
+import { VolunteerProfileDetails } from '@/components/dilshara-VolunteerProfileDetails';
 import { getMyProfile, updateMyProfile } from '@/services/dilshara-profileService';
 import { uploadProfilePicture } from '@/services/dilshara-uploadService';
 import type { AnyProfile } from '@/types/dilshara-profileTypes';
@@ -16,6 +18,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     getMyProfile()
@@ -31,7 +34,7 @@ export default function ProfileScreen() {
     setProfile((prev) => (prev ? { ...prev, [field]: value } : prev));
   }
 
-   async function handlePickImage() {
+  async function handlePickImage() {
     console.log('picker triggered');
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -85,9 +88,35 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.screen}>
-      <ThemedText type="subtitle" themeColor="text" style={styles.heading}>
-        My Profile
-      </ThemedText>
+      <View style={styles.headerRow}>
+        <ThemedText type="subtitle" themeColor="text" style={styles.heading}>
+          {profile.fullName || 'My Profile'}
+        </ThemedText>
+
+        {!isEditing && (
+          <TouchableOpacity onPress={() => setMenuOpen((prev) => !prev)} style={styles.menuButton}>
+            <Ionicons name="ellipsis-vertical" size={22} color={Colors.light.text} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {menuOpen && !isEditing && (
+        <View style={styles.menuDropdown}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
+            <Ionicons name="notifications-outline" size={18} color={Colors.light.text} />
+            <ThemedText type="default" style={styles.menuItemText}>
+              Notification Settings
+            </ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.menuItem} onPress={() => setMenuOpen(false)}>
+            <Ionicons name="lock-closed-outline" size={18} color={Colors.light.text} />
+            <ThemedText type="default" style={styles.menuItemText}>
+              Privacy Settings
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {isRestricted && (
         <View style={styles.restrictedBanner}>
@@ -118,6 +147,14 @@ export default function ProfileScreen() {
           />
         )}
 
+        {profile.role === 'VOLUNTEER' && (
+          <VolunteerProfileDetails
+            profile={profile}
+            isEditing={isEditing && !isRestricted}
+            onChange={handleChange}
+          />
+        )}
+
         <TouchableOpacity
           style={[styles.button, isRestricted && styles.buttonDisabled]}
           onPress={() => (isEditing ? handleSave() : setIsEditing(true))}
@@ -139,7 +176,35 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  heading: { marginBottom: Spacing.three, color: Colors.light.text },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.three,
+  },
+  heading: { color: Colors.light.text },
+  menuButton: {
+    padding: 6,
+  },
+  menuDropdown: {
+    backgroundColor: Colors.light.surface,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.three,
+    ...Shadows.card,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: Spacing.three,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
+  },
+  menuItemText: {
+    color: Colors.light.text,
+  },
   card: {
     backgroundColor: Colors.light.surface,
     borderRadius: Radius.lg,
@@ -155,8 +220,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonDisabled: {
-  backgroundColor: Colors.light.border,
-},
+    backgroundColor: Colors.light.border,
+  },
   restrictedBanner: {
     backgroundColor: Colors.light.surface,
     borderRadius: Radius.md,

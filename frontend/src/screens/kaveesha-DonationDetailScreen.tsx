@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, ScrollView, ActivityIndicator, Pressable, Alert } from 'react-native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { Donation } from '@/types/kaveesha-donation.types';
-import { getDonationById } from '@/services/kaveesha-donationApi';
+import { getDonationById, deleteDonation } from '@/services/kaveesha-donationApi';
 import DonationStatusBadge from '@/components/kaveesha-DonationStatusBadge';
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -22,21 +22,58 @@ function formatDate(value?: string | null): string {
 
 export default function DonationDetailScreen() {
   const route = useRoute<any>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const { donationId } = route.params ?? {};
 
   const [donation, setDonation] = useState<Donation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    getDonationById(donationId)
-      .then((data) => mounted && setDonation(data))
-      .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
-    };
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getDonationById(donationId);
+      setDonation(data);
+    } finally {
+      setLoading(false);
+    }
   }, [donationId]);
+
+  // Refetch every time the screen regains focus, so edits made on the
+  // Edit screen show up here immediately without a manual refresh.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const canManage = donation?.status === 'pending';
+
+  const handleDelete = () => {
+    if (!donation) return;
+    Alert.alert(
+      'Delete donation?',
+      'This can\'t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              await deleteDonation(donation._id);
+              navigation.goBack();
+            } catch (err: any) {
+              Alert.alert('Could not delete', err?.message ?? 'Please try again.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   if (loading) {
     return (
@@ -85,7 +122,7 @@ export default function DonationDetailScreen() {
         <InfoRow label="Packaging" value={donation.packagingCondition || '—'} />
       </View>
 
-      <View className="p-5 bg-white shadow-sm rounded-3xl shadow-slate-200">
+      <View className="p-5 mb-5 bg-white shadow-sm rounded-3xl shadow-slate-200">
         <Text className="mb-3 text-sm font-bold tracking-wide uppercase text-emerald-700">Pickup</Text>
         <InfoRow label="District" value={donation.pickupDistrict || '—'} />
         <InfoRow label="Address" value={donation.pickupAddress || '—'} />
@@ -98,6 +135,32 @@ export default function DonationDetailScreen() {
           }
         />
       </View>
+
+      {canManage ? (
+        <View className="flex-row gap-3">
+          <Pressable
+            onPress={() => navigation.navigate('EditDonation', { donationId: donation._id })}
+            className="flex-1 flex-row items-center justify-center rounded-2xl border border-slate-200 bg-white py-3.5"
+          >
+            <Text className="text-sm font-bold text-slate-700">Edit</Text>
+          </Pressable>
+          <Pressable
+            onPress={handleDelete}
+            disabled={deleting}
+            className="flex-1 flex-row items-center justify-center rounded-2xl border border-red-200 bg-red-50 py-3.5"
+          >
+            {deleting ? (
+              <ActivityIndicator color="#dc2626" size="small" />
+            ) : (
+              <Text className="text-sm font-bold text-red-600">Delete</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : (
+        <Text className="text-xs text-center text-slate-400">
+          This donation is {donation.status} and can no longer be edited or deleted.
+        </Text>
+      )}
     </ScrollView>
   );
 }

@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
-const Donation = require('../../models/kaveesha-Donation.model');
-const { requireAuth } = require('../../middleware/auth');
+const Donation = require('../models/kaveesha-Donation.model');
+const { requireAuth } = require('../middleware/auth');
 
 // GET /api/donor/donations?status=active
 router.get('/', requireAuth, async (req, res) => {

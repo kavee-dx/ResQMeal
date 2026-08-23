@@ -14,6 +14,23 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    textMuted: '#9A9EA6',
+    surface: '#ffffff',
+    border: '#E0E0E0',
+    surfaceSoft: '#F5F5F5',
+    warning: '#FF9500',
+    warningSoft: '#FFF3E0',
+    primary: '#007AFF',
+    textOnPrimary: '#ffffff',
+    error: '#FF3B30',
+    errorSoft: '#FFEBEE',
+    info: '#5AC8FA',
+    infoSoft: '#E5F6FE',
+    success: '#34C759',
+    successSoft: '#E8F9EC',
+    inputBackground: '#F5F5F5',
+    inputText: '#000000',
+    inputPlaceholder: '#999999',
   },
   dark: {
     text: '#ffffff',
@@ -21,6 +38,23 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    textMuted: '#8A8E96',
+    surface: '#1C1C1E',
+    border: '#3A3A3C',
+    surfaceSoft: '#2C2C2E',
+    warning: '#FF9500',
+    warningSoft: '#3D2E1F',
+    primary: '#0A84FF',
+    textOnPrimary: '#ffffff',
+    error: '#FF453A',
+    errorSoft: '#3A2020',
+    info: '#64D2FF',
+    infoSoft: '#1E2D3D',
+    success: '#30D158',
+    successSoft: '#1D3423',
+    inputBackground: '#2C2C2E',
+    inputText: '#ffffff',
+    inputPlaceholder: '#666666',
   },
 } as const;
 
@@ -59,6 +93,69 @@ export const Spacing = {
   four: 24,
   five: 32,
   six: 64,
+  seven: 80,
+} as const;
+
+export const Radius = {
+  sm: 4,
+  md: 8,
+  lg: 12,
+  xl: 16,
+  pill: 9999,
+} as const;
+
+export const Typography = {
+  caption: {
+    fontSize: 12,
+    fontWeight: '400' as const,
+  },
+  labelStrong: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+  },
+  h2: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+  },
+  h3: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+  },
+  body: {
+    fontSize: 15,
+    fontWeight: '400' as const,
+  },
+  bodySmall: {
+    fontSize: 13,
+    fontWeight: '400' as const,
+  },
+  input: {
+    fontSize: 16,
+    fontWeight: '400' as const,
+  },
+  button: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+} as const;
+
+export const Shadows = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+} as const;
+
+export const ComponentSizes = {
+  inputHeight: 48,
+  buttonHeight: 48,
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;

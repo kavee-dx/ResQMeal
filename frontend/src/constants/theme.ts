@@ -14,6 +14,7 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    textMuted: '#9A9EA6',
     surface: '#ffffff',
     border: '#E0E0E0',
     surfaceSoft: '#F5F5F5',
@@ -22,6 +23,11 @@ export const Colors = {
     primary: '#007AFF',
     textOnPrimary: '#ffffff',
     error: '#FF3B30',
+    errorSoft: '#FFEBEE',
+    info: '#5AC8FA',
+    infoSoft: '#E5F6FE',
+    success: '#34C759',
+    successSoft: '#E8F9EC',
     inputBackground: '#F5F5F5',
     inputText: '#000000',
     inputPlaceholder: '#999999',
@@ -32,6 +38,7 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    textMuted: '#8A8E96',
     surface: '#1C1C1E',
     border: '#3A3A3C',
     surfaceSoft: '#2C2C2E',
@@ -40,6 +47,11 @@ export const Colors = {
     primary: '#0A84FF',
     textOnPrimary: '#ffffff',
     error: '#FF453A',
+    errorSoft: '#3A2020',
+    info: '#64D2FF',
+    infoSoft: '#1E2D3D',
+    success: '#30D158',
+    successSoft: '#1D3423',
     inputBackground: '#2C2C2E',
     inputText: '#ffffff',
     inputPlaceholder: '#666666',
@@ -81,6 +93,7 @@ export const Spacing = {
   four: 24,
   five: 32,
   six: 64,
+  seven: 80,
 } as const;
 
 export const Radius = {
@@ -104,9 +117,21 @@ export const Typography = {
     fontSize: 24,
     fontWeight: '700' as const,
   },
+  h3: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+  },
   label: {
     fontSize: 14,
     fontWeight: '500' as const,
+  },
+  body: {
+    fontSize: 15,
+    fontWeight: '400' as const,
+  },
+  bodySmall: {
+    fontSize: 13,
+    fontWeight: '400' as const,
   },
   input: {
     fontSize: 16,

@@ -19,6 +19,12 @@ export const Colors = {
     surfaceSoft: '#F5F5F5',
     warning: '#FF9500',
     warningSoft: '#FFF3E0',
+    primary: '#007AFF',
+    textOnPrimary: '#ffffff',
+    error: '#FF3B30',
+    inputBackground: '#F5F5F5',
+    inputText: '#000000',
+    inputPlaceholder: '#999999',
   },
   dark: {
     text: '#ffffff',
@@ -31,6 +37,12 @@ export const Colors = {
     surfaceSoft: '#2C2C2E',
     warning: '#FF9500',
     warningSoft: '#3D2E1F',
+    primary: '#0A84FF',
+    textOnPrimary: '#ffffff',
+    error: '#FF453A',
+    inputBackground: '#2C2C2E',
+    inputText: '#ffffff',
+    inputPlaceholder: '#666666',
   },
 } as const;
 
@@ -88,6 +100,22 @@ export const Typography = {
     fontSize: 14,
     fontWeight: '600' as const,
   },
+  h2: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+  },
+  input: {
+    fontSize: 16,
+    fontWeight: '400' as const,
+  },
+  button: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
 } as const;
 
 export const Shadows = {
@@ -98,6 +126,11 @@ export const Shadows = {
     shadowRadius: 4,
     elevation: 3,
   },
+} as const;
+
+export const ComponentSizes = {
+  inputHeight: 48,
+  buttonHeight: 48,
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;

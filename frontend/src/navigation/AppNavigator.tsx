@@ -8,9 +8,12 @@ import SplashScreen from "../screens/SplashScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
+import CreateDonationScreen from '@/screens/kaveesha-CreateDonationScreen';
 
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+<Stack.Screen name="CreateDonation" component={CreateDonationScreen} />
 
 
 export default function AppNavigator() {

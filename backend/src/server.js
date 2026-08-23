@@ -13,6 +13,13 @@ app.use(cors());
 app.use(express.json());
 
 
+const createDonationRoute = require('./routes/kaveesha-createDonation.route');
+const getDonationsRoute = require('./routes/kaveesha-getDonations.route');
+
+app.use('/api/donor/donations', createDonationRoute);
+app.use('/api/donor/donations', getDonationsRoute);
+
+
 // MongoDB connection
 connectDB();
 

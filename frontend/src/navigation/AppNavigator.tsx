@@ -9,11 +9,11 @@ import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
 import CreateDonationScreen from '@/screens/kaveesha-CreateDonationScreen';
-
+import MyDonationsScreen from '@/screens/kaveesha-MyDonationsScreen';
+import DonationDetailScreen from '@/screens/kaveesha-DonationDetailScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-<Stack.Screen name="CreateDonation" component={CreateDonationScreen} />
 
 
 export default function AppNavigator() {
@@ -46,6 +46,11 @@ export default function AppNavigator() {
           name="Home"
           component={HomeScreen}
         />
+
+        <Stack.Screen name="CreateDonation" component={CreateDonationScreen} />
+        <Stack.Screen name="MyDonations" component={MyDonationsScreen} />
+        <Stack.Screen name="DonationDetail" component={DonationDetailScreen} />
+
 
       </Stack.Navigator>
 

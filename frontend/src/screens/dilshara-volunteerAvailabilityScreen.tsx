@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Switch,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 
 type Day = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
@@ -19,10 +20,19 @@ interface AvailabilityFormState {
   availableDays: Day[];
   availableFrom: string; // "HH:mm"
   availableTo: string;   // "HH:mm"
-  maxDeliveryDistance: string; // kept as string for the input, parsed on save
 }
 
+// System-controlled — never edited by the volunteer, only displayed.
+type CurrentDeliveryStatus = 'IDLE' | 'DELIVERY_ASSIGNED' | 'PICKING_UP' | 'IN_TRANSIT';
+
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+const DELIVERY_STATUS_LABEL: Record<CurrentDeliveryStatus, string> = {
+  IDLE: 'Not currently delivering',
+  DELIVERY_ASSIGNED: 'Delivery assigned',
+  PICKING_UP: 'Picking up',
+  IN_TRANSIT: 'Delivery in progress',
+};
 
 export default function VolunteerAvailabilityScreen() {
   const [form, setForm] = useState<AvailabilityFormState>({
@@ -30,12 +40,36 @@ export default function VolunteerAvailabilityScreen() {
     availableDays: [],
     availableFrom: '16:00',
     availableTo: '22:00',
-    maxDeliveryDistance: '5',
   });
 
+  const [currentDeliveryStatus, setCurrentDeliveryStatus] =
+    useState<CurrentDeliveryStatus>('IDLE');
+
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // TODO(RESQ-132/133): replace with GET /api/volunteer/availability once
+  // the data model + API exist, so the screen restores saved state instead
+  // of resetting to defaults every time it opens.
+  useEffect(() => {
+    const loadAvailability = async () => {
+      try {
+        // const response = await api.get('/volunteer-profile/availability');
+        // setForm(response.data.availability);
+        // setCurrentDeliveryStatus(response.data.currentDeliveryStatus);
+      } catch (err) {
+        Alert.alert('Error', 'Could not load your saved availability.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAvailability();
+  }, []);
+
+  const isAvailable = form.availabilityStatus === 'AVAILABLE';
+
   const toggleDay = (day: Day) => {
+    if (!isAvailable) return;
     setForm((prev) => ({
       ...prev,
       availableDays: prev.availableDays.includes(day)
@@ -52,7 +86,7 @@ export default function VolunteerAvailabilityScreen() {
   };
 
   const validate = (): string | null => {
-    if (form.availabilityStatus === 'AVAILABLE') {
+    if (isAvailable) {
       if (form.availableDays.length === 0) {
         return 'Select at least one available day.';
       }
@@ -61,10 +95,6 @@ export default function VolunteerAvailabilityScreen() {
       }
       if (form.availableFrom >= form.availableTo) {
         return '"Available from" must be earlier than "available to".';
-      }
-      const distance = Number(form.maxDeliveryDistance);
-      if (!Number.isFinite(distance) || distance <= 0) {
-        return 'Enter a valid maximum delivery distance.';
       }
     }
     return null;
@@ -82,7 +112,6 @@ export default function VolunteerAvailabilityScreen() {
       availableDays: form.availableDays,
       availableFrom: form.availableFrom,
       availableTo: form.availableTo,
-      maxDeliveryDistance: Number(form.maxDeliveryDistance),
     };
 
     setSaving(true);
@@ -99,74 +128,96 @@ export default function VolunteerAvailabilityScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Availability</Text>
+      <Text style={styles.title}>Delivery Availability</Text>
+      <Text style={styles.subtitle}>Manage when you're available for food deliveries.</Text>
 
-      <View style={styles.row}>
-        <Text style={styles.label}>
-          {form.availabilityStatus === 'AVAILABLE' ? 'Available' : 'Unavailable'}
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Text style={styles.label}>{isAvailable ? 'Available' : 'Unavailable'}</Text>
+          <Switch value={isAvailable} onValueChange={toggleAvailabilityStatus} />
+        </View>
+        <Text style={styles.helperText}>
+          {isAvailable
+            ? "You may receive delivery requests."
+            : "Your profile will not be considered for delivery matching."}
         </Text>
-        <Switch
-          value={form.availabilityStatus === 'AVAILABLE'}
-          onValueChange={toggleAvailabilityStatus}
-        />
       </View>
 
-      <Text style={styles.sectionLabel}>Available Days</Text>
-      <View style={styles.dayRow}>
-        {ALL_DAYS.map((day) => {
-          const selected = form.availableDays.includes(day);
-          return (
-            <TouchableOpacity
-              key={day}
-              style={[styles.dayChip, selected && styles.dayChipSelected]}
-              onPress={() => toggleDay(day)}
-            >
-              <Text style={[styles.dayChipText, selected && styles.dayChipTextSelected]}>
-                {day}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Available Days</Text>
+        <View style={styles.dayRow}>
+          {ALL_DAYS.map((day) => {
+            const selected = form.availableDays.includes(day);
+            return (
+              <TouchableOpacity
+                key={day}
+                style={[
+                  styles.dayChip,
+                  selected && styles.dayChipSelected,
+                  !isAvailable && styles.dayChipDisabled,
+                ]}
+                onPress={() => toggleDay(day)}
+                disabled={!isAvailable}
+              >
+                <Text style={[styles.dayChipText, selected && styles.dayChipTextSelected]}>
+                  {day}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
-      <Text style={styles.sectionLabel}>Available Time</Text>
-      <View style={styles.timeRow}>
-        <TextInput
-          style={styles.timeInput}
-          value={form.availableFrom}
-          onChangeText={(text) => setForm((prev) => ({ ...prev, availableFrom: text }))}
-          placeholder="16:00"
-          keyboardType="numbers-and-punctuation"
-        />
-        <Text style={styles.timeSeparator}>to</Text>
-        <TextInput
-          style={styles.timeInput}
-          value={form.availableTo}
-          onChangeText={(text) => setForm((prev) => ({ ...prev, availableTo: text }))}
-          placeholder="22:00"
-          keyboardType="numbers-and-punctuation"
-        />
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Available Time</Text>
+        <View style={styles.timeRow}>
+          <View style={styles.timeField}>
+            <Text style={styles.timeFieldLabel}>From</Text>
+            <TextInput
+              style={[styles.timeInput, !isAvailable && styles.inputDisabled]}
+              value={form.availableFrom}
+              onChangeText={(text) => setForm((prev) => ({ ...prev, availableFrom: text }))}
+              placeholder="16:00"
+              keyboardType="numbers-and-punctuation"
+              editable={isAvailable}
+            />
+          </View>
+          <View style={styles.timeField}>
+            <Text style={styles.timeFieldLabel}>To</Text>
+            <TextInput
+              style={[styles.timeInput, !isAvailable && styles.inputDisabled]}
+              value={form.availableTo}
+              onChangeText={(text) => setForm((prev) => ({ ...prev, availableTo: text }))}
+              placeholder="22:00"
+              keyboardType="numbers-and-punctuation"
+              editable={isAvailable}
+            />
+          </View>
+        </View>
       </View>
 
-      <Text style={styles.sectionLabel}>Maximum Delivery Distance (km)</Text>
-      <TextInput
-        style={styles.distanceInput}
-        value={form.maxDeliveryDistance}
-        onChangeText={(text) =>
-          setForm((prev) => ({ ...prev, maxDeliveryDistance: text.replace(/[^0-9.]/g, '') }))
-        }
-        keyboardType="numeric"
-        placeholder="5"
-      />
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Current Delivery Status</Text>
+        <Text style={styles.readOnlyValue}>{DELIVERY_STATUS_LABEL[currentDeliveryStatus]}</Text>
+        <Text style={styles.helperText}>This is controlled by the system, not editable here.</Text>
+      </View>
 
       <TouchableOpacity
         style={[styles.saveButton, saving && styles.saveButtonDisabled]}
         onPress={handleSave}
         disabled={saving}
       >
-        <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
+        <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save Availability'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -177,26 +228,47 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
     fontSize: 22,
     fontWeight: '700',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
     marginBottom: 20,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
   label: {
     fontSize: 16,
     fontWeight: '600',
   },
+  helperText: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 8,
+  },
   sectionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 12,
     color: '#333',
   },
   dayRow: {
@@ -217,6 +289,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#2E7D32',
     borderColor: '#2E7D32',
   },
+  dayChipDisabled: {
+    opacity: 0.4,
+  },
   dayChipText: {
     color: '#333',
     fontWeight: '500',
@@ -226,7 +301,15 @@ const styles = StyleSheet.create({
   },
   timeRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 20,
+  },
+  timeField: {
+    flex: 1,
+  },
+  timeFieldLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
   },
   timeInput: {
     borderWidth: 1,
@@ -234,23 +317,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    width: 90,
     textAlign: 'center',
   },
-  timeSeparator: {
-    marginHorizontal: 12,
-    color: '#666',
+  inputDisabled: {
+    backgroundColor: '#f2f2f2',
+    color: '#999',
   },
-  distanceInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    width: 100,
+  readOnlyValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#2E7D32',
   },
   saveButton: {
-    marginTop: 28,
+    marginTop: 4,
     backgroundColor: '#2E7D32',
     paddingVertical: 14,
     borderRadius: 8,

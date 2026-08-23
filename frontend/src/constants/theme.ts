@@ -14,11 +14,6 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
-    surface: '#ffffff',
-    border: '#E0E0E0',
-    surfaceSoft: '#F5F5F5',
-    warning: '#FF9500',
-    warningSoft: '#FFF3E0',
   },
   dark: {
     text: '#ffffff',
@@ -26,11 +21,6 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
-    surface: '#1C1C1E',
-    border: '#3A3A3C',
-    surfaceSoft: '#2C2C2E',
-    warning: '#FF9500',
-    warningSoft: '#3D2E1F',
   },
 } as const;
 
@@ -69,35 +59,6 @@ export const Spacing = {
   four: 24,
   five: 32,
   six: 64,
-} as const;
-
-export const Radius = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
-  pill: 9999,
-} as const;
-
-export const Typography = {
-  caption: {
-    fontSize: 12,
-    fontWeight: '400' as const,
-  },
-  labelStrong: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-  },
-} as const;
-
-export const Shadows = {
-  card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;

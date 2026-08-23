@@ -1,12 +1,20 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { View, Text, ActivityIndicator, StyleSheet, useColorScheme } from "react-native";
 import { Colors, Spacing, Typography } from "@/constants/theme";
-import { EmergencyRequest } from "@/types/amasha-request";
+import { EmergencyRequest, RequestStatus } from "@/types/amasha-request";
 import RequestCard from "./amasha-RequestCard";
 import RequestFilterTabs, { RequestFilterValue } from "./amasha-RequestFilterTabs";
+import StatusSummaryDisplay, { StatusSummaryItem } from "./amasha-StatusSummaryDisplay";
 import api from "@/services/api";
 
 const URGENCY_RANK = { urgent: 0, soon: 1, fresh: 2 };
+const STATUS_ORDER: RequestStatus[] = ["pending", "accepted", "fulfilled", "expired"];
+const STATUS_LABELS: Record<RequestStatus, string> = {
+  pending: "Pending",
+  accepted: "Accepted",
+  fulfilled: "Fulfilled",
+  expired: "Expired",
+};
 
 export default function RequestStatusSection() {
   const scheme = useColorScheme() ?? "light";
@@ -47,11 +55,46 @@ export default function RequestStatusSection() {
     return list;
   }, [requests, filter]);
 
+  const summaryItems: StatusSummaryItem[] = useMemo(() => {
+    const counts: Record<RequestStatus, number> = { pending: 0, accepted: 0, fulfilled: 0, expired: 0 };
+    let urgentCount = 0;
+    requests.forEach((r) => {
+      counts[r.status]++;
+      if (r.urgency === "urgent" && (r.status === "pending" || r.status === "accepted")) urgentCount++;
+    });
+
+    const colorFor = (status: RequestStatus) => {
+      switch (status) {
+        case "pending":
+          return { fg: colors.warning, bg: colors.warningSoft };
+        case "accepted":
+          return { fg: colors.info, bg: colors.infoSoft };
+        case "fulfilled":
+          return { fg: colors.success, bg: colors.successSoft };
+        case "expired":
+          return { fg: colors.error, bg: colors.errorSoft };
+      }
+    };
+
+    const items: StatusSummaryItem[] = STATUS_ORDER.map((status) => ({
+      key: status,
+      label: STATUS_LABELS[status],
+      count: counts[status],
+      ...colorFor(status),
+    }));
+
+    // Urgent goes first — it's the number the coordinator needs to see fastest.
+    items.unshift({ key: "urgent", label: "Urgent", count: urgentCount, fg: colors.error, bg: colors.errorSoft });
+    return items;
+  }, [requests, colors]);
+
   return (
     <View style={styles.section}>
       <Text style={[Typography.h3, { color: colors.text, marginBottom: Spacing.three }]}>
         Request Status Monitoring
       </Text>
+
+      {!loading && !error && requests.length > 0 && <StatusSummaryDisplay items={summaryItems} />}
 
       <RequestFilterTabs active={filter} onChange={setFilter} />
 

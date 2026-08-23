@@ -5,7 +5,7 @@ const Donation = require('../models/kaveesha-Donation.model');
 const { validateDonationPayload } = require('../middleware/kaveesha-validateDonation');
 // Assumes an existing auth middleware attaches req.user — adjust the import
 // path below to match wherever your project's auth middleware already lives.
-const { requireAuth } = require('../../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 function generateDonationCode() {
   const year = new Date().getFullYear();

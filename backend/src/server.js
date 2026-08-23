@@ -15,6 +15,11 @@ app.use(express.json());
 
 const createDonationRoute = require('./routes/kaveesha-createDonation.route');
 const getDonationsRoute = require('./routes/kaveesha-getDonations.route');
+const updateDonationRoute = require('./routes/donor/kaveesha-updateDonation.route');
+const deleteDonationRoute = require('./routes/donor/kaveesha-deleteDonation.route');
+
+app.use('/api/donor/donations', updateDonationRoute);
+app.use('/api/donor/donations', deleteDonationRoute);
 
 app.use('/api/donor/donations', createDonationRoute);
 app.use('/api/donor/donations', getDonationsRoute);

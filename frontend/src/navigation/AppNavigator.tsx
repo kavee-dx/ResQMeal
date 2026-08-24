@@ -1,10 +1,6 @@
 import React from "react";
-import {
-  NavigationContainer,
-} from "@react-navigation/native";
-import {
-  createNativeStackNavigator,
-} from "@react-navigation/native-stack";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import { RootStackParamList, Role, getHomeRouteForRole } from "./types";
 
@@ -18,8 +14,11 @@ import DonorHomeScreen from "../screens/kaveesha-DonorHomeScreen";
 import RecipientHomeScreen from "../screens/kaveesha-RecipientHomeScreen";
 import NgoHomeScreen from "../screens/kaveesha-NgoHomeScreen";
 import VolunteerHomeScreen from "../screens/kaveesha-VolunteerHomeScreen";
-import VerifyResetOtpScreen from '../screens/kaveesha-VerifyResetOtpScreen';
-import ResetPasswordScreen from '../screens/kaveesha-ResetPasswordScreen';
+import VerifyResetOtpScreen from "../screens/kaveesha-VerifyResetOtpScreen";
+import ResetPasswordScreen from "../screens/kaveesha-ResetPasswordScreen";
+import DeleteAccountScreen from "../screens/amasha-DeleteAccountScreen";
+import NotificationSettingsScreen from "../screens/amasha-NotificationSettingsScreen";
+import PrivacySettingsScreen from "../screens/amasha-PrivacySettingsScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -36,9 +35,10 @@ type Props = {
 export default function AppNavigator({ initialAuth }: Props) {
   const hasSession = Boolean(initialAuth.token && initialAuth.role);
 
-  const initialRouteName = hasSession && initialAuth.role
-    ? getHomeRouteForRole(initialAuth.role)
-    : "Splash";
+  const initialRouteName =
+    hasSession && initialAuth.role
+      ? getHomeRouteForRole(initialAuth.role)
+      : "Splash";
 
   const homeInitialParams = hasSession
     ? { fullName: initialAuth.fullName ?? "" }
@@ -58,6 +58,15 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="VerifyAccount" component={VerifyAccountScreen} />
         <Stack.Screen name="Profile" component={ProfileScreen} />
+        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+        <Stack.Screen
+          name="NotificationSettings"
+          component={NotificationSettingsScreen}
+        />
+        <Stack.Screen
+          name="PrivacySettings"
+          component={PrivacySettingsScreen}
+        />
 
         <Stack.Screen
           name="DonorHome"

@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -27,7 +28,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   emailNotifications: false,
 };
 
-export default function NotificationSettingsScreen({}: Props) {
+export default function NotificationSettingsScreen({ navigation }: Props) {
   const theme = useTheme();
 
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
@@ -40,6 +41,7 @@ export default function NotificationSettingsScreen({}: Props) {
     async function load() {
       try {
         const res = await getNotificationSettings();
+        console.log("[NotificationSettings] load response:", res);
         if (mounted && res.success && res.data) {
           setSettings({ ...DEFAULT_SETTINGS, ...res.data });
         }
@@ -56,7 +58,12 @@ export default function NotificationSettingsScreen({}: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    console.log("[NotificationSettings] current settings:", settings);
+  }, [settings]);
+
   async function toggle(field: keyof NotificationSettings) {
+    console.log("[NotificationSettings] toggle called for", field, "current value:", settings[field]);
     const previous = settings;
     const next = { ...settings, [field]: !settings[field] };
     setSettings(next); // optimistic update
@@ -64,11 +71,13 @@ export default function NotificationSettingsScreen({}: Props) {
 
     try {
       const res = await updateNotificationSettings(next);
+      console.log("[NotificationSettings] save response:", res);
       if (!res.success) {
         setSettings(previous);
         Alert.alert("Couldn't save", res.message ?? "Please try again.");
       }
     } catch (err) {
+      console.error("[NotificationSettings] save error:", err);
       setSettings(previous);
       Alert.alert("Couldn't save", "Please check your connection and try again.");
     } finally {
@@ -134,6 +143,18 @@ export default function NotificationSettingsScreen({}: Props) {
       style={{ flex: 1, backgroundColor: theme.background }}
       contentContainerStyle={{ padding: Spacing.four }}
     >
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        hitSlop={8}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: Spacing.three,
+        }}
+      >
+        <Ionicons name="arrow-back" size={22} color={theme.text} />
+      </TouchableOpacity>
+
       <Text style={{ ...Typography.h2, color: theme.text, marginBottom: Spacing.one }}>
         Notification Settings
       </Text>
@@ -199,7 +220,8 @@ export default function NotificationSettingsScreen({}: Props) {
               <ActivityIndicator size="small" color={theme.primary} />
             ) : (
               <Switch
-                value={settings[row.field]}
+                testID={`switch-${row.field}`}
+                value={Boolean(settings[row.field])}
                 onValueChange={() => toggle(row.field)}
                 trackColor={{ false: theme.border, true: theme.primaryLight }}
                 thumbColor={settings[row.field] ? theme.primary : theme.surface}

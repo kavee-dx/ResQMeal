@@ -30,7 +30,7 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
       }}
       showsVerticalScrollIndicator={false}
     >
-      //
+      
 
       <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
        
@@ -42,7 +42,7 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
           <Ionicons name="person-circle-outline" size={28} color={ACCENT} />
         </TouchableOpacity>
 
-        <LogoutButton navigation={navigation} compact />
+        {/* <LogoutButton navigation={navigation} compact /> */}
       </View>
 
       <View style={{ flexDirection: "row", alignItems: "flex-start" }}>

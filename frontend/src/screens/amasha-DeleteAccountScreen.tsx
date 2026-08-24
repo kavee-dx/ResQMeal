@@ -30,15 +30,23 @@ export default function DeleteAccountScreen({ navigation }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const phraseMatches = confirmText === CONFIRM_PHRASE;
+  const phraseMatches = confirmText.trim().toUpperCase() === CONFIRM_PHRASE;
   const canSubmit = phraseMatches && password.length > 0 && !submitting;
 
-  async function handleDeletePress() {
+  function handleDeletePress() {
     if (!canSubmit) return;
 
-    // Second, explicit confirmation — a native alert as the final gate,
-    // separate from the typed phrase, so there's no single accidental tap
-    // that deletes an account.
+    if (Platform.OS === "web") {
+     
+      const confirmed = window.confirm(
+        "Delete account permanently?\n\nThis cannot be undone. All your data, donations, requests, and settings will be permanently removed."
+      );
+      if (confirmed) {
+        submitDeletion();
+      }
+      return;
+    }
+
     Alert.alert(
       "Delete account permanently?",
       "This cannot be undone. All your data, donations, requests, and settings will be permanently removed.",
@@ -62,10 +70,14 @@ export default function DeleteAccountScreen({ navigation }: Props) {
 
       if (res.success) {
         await clearSession();
-        Alert.alert(
-          "Account deleted",
-          res.message ?? "Your account has been permanently deleted."
-        );
+        if (Platform.OS === "web") {
+          window.alert(res.message ?? "Your account has been permanently deleted.");
+        } else {
+          Alert.alert(
+            "Account deleted",
+            res.message ?? "Your account has been permanently deleted."
+          );
+        }
         navigation.reset({
           index: 0,
           routes: [{ name: "Login" }],
@@ -89,6 +101,18 @@ export default function DeleteAccountScreen({ navigation }: Props) {
         contentContainerStyle={{ padding: Spacing.four, flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
       >
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: Spacing.three,
+          }}
+        >
+          <Ionicons name="arrow-back" size={22} color={theme.text} />
+        </TouchableOpacity>
+
         <View
           style={{
             width: 56,

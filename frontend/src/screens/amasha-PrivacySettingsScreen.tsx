@@ -6,6 +6,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -23,7 +24,7 @@ const DEFAULT_SETTINGS: PrivacySettings = {
   showContactInfo: false,
 };
 
-export default function PrivacySettingsScreen({}: Props) {
+export default function PrivacySettingsScreen({ navigation }: Props) {
   const theme = useTheme();
 
   const [settings, setSettings] = useState<PrivacySettings>(DEFAULT_SETTINGS);
@@ -36,6 +37,7 @@ export default function PrivacySettingsScreen({}: Props) {
     async function load() {
       try {
         const res = await getPrivacySettings();
+        console.log("[PrivacySettings] load response:", res);
         if (mounted && res.success && res.data) {
           setSettings({ ...DEFAULT_SETTINGS, ...res.data });
         }
@@ -52,7 +54,12 @@ export default function PrivacySettingsScreen({}: Props) {
     };
   }, []);
 
+  useEffect(() => {
+    console.log("[PrivacySettings] current settings:", settings);
+  }, [settings]);
+
   async function toggle(field: keyof PrivacySettings) {
+    console.log("[PrivacySettings] toggle called for", field, "current value:", settings[field]);
     const previous = settings;
     const next = { ...settings, [field]: !settings[field] };
     setSettings(next); // optimistic update
@@ -60,11 +67,13 @@ export default function PrivacySettingsScreen({}: Props) {
 
     try {
       const res = await updatePrivacySettings(next);
+      console.log("[PrivacySettings] save response:", res);
       if (!res.success) {
         setSettings(previous);
         Alert.alert("Couldn't save", res.message ?? "Please try again.");
       }
     } catch (err) {
+      console.error("[PrivacySettings] save error:", err);
       setSettings(previous);
       Alert.alert(
         "Couldn't save",
@@ -127,6 +136,18 @@ export default function PrivacySettingsScreen({}: Props) {
       style={{ flex: 1, backgroundColor: theme.background }}
       contentContainerStyle={{ padding: Spacing.four }}
     >
+      <TouchableOpacity
+        onPress={() => navigation.goBack()}
+        hitSlop={8}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginBottom: Spacing.three,
+        }}
+      >
+        <Ionicons name="arrow-back" size={22} color={theme.text} />
+      </TouchableOpacity>
+
       <Text
         style={{
           ...Typography.h2,
@@ -198,7 +219,8 @@ export default function PrivacySettingsScreen({}: Props) {
               <ActivityIndicator size="small" color={theme.primary} />
             ) : (
               <Switch
-                value={settings[row.field]}
+                testID={`switch-${row.field}`}
+                value={Boolean(settings[row.field])}
                 onValueChange={() => toggle(row.field)}
                 trackColor={{ false: theme.border, true: theme.primaryLight }}
                 thumbColor={settings[row.field] ? theme.primary : theme.surface}

@@ -38,6 +38,10 @@ export type RootStackParamList = {
   RecipientHome: HomeParams;
   NgoHome: HomeParams;
   VolunteerHome: HomeParams;
+
+  DeleteAccount: undefined;
+  NotificationSettings: undefined;
+  PrivacySettings: undefined;
 };
 
 export type HomeRouteName =
@@ -104,3 +108,4 @@ export function canAccessScreen(
     (item) => item.screen === screen,
   );
 }
+

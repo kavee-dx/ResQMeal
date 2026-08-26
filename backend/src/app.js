@@ -10,8 +10,8 @@ const passwordResetRoutes = require("./routes/kaveesha-passwordResetRoutes");
 const uploadRoutes = require("./routes/dilshara-uploadRoutes");
 const createDonationRoute = require("./routes/kaveesha-createDonation.route");
 const getDonationsRoute = require("./routes/kaveesha-getDonations.route");
-const updateDonationRoute = require("./routes/donor/kaveesha-updateDonation.route");
-const deleteDonationRoute = require("./routes/donor/kaveesha-deleteDonation.route");
+const updateDonationRoute = require("./routes/kaveesha-updateDonation.route");
+const deleteDonationRoute = require("./routes/kaveesha-deleteDonation.route");
 
 const app = express();
 // Middleware

@@ -3,7 +3,7 @@ const router = express.Router();
 
 const Donation = require('../models/kaveesha-Donation.model');
 const { validateDonationUpdatePayload } = require('../middleware/kaveesha-validateDonationUpdate');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/kaveesha-authMiddleware');
 
 const EDITABLE_FIELDS = [
   'foodType', 'foodCategory', 'quantity', 'numberOfPortions',

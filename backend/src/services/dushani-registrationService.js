@@ -16,6 +16,8 @@ const RecipientProfile = require("../models/dushani-RecipientProfile");
 const NGOProfile = require("../models/dushani-NGOProfile");
 const VolunteerProfile = require("../models/dushani-VolunteerProfile");
 
+const ROLES_REQUIRING_ADMIN_APPROVAL = ["NGO"];
+
 const {
   generateVerificationCode,
   getExpiryDate,
@@ -228,6 +230,10 @@ async function registerUser(input) {
     verificationCode,
 
     verificationCodeExpires,
+
+    approvalStatus: ROLES_REQUIRING_ADMIN_APPROVAL.includes(input.role)
+    ? "PENDING"
+    : "APPROVED",
   });
 
   try {

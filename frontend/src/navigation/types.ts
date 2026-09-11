@@ -1,10 +1,6 @@
 // frontend/src/navigation/types.ts
 
-export type Role =
-  | "DONOR"
-  | "RECIPIENT"
-  | "NGO"
-  | "VOLUNTEER";
+export type Role = "DONOR" | "RECIPIENT" | "NGO" | "VOLUNTEER";
 
 export type HomeParams = {
   fullName: string;
@@ -42,6 +38,9 @@ export type RootStackParamList = {
   DeleteAccount: undefined;
   NotificationSettings: undefined;
   PrivacySettings: undefined;
+
+  AdminLogin: undefined;
+  AdminDashboard: undefined;
 };
 
 export type HomeRouteName =
@@ -58,21 +57,13 @@ export type MenuItem = {
 
 // Sprint 1 only ships auth + profile foundation.
 const ROLE_MENUS: Record<Role, MenuItem[]> = {
-  DONOR: [
-    { key: "home", label: "Home", screen: "DonorHome" },
-  ],
+  DONOR: [{ key: "home", label: "Home", screen: "DonorHome" }],
 
-  RECIPIENT: [
-    { key: "home", label: "Home", screen: "RecipientHome" },
-  ],
+  RECIPIENT: [{ key: "home", label: "Home", screen: "RecipientHome" }],
 
-  NGO: [
-    { key: "home", label: "Home", screen: "NgoHome" },
-  ],
+  NGO: [{ key: "home", label: "Home", screen: "NgoHome" }],
 
-  VOLUNTEER: [
-    { key: "home", label: "Home", screen: "VolunteerHome" },
-  ],
+  VOLUNTEER: [{ key: "home", label: "Home", screen: "VolunteerHome" }],
 };
 
 export function getMenuForRole(role: Role): MenuItem[] {
@@ -94,9 +85,7 @@ export function getHomeRouteForRole(role: Role): HomeRouteName {
 }
 
 // Kept for backward compatibility with any existing callers.
-export function getInitialRouteForRole(
-  role: Role,
-): keyof RootStackParamList {
+export function getInitialRouteForRole(role: Role): keyof RootStackParamList {
   return getHomeRouteForRole(role);
 }
 
@@ -104,8 +93,5 @@ export function canAccessScreen(
   role: Role,
   screen: keyof RootStackParamList,
 ): boolean {
-  return getMenuForRole(role).some(
-    (item) => item.screen === screen,
-  );
+  return getMenuForRole(role).some((item) => item.screen === screen);
 }
-

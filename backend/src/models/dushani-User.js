@@ -19,7 +19,13 @@ const userSchema = new Schema(
     // Organization-type accounts (business donor, org recipient, NGO) may
     // register without a personal email, so this is only required for
     // individual-style accounts — enforced in the validation middleware.
-    email: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      sparse: true,
+    },
 
     phoneNumber: { type: String, required: true, trim: true, unique: true },
     password: { type: String, required: true, select: false },
@@ -30,13 +36,12 @@ const userSchema = new Schema(
     city: { type: String, required: true, trim: true },
     profilePicture: { type: String, trim: true },
 
-
     // --- Account verification (Task 04) ---
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String, select: false },
     verificationCodeExpires: { type: Date, select: false },
 
-        // --- Account status (RESQ-72) ---
+    // --- Account status (RESQ-72) ---
     accountStatus: {
       type: String,
       enum: ["active", "inactive", "restricted"],
@@ -45,8 +50,18 @@ const userSchema = new Schema(
     // --- Password reset - Kaveesha)/
     resetPasswordCode: { type: String, select: false },
     resetPasswordExpires: { type: Date, select: false },
+
+    //admin approvel
+    approvalStatus: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "APPROVED", 
+    },
+    rejectionReason: { type: String, trim: true },
+    approvedAt: { type: Date },
+    approvedBy: { type: Schema.Types.ObjectId, ref: "Admin" },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("User", userSchema);

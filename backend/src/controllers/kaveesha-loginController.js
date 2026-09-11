@@ -34,6 +34,16 @@ const ERROR_MESSAGES = {
     message:
       "Your account is not verified yet. Please check your email for the verification code.",
   },
+
+  ACCOUNT_PENDING_APPROVAL: {
+    status: 403,
+    message:
+      "Your account is awaiting verification by our team. We'll email you once it's approved.",
+  },
+  ACCOUNT_REJECTED: {
+    status: 403,
+    message: "Your registration could not be verified. Please contact support.",
+  },
 };
 
 function handleKnownError(error, res) {

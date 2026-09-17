@@ -866,7 +866,7 @@ export default function RegisterScreen({ navigation }: Props) {
         payload,
       );
 
-      if (response?.data?.success) {
+            if (response?.data?.success) {
         Alert.alert(
           'Registration successful',
           response.data?.message ??
@@ -876,9 +876,22 @@ export default function RegisterScreen({ navigation }: Props) {
         const verificationEmail =
           (payload as any).email || form.email || form.businessEmail;
 
+        // Individual accounts have fullName directly; business/organization
+        // accounts don't, so fall back to the org/business name for the
+        // greeting shown on the "pending approval" screen after verification.
+        const displayName =
+          form.fullName ||
+          form.businessName ||
+          form.organizationName ||
+          form.authorizedPerson ||
+          undefined;
+
         // Backend already sends the verification code on successful registration,
         // so do not call resend here to avoid duplicate OTP emails.
-        navigation?.navigate?.('VerifyAccount', { email: verificationEmail });
+        navigation?.navigate?.('VerifyAccount', {
+          email: verificationEmail,
+          fullName: displayName,
+        });
       } else {
         Alert.alert('Registration', response.data?.message ?? 'Registration completed.');
       }

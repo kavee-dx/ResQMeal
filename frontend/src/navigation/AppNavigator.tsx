@@ -19,6 +19,9 @@ import ResetPasswordScreen from "../screens/kaveesha-ResetPasswordScreen";
 import DeleteAccountScreen from "../screens/amasha-DeleteAccountScreen";
 import NotificationSettingsScreen from "../screens/amasha-NotificationSettingsScreen";
 import PrivacySettingsScreen from "../screens/amasha-PrivacySettingsScreen";
+import AdminLoginScreen from "../screens/amasha-AdminLoginScreen";
+import AdminDashboardScreen from "../screens/amasha-AdminDashboardScreen";
+import RegistrationPendingScreen from "../screens/amasha-RegistrationPendingScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -98,6 +101,15 @@ export default function AppNavigator({ initialAuth }: Props) {
           initialParams={
             initialRouteName === "VolunteerHome" ? homeInitialParams : undefined
           }
+        />
+
+        <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
+
+        <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen
+          name="RegistrationPending"
+          component={RegistrationPendingScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

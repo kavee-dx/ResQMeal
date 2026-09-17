@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+
 const registrationRoutes = require("./routes/dushani-registrationRoutes");
 const loginRoutes = require("./routes/kaveesha-loginRoutes");
 const privacySettingsRoutes = require("./routes/amasha-privacySettingsRoutes");
@@ -15,12 +16,14 @@ const updateDonationRoute = require("./routes/kaveesha-updateDonation.route");
 const deleteDonationRoute = require("./routes/kaveesha-deleteDonation.route");
 
 const app = express();
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: "15mb" }));
 app.get("/", (req, res) => {
   res.send("ResQMeal Backend Running");
 });
+
 app.use("/api/auth", registrationRoutes);
 app.use("/api/auth", loginRoutes);
 app.use("/api/settings", privacySettingsRoutes);
@@ -42,4 +45,5 @@ app.get("/api/test", (req, res) => {
     message: "Frontend connected to backend successfully",
   });
 });
+
 module.exports = app;

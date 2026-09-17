@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const Donation = require('../models/kaveesha-Donation.model');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/kaveesha-authMiddleware');
 
 // GET /api/donor/donations?status=active
 router.get('/', requireAuth, async (req, res) => {

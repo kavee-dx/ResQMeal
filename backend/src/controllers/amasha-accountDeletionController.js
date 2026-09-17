@@ -3,6 +3,19 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/dushani-User");
 const PrivacySettings = require("../models/amasha-PrivacySettings");
 const NotificationSettings = require("../models/amasha-NotificationSettings");
+const DonorProfile = require("../models/dushani-DonorProfile");
+const RecipientProfile = require("../models/dushani-RecipientProfile");
+const NGOProfile = require("../models/dushani-NGOProfile");
+const VolunteerProfile = require("../models/dushani-VolunteerProfile");
+
+// Maps User.role -> the Mongoose model holding that role's profile fields
+const ROLE_PROFILE_MODELS = {
+  DONOR: DonorProfile,
+  RECIPIENT: RecipientProfile,
+  NGO: NGOProfile,
+  VOLUNTEER: VolunteerProfile,
+};
+
 // DELETE /api/settings/account/me
 // body: { password: string }
 async function deleteAccount(req, res) {
@@ -36,14 +49,22 @@ async function deleteAccount(req, res) {
       });
     }
 
-    // Remove settings docs first, then the user record itself.
+    // Delete the role-specific profile doc that matches this user's role,
+    // plus the shared privacy/notification settings docs.
     // If your donations/requests/delivery collections reference this
     // user, prefer anonymizing those (e.g. set donorId to a generic
     // "deleted user" placeholder) instead of deleting them outright,
     // so other users' history/records stay intact. Add that step here
     // once those models exist.
-    await PrivacySettings.deleteOne({ userId });
-    await NotificationSettings.deleteOne({ userId });
+    const ProfileModel = ROLE_PROFILE_MODELS[user.role];
+
+    await Promise.all([
+      PrivacySettings.deleteOne({ userId }),
+      NotificationSettings.deleteOne({ userId }),
+      ProfileModel ? ProfileModel.deleteOne({ userId }) : Promise.resolve(),
+    ]);
+
+    // Delete the User record last, after its dependent docs are gone.
     await User.deleteOne({ _id: userId });
 
     return res.status(200).json({

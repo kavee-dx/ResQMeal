@@ -16,7 +16,13 @@ import {
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { verifyAccount, resendVerificationCode } from "../services/api";
-import { Typography, Spacing, Radius, ComponentSizes, Shadows } from "@/constants/theme";
+import {
+  Typography,
+  Spacing,
+  Radius,
+  ComponentSizes,
+  Shadows,
+} from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 type Props = NativeStackScreenProps<any, "VerifyAccount">;
@@ -26,7 +32,10 @@ const RESEND_COOLDOWN = 30;
 
 export default function VerifyAccountScreen({ route, navigation }: Props) {
   const theme = useTheme();
-  const { email } = route.params as { email: string };
+  const { email, fullName } = route.params as {
+    email: string;
+    fullName?: string;
+  };
 
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
@@ -69,7 +78,7 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
 
   function handleKeyPress(
     index: number,
-    e: NativeSyntheticEvent<TextInputKeyPressEventData>
+    e: NativeSyntheticEvent<TextInputKeyPressEventData>,
   ) {
     if (e.nativeEvent.key === "Backspace" && !digits[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
@@ -87,7 +96,12 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
       const res = await verifyAccount(email, code);
       if (res.success) {
         setStatus("success");
-        setTimeout(() => navigation.navigate("Login"), 1200);
+        setTimeout(() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "RegistrationPending", params: { fullName } }],
+          });
+        }, 1200);
       } else {
         setError(res.message ?? "Verification failed.");
         setDigits(Array(CODE_LENGTH).fill(""));
@@ -105,7 +119,10 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
     setResending(true);
     try {
       const res = await resendVerificationCode(email);
-      Alert.alert(res.success ? "Code sent" : "Could not resend", res.message ?? "");
+      Alert.alert(
+        res.success ? "Code sent" : "Could not resend",
+        res.message ?? "",
+      );
       if (res.success) setResendCooldown(RESEND_COOLDOWN);
     } catch (err: any) {
       Alert.alert("Could not resend", err?.message ?? "Please try again.");
@@ -154,11 +171,24 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
           <Text style={{ fontSize: 26 }}>📩</Text>
         </View>
 
-        <Text style={{ ...Typography.h2, color: theme.text, marginBottom: Spacing.two }}>
+        <Text
+          style={{
+            ...Typography.h2,
+            color: theme.text,
+            marginBottom: Spacing.two,
+          }}
+        >
           Verify your account
         </Text>
-        <Text style={{ ...Typography.body, color: theme.textSecondary, marginBottom: Spacing.four }}>
-          We sent a 6-digit code to {email}. Enter it below to activate your account.
+        <Text
+          style={{
+            ...Typography.body,
+            color: theme.textSecondary,
+            marginBottom: Spacing.four,
+          }}
+        >
+          We sent a 6-digit code to {email}. Enter it below to activate your
+          account.
         </Text>
 
         {/* OTP entry box */}
@@ -170,7 +200,13 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
             marginBottom: Spacing.two,
           }}
         >
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: Spacing.two }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: Spacing.two,
+            }}
+          >
             {digits.map((d, i) => (
               <TextInput
                 key={i}
@@ -203,7 +239,14 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
         </View>
 
         {error ? (
-          <Text style={{ ...Typography.bodySmall, color: theme.error, marginBottom: Spacing.three, fontSize: 12 }}>
+          <Text
+            style={{
+              ...Typography.bodySmall,
+              color: theme.error,
+              marginBottom: Spacing.three,
+              fontSize: 12,
+            }}
+          >
             {error}
           </Text>
         ) : null}
@@ -218,8 +261,14 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
               marginBottom: Spacing.three,
             }}
           >
-            <Text style={{ ...Typography.bodySmall, color: theme.success, fontWeight: "600" }}>
-              Account verified! Redirecting to login…
+            <Text
+              style={{
+                ...Typography.bodySmall,
+                color: theme.success,
+                fontWeight: "600",
+              }}
+            >
+              Email verified! Taking you to the next step…
             </Text>
           </View>
         ) : null}
@@ -229,7 +278,8 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
           disabled={submitting || status === "success"}
           style={{
             height: ComponentSizes.buttonHeight,
-            backgroundColor: status === "success" ? theme.success : theme.primary,
+            backgroundColor:
+              status === "success" ? theme.success : theme.primary,
             borderRadius: Radius.md,
             alignItems: "center",
             justifyContent: "center",
@@ -259,8 +309,8 @@ export default function VerifyAccountScreen({ route, navigation }: Props) {
             {resending
               ? "Resending…"
               : resendCooldown > 0
-              ? `Resend code in ${resendCooldown}s`
-              : "Didn't get a code? Resend"}
+                ? `Resend code in ${resendCooldown}s`
+                : "Didn't get a code? Resend"}
           </Text>
         </TouchableOpacity>
       </View>

@@ -402,6 +402,30 @@ export default function LoginScreen({ navigation }: Props) {
                 </Text>
               </TouchableOpacity>
             </View>
+                        <View
+              style={{
+                borderTopWidth: 1,
+                borderTopColor: theme.border,
+                marginTop: Spacing.four,
+                paddingTop: Spacing.three,
+                alignItems: 'center',
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => navigation.navigate('AdminLogin')}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{
+                    ...T.bodySmall,
+                    color: theme.textSecondary,
+                    textDecorationLine: 'underline',
+                  }}
+                >
+                  Admin Login
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View

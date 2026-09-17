@@ -3,37 +3,35 @@ export const Colors = {
     // --------------------------------------------------------
     // Brand
     // --------------------------------------------------------
-    primary: '#2F7D4F',
-    primaryDark: '#25663F',
-    primaryLight: '#DCEFE3',
+    primary: '#023047',
+    primaryDark: '#011C2E',
+    primaryLight: '#D6E4EA',
 
-    secondary: '#F4A340',
-    secondaryDark: '#D88925',
-    secondaryLight: '#FDECD6',
+    secondary: '#FB8500',
+    secondaryDark: '#D97200',
+    secondaryLight: '#FFE8D1',
 
     // --------------------------------------------------------
     // Backgrounds
     // --------------------------------------------------------
-    background: '#E4EFE7',
-    formBackground: '#DCE9DF',
+    background: '#F6F8FA',
+    formBackground: '#FFFFFF',
 
-    surface: '#F1F7F2',
-    surfaceSoft: '#E8F2EB',
+    surface: '#FFFFFF',
+    surfaceSoft: '#F1F5F7',
 
-    backgroundElement: '#D7E6DB',
-    backgroundSelected: '#D0E4D5',
-
-    
+    backgroundElement: '#E9EEF1',
+    backgroundSelected: '#D6E4EA',
 
     // --------------------------------------------------------
     // Text
     // --------------------------------------------------------
-    text: '#173321',
-    textSecondary: '#5F7166',
-    textMuted: '#87958C',
+    text: '#023047',
+    textSecondary: '#4D6470',
+    textMuted: '#8A9AA3',
 
     textOnPrimary: '#FFFFFF',
-    textOnSecondary: '#3A2A13',
+    textOnSecondary: '#023047',
 
     // --------------------------------------------------------
     // Status
@@ -41,69 +39,73 @@ export const Colors = {
     success: '#3FA34D',
     successSoft: '#E2F2E5',
 
-    warning: '#E0A526',
-    warningSoft: '#FAEFD5',
+    warning: '#FFB703',
+    warningSoft: '#FFF3D6',
 
     error: '#D64545',
     errorSoft: '#F9E3E3',
 
-    info: '#4B83C4',
-    infoSoft: '#E5EFF8',
+    // Teal (#126782) now lives here as the info accent, used
+    // sparingly — navy (#023047) is the main brand color.
+    info: '#126782',
+    infoSoft: '#E1EEF2',
 
     // --------------------------------------------------------
     // Borders
     // --------------------------------------------------------
-    border: '#C8D9CD',
-    borderLight: '#D8E5DC',
-    borderFocus: '#2F7D4F',
+    border: '#D7E3E7',
+    borderLight: '#E6EEF1',
+    borderFocus: '#023047',
 
     // --------------------------------------------------------
     // Form
     // --------------------------------------------------------
-    inputBackground: '#E7F1EA',
-    inputPlaceholder: '#8B9991',
-    inputText: '#243B2D',
+    inputBackground: '#F1F5F7',
+    inputPlaceholder: '#8A9AA3',
+    inputText: '#023047',
 
     // --------------------------------------------------------
     // Soft colors
     // --------------------------------------------------------
-    primarySoft: '#E4F1E9',
-    secondarySoft: '#FDECD6',
+    primarySoft: '#D6E4EA',
+    secondarySoft: '#FFE8D1',
   },
 
   dark: {
     // --------------------------------------------------------
     // Brand
     // --------------------------------------------------------
-    primary: '#4FAF70',
-    primaryDark: '#3D915B',
-    primaryLight: '#203B29',
+    // Slightly lightened from #023047 so it stays visible
+    // against dark backgrounds; primaryDark keeps the true navy.
+    primary: '#0F5C82',
+    primaryDark: '#023047',
+    primaryLight: '#0B2530',
 
-    secondary: '#F4A340',
-    secondaryDark: '#D88925',
-    secondaryLight: '#3A2E18',
+    secondary: '#FFB703',
+    secondaryDark: '#FB8500',
+    secondaryLight: '#3A2B14',
 
     // --------------------------------------------------------
     // Backgrounds
     // --------------------------------------------------------
-    background: '#101812',
-    formBackground: '#162119',
+    background: '#01131F',
+    formBackground: '#062338',
 
-    surface: '#1D2921',
-    surfaceSoft: '#19241D',
+    surface: '#0A2C3F',
+    surfaceSoft: '#082537',
 
-    backgroundElement: '#243128',
-    backgroundSelected: '#304034',
+    backgroundElement: '#0D3145',
+    backgroundSelected: '#123E54',
 
     // --------------------------------------------------------
     // Text
     // --------------------------------------------------------
-    text: '#F4F8F5',
-    textSecondary: '#B8C5BC',
-    textMuted: '#87958B',
+    text: '#F2F7F9',
+    textSecondary: '#B8C7CD',
+    textMuted: '#7E939C',
 
     textOnPrimary: '#FFFFFF',
-    textOnSecondary: '#211A0F',
+    textOnSecondary: '#1A1206',
 
     // --------------------------------------------------------
     // Status
@@ -111,34 +113,34 @@ export const Colors = {
     success: '#55B866',
     successSoft: '#1D3423',
 
-    warning: '#E0A526',
-    warningSoft: '#382F18',
+    warning: '#FFB703',
+    warningSoft: '#3A2B14',
 
     error: '#E45B5B',
     errorSoft: '#3A2020',
 
-    info: '#5C91CA',
-    infoSoft: '#1E2D3D',
+    info: '#3E9CBF',
+    infoSoft: '#0F2A34',
 
     // --------------------------------------------------------
     // Borders
     // --------------------------------------------------------
-    border: '#304037',
-    borderLight: '#27332B',
-    borderFocus: '#4FAF70',
+    border: '#123E54',
+    borderLight: '#0D3145',
+    borderFocus: '#0F5C82',
 
     // --------------------------------------------------------
     // Form
     // --------------------------------------------------------
-    inputBackground: '#202D25',
-    inputPlaceholder: '#7F8E84',
-    inputText: '#F4F8F5',
+    inputBackground: '#082537',
+    inputPlaceholder: '#7E939C',
+    inputText: '#F2F7F9',
 
     // --------------------------------------------------------
     // Soft colors
     // --------------------------------------------------------
-    primarySoft: '#1E3327',
-    secondarySoft: '#3A2E18',
+    primarySoft: '#0B2530',
+    secondarySoft: '#3A2B14',
   },
 } as const;
 
@@ -352,7 +354,7 @@ export const ComponentSizes = {
 
 export const Shadows = {
   card: {
-    shadowColor: '#173321',
+    shadowColor: '#023047',
     shadowOffset: {
       width: 0,
       height: 4,
@@ -363,12 +365,12 @@ export const Shadows = {
   },
 
   button: {
-    shadowColor: '#2F7D4F',
+    shadowColor: '#FB8500',
     shadowOffset: {
       width: 0,
       height: 3,
     },
-    shadowOpacity: 0.16,
+    shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
   },

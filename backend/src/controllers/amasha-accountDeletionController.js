@@ -30,7 +30,7 @@ async function deleteAccount(req, res) {
       });
     }
 
-    // password has `select: false` on the schema, so fetch it explicitly
+    
     const user = await User.findById(userId).select("+password");
 
     if (!user) {

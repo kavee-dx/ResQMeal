@@ -39,6 +39,14 @@ async function loginUser({ email, password }) {
     throw new Error("ACCOUNT_NOT_VERIFIED");
   }
 
+  if (user.approvalStatus === "PENDING") {
+    throw new Error("ACCOUNT_PENDING_APPROVAL");
+  }
+
+  if (user.approvalStatus === "REJECTED") {
+    throw new Error("ACCOUNT_REJECTED");
+  }
+
   return user;
 }
 

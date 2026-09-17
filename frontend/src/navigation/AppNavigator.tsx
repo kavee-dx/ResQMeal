@@ -19,6 +19,9 @@ import ResetPasswordScreen from "../screens/kaveesha-ResetPasswordScreen";
 import DeleteAccountScreen from "../screens/amasha-DeleteAccountScreen";
 import NotificationSettingsScreen from "../screens/amasha-NotificationSettingsScreen";
 import PrivacySettingsScreen from "../screens/amasha-PrivacySettingsScreen";
+import AdminLoginScreen from "../screens/amasha-AdminLoginScreen";
+import AdminDashboardScreen from "../screens/amasha-AdminDashboardScreen";
+import RegistrationPendingScreen from "../screens/amasha-RegistrationPendingScreen";
 import CreateDonationScreen from "@/screens/kaveesha-CreateDonationScreen";
 import MyDonationsScreen from "@/screens/kaveesha-MyDonationsScreen";
 import DonationDetailScreen from "@/screens/kaveesha-DonationDetailScreen";
@@ -120,6 +123,15 @@ export default function AppNavigator() {
         <Stack.Screen
           name="DonationDetail"
           component={DonationDetailScreen}
+        />
+
+        <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
+
+        <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen
+          name="RegistrationPending"
+          component={RegistrationPendingScreen}
+          options={{ headerShown: false }}
         />
       </Stack.Navigator>
     </NavigationContainer>

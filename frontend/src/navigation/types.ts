@@ -24,6 +24,9 @@ export type RootStackParamList = {
 
   Register: undefined;
   Home: undefined;
+  CreateDonation: undefined;
+  MyDonations: undefined;
+  DonationDetail: { donationId: string };
   Profile: undefined;
 
   VerifyAccount: {

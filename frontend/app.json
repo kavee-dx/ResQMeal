@@ -34,7 +34,13 @@
       "expo-web-browser",
       "expo-router",
       "expo-secure-store",
-      "expo-asset"
+      "expo-asset",
+    [
+      "expo-audio",
+      {
+        "microphonePermission": "Allow ResQMeal to access your microphone so you can fill in donation details by voice."
+      }
+    ]
     ],
     "experiments": {
       "reactCompiler": true

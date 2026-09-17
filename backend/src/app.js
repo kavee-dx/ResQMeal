@@ -16,7 +16,7 @@ const deleteDonationRoute = require("./routes/kaveesha-deleteDonation.route");
 const app = express();
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "15mb" }));
 app.get("/", (req, res) => {
   res.send("ResQMeal Backend Running");
 });
@@ -32,6 +32,8 @@ app.use("/api/donor/donations", updateDonationRoute);
 app.use("/api/donor/donations", deleteDonationRoute);
 app.use("/api/donor/donations", createDonationRoute);
 app.use("/api/donor/donations", getDonationsRoute);
+app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
+app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
 app.get("/api/test", (req, res) => {
   res.json({
     message: "Frontend connected to backend successfully",

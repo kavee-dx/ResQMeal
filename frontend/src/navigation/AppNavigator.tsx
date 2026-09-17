@@ -19,7 +19,7 @@ import ResetPasswordScreen from "../screens/kaveesha-ResetPasswordScreen";
 import DeleteAccountScreen from "../screens/amasha-DeleteAccountScreen";
 import NotificationSettingsScreen from "../screens/amasha-NotificationSettingsScreen";
 import PrivacySettingsScreen from "../screens/amasha-PrivacySettingsScreen";
-import CreateDonationScreen from "@/screens/kaveesha-CreateDonationScreen";
+import CreateDonationScreen from "@/navigation/kaveesha-CreateDonationNavigator";
 import MyDonationsScreen from "@/screens/kaveesha-MyDonationsScreen";
 import DonationDetailScreen from "@/screens/kaveesha-DonationDetailScreen";
 

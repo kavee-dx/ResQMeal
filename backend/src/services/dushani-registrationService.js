@@ -16,7 +16,7 @@ const RecipientProfile = require("../models/dushani-RecipientProfile");
 const NGOProfile = require("../models/dushani-NGOProfile");
 const VolunteerProfile = require("../models/dushani-VolunteerProfile");
 
-const ROLES_REQUIRING_ADMIN_APPROVAL = ["NGO"];
+const ROLES_REQUIRING_ADMIN_APPROVAL = ["DONOR", "RECIPIENT", "NGO", "VOLUNTEER"];
 
 const {
   generateVerificationCode,

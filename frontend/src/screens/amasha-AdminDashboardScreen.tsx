@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   RefreshControl,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,13 +21,13 @@ import {
 } from "../utils/amasha-admin-authStorage";
 import { useAppTypography } from "../hooks/kaveesha-useAppTypography";
 import type { RootStackParamList } from "../navigation/types";
-
-const WARNING = "#E0A526";
-const WARNING_SOFT = "#FBF1DC";
+import { resetToRoot } from "../utils/amasha-admin-navigationReset";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AdminDashboard">;
 
-type PendingEntry = {
+type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+type UserEntry = {
   user: {
     _id: string;
     fullName?: string;
@@ -37,18 +37,39 @@ type PendingEntry = {
     district: string;
     city: string;
     createdAt: string;
+    approvalStatus: ApprovalStatus;
+    rejectionReason?: string;
+    approvedAt?: string;
   };
   profile: Record<string, any> | null;
 };
 
 const ROLE_FILTERS = ["ALL", "DONOR", "RECIPIENT", "NGO", "VOLUNTEER"] as const;
 
+const STATUS_TABS: { key: ApprovalStatus | "ALL"; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: "PENDING", label: "Pending", icon: "time-outline" },
+  { key: "APPROVED", label: "Approved", icon: "checkmark-circle-outline" },
+  { key: "REJECTED", label: "Rejected", icon: "close-circle-outline" },
+  { key: "ALL", label: "All", icon: "list-outline" },
+];
+
+const DESKTOP_BREAKPOINT = 1000;
+const SIDEBAR_WIDTH = 280;
+
 function profileFields(
-  entry: PendingEntry,
+  entry: UserEntry,
 ): { label: string; value: string }[] {
   const { user, profile } = entry;
 
   const fields: { label: string; value: string }[] = [
+    {
+      label: "Full name",
+      value: user.fullName || profile?.authorizedPerson || "—",
+    },
+    {
+      label: "Email",
+      value: user.email ?? "—",
+    },
     {
       label: "Phone",
       value: user.phoneNumber,
@@ -63,60 +84,58 @@ function profileFields(
 
   if (user.role === "NGO") {
     fields.push(
-      {
-        label: "Organization",
-        value: profile.organizationName ?? "—",
-      },
-      {
-        label: "Registration no.",
-        value: profile.ngoRegistrationNumber ?? "—",
-      },
+      { label: "Organization", value: profile.organizationName ?? "—" },
+      { label: "Registration no.", value: profile.ngoRegistrationNumber ?? "—" },
       {
         label: "Type",
-        value:
-          profile.specifiedOrganizationType ?? profile.organizationType ?? "—",
+        value: profile.specifiedOrganizationType ?? profile.organizationType ?? "—",
       },
-      {
-        label: "Authorized person",
-        value: profile.authorizedPerson ?? "—",
-      },
-      {
-        label: "Position",
-        value: profile.position ?? "—",
-      },
+      { label: "Authorized person", value: profile.authorizedPerson ?? "—" },
+      { label: "Position", value: profile.position ?? "—" },
     );
 
     if (profile.website) {
-      fields.push({
-        label: "Website",
-        value: profile.website,
-      });
+      fields.push({ label: "Website", value: profile.website });
     }
   } else if (user.role === "DONOR") {
-    fields.push(
-      {
-        label: "Donor type",
-        value: profile.specifiedDonorType ?? profile.donorType ?? "—",
-      },
-      {
-        label: "Business name",
-        value: profile.businessName ?? "—",
-      },
-      {
-        label: "Registration no.",
-        value: profile.businessRegistrationNumber ?? "—",
-      },
-    );
+    const isBusiness = profile.donorType && profile.donorType !== "INDIVIDUAL";
+
+    fields.push({
+      label: "Donor type",
+      value: profile.specifiedDonorType ?? profile.donorType ?? "—",
+    });
+
+    if (isBusiness) {
+      fields.push(
+        { label: "Business name", value: profile.businessName ?? "—" },
+        { label: "Registration no.", value: profile.businessRegistrationNumber ?? "—" },
+        { label: "Authorized person", value: profile.authorizedPerson ?? "—" },
+        { label: "Position", value: profile.position ?? "—" },
+        { label: "Business contact", value: profile.businessContactNumber ?? "—" },
+      );
+    }
   } else if (user.role === "RECIPIENT") {
+    const isOrg =
+      profile.recipientType && !["INDIVIDUAL", "FAMILY"].includes(profile.recipientType);
+
+    fields.push({
+      label: "Recipient type",
+      value: profile.specifiedRecipientType ?? profile.recipientType ?? "—",
+    });
+
+    if (isOrg) {
+      fields.push(
+        { label: "Organization", value: profile.organizationName ?? "—" },
+        {
+          label: "Registration no.",
+          value: profile.organizationRegistrationNumber ?? "—",
+        },
+        { label: "Authorized person", value: profile.authorizedPerson ?? "—" },
+        { label: "Position", value: profile.position ?? "—" },
+      );
+    }
+
     fields.push(
-      {
-        label: "Recipient type",
-        value: profile.specifiedRecipientType ?? profile.recipientType ?? "—",
-      },
-      {
-        label: "Organization",
-        value: profile.organizationName ?? user.fullName ?? "—",
-      },
       {
         label: "People needing food",
         value: String(profile.peopleNeedingFood ?? "—"),
@@ -126,21 +145,20 @@ function profileFields(
         value: (profile.foodRequirements ?? []).join(", ") || "—",
       },
     );
+
+    if (profile.specialRequirements) {
+      fields.push({ label: "Special requirements", value: profile.specialRequirements });
+    }
   } else if (user.role === "VOLUNTEER") {
     fields.push(
-      {
-        label: "Vehicle type",
-        value: profile.vehicleType ?? "—",
-      },
-      {
-        label: "Vehicle number",
-        value: profile.vehicleNumber ?? "—",
-      },
-      {
-        label: "Delivery area",
-        value: profile.preferredDeliveryArea ?? "—",
-      },
+      { label: "Vehicle type", value: profile.vehicleType ?? "—" },
+      { label: "Vehicle number", value: profile.vehicleNumber ?? "N/A" },
+      { label: "Delivery area", value: profile.preferredDeliveryArea ?? "—" },
     );
+
+    if (profile.preferredDeliveryTime) {
+      fields.push({ label: "Preferred time", value: profile.preferredDeliveryTime });
+    }
   }
 
   return fields;
@@ -149,12 +167,15 @@ function profileFields(
 export default function AdminDashboardScreen({ navigation }: Props) {
   const theme = Colors.light;
   const T = useAppTypography();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= DESKTOP_BREAKPOINT;
 
   const [adminName, setAdminName] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "ALL">("PENDING");
   const [roleFilter, setRoleFilter] =
     useState<(typeof ROLE_FILTERS)[number]>("ALL");
 
-  const [entries, setEntries] = useState<PendingEntry[]>([]);
+  const [entries, setEntries] = useState<UserEntry[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -175,10 +196,13 @@ export default function AdminDashboardScreen({ navigation }: Props) {
     });
   }, []);
 
-  const fetchPending = useCallback(async () => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const response = await adminApi.get("/admin/users/pending", {
-        params: roleFilter !== "ALL" ? { role: roleFilter } : undefined,
+      const response = await adminApi.get("/admin/users", {
+        params: {
+          status: statusFilter,
+          role: roleFilter !== "ALL" ? roleFilter : undefined,
+        },
       });
 
       setEntries(response.data?.results ?? []);
@@ -194,17 +218,17 @@ export default function AdminDashboardScreen({ navigation }: Props) {
         return;
       }
 
-      Alert.alert("Error", "Could not load pending requests.");
+      Alert.alert("Error", "Could not load registrations.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [roleFilter, navigation]);
+  }, [statusFilter, roleFilter, navigation]);
 
   useEffect(() => {
     setLoading(true);
-    fetchPending();
-  }, [fetchPending]);
+    fetchUsers();
+  }, [fetchUsers]);
 
   async function handleApprove(id: string) {
     setActingId(id);
@@ -245,11 +269,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
 
   async function handleLogout() {
     await clearAdminSession();
-
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "AdminLogin" }],
-    });
+    resetToRoot(navigation, "AdminLogin");
   }
 
   const roleCounts = useMemo(() => {
@@ -262,7 +282,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
     };
   }, [entries]);
 
-  function getRoleIcon(role: PendingEntry["user"]["role"]) {
+  function getRoleIcon(role: UserEntry["user"]["role"]) {
     switch (role) {
       case "DONOR":
         return "restaurant-outline";
@@ -277,27 +297,202 @@ export default function AdminDashboardScreen({ navigation }: Props) {
     }
   }
 
-  function getRoleColor(role: PendingEntry["user"]["role"]) {
+  // Each role gets a distinct color pulled straight from the brand
+  // palette, so the whole dashboard stays on-theme.
+  function getRoleColor(role: UserEntry["user"]["role"]) {
     switch (role) {
       case "DONOR":
-        return theme.primary;
+        return theme.primary; // navy
       case "RECIPIENT":
-        return "#5B7CFA";
+        return theme.info; // teal
       case "NGO":
-        return "#8B5CF6";
+        return theme.secondary; // orange
       case "VOLUNTEER":
-        return "#0EA5A4";
+        return "#8B5CF6"; // violet — kept distinct from the 4 brand colors so 4 roles read apart at a glance
       default:
         return theme.textSecondary;
     }
   }
 
-  function renderSidebar() {
-    if (!sidebarOpen) return null;
+  function getStatusColor(status: ApprovalStatus) {
+    if (status === "APPROVED") {
+      return { bg: theme.successSoft, fg: theme.success, label: "Approved" };
+    }
+    if (status === "REJECTED") {
+      return { bg: theme.errorSoft, fg: theme.error, label: "Rejected" };
+    }
+    return { bg: theme.warningSoft, fg: theme.warning === "#FFB703" ? "#B87400" : theme.warning, label: "Pending" };
+  }
+
+  const statusLabel =
+    STATUS_TABS.find((t) => t.key === statusFilter)?.label ?? "Results";
+
+  // ----------------------------------------------------------------
+  // Sidebar — shared content, rendered as a permanent panel on
+  // desktop and as an overlay drawer on mobile.
+  // ----------------------------------------------------------------
+  function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+    return (
+      <>
+        {/* Brand */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 32,
+          }}
+        >
+          <View
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              backgroundColor: theme.primary,
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: 12,
+            }}
+          >
+            <Ionicons name="shield-checkmark" size={25} color={theme.textOnPrimary} />
+          </View>
+
+          <View>
+            <Text style={{ ...T.h3, color: theme.text }}>ResQMeal</Text>
+            <Text style={{ ...T.caption, color: theme.textSecondary, marginTop: 2 }}>
+              Admin Panel
+            </Text>
+          </View>
+        </View>
+
+        {/* Admin profile */}
+        <View
+          style={{
+            backgroundColor: theme.background,
+            borderRadius: Radius.lg,
+            padding: 14,
+            marginBottom: 25,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 21,
+                backgroundColor: theme.primaryLight,
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 11,
+              }}
+            >
+              <Ionicons name="person" size={20} color={theme.primary} />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text
+                numberOfLines={1}
+                style={{ ...T.body, color: theme.text, fontWeight: "700" }}
+              >
+                {adminName || "Admin"}
+              </Text>
+              <Text style={{ ...T.caption, color: theme.textSecondary, marginTop: 2 }}>
+                Administrator
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Navigation */}
+        <Text
+          style={{
+            ...T.caption,
+            color: theme.textSecondary,
+            marginBottom: 10,
+            marginLeft: 4,
+            letterSpacing: 0.8,
+          }}
+        >
+          MAIN MENU
+        </Text>
+
+        <TouchableOpacity
+          onPress={onNavigate}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.primaryLight,
+            borderRadius: Radius.md,
+            paddingVertical: 13,
+            paddingHorizontal: 13,
+            marginBottom: 8,
+          }}
+        >
+          <Ionicons name="grid-outline" size={20} color={theme.primary} />
+          <Text
+            style={{
+              ...T.body,
+              color: theme.primary,
+              fontWeight: "700",
+              marginLeft: 13,
+            }}
+          >
+            Dashboard
+          </Text>
+        </TouchableOpacity>
+
+        {/* <TouchableOpacity
+          onPress={onNavigate}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 13,
+            paddingHorizontal: 13,
+            marginBottom: 8,
+          }}
+        >
+          <Ionicons name="people-outline" size={20} color={theme.textSecondary} />
+          <Text style={{ ...T.body, color: theme.textSecondary, marginLeft: 13 }}>
+            User Verification
+          </Text>
+        </TouchableOpacity> */}
+
+        <View style={{ flex: 1 }} />
+
+        {/* Logout */}
+        <TouchableOpacity
+          onPress={handleLogout}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            paddingVertical: 15,
+            paddingHorizontal: 13,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+          }}
+        >
+          <Ionicons name="log-out-outline" size={21} color={theme.error} />
+          <Text
+            style={{
+              ...T.body,
+              color: theme.error,
+              fontWeight: "600",
+              marginLeft: 13,
+            }}
+          >
+            Logout
+          </Text>
+        </TouchableOpacity>
+      </>
+    );
+  }
+
+  function renderMobileSidebar() {
+    if (isDesktop || !sidebarOpen) return null;
 
     return (
       <>
-        {/* Overlay */}
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => setSidebarOpen(false)}
@@ -307,19 +502,18 @@ export default function AdminDashboardScreen({ navigation }: Props) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: "rgba(0,0,0,0.35)",
+            backgroundColor: "rgba(2,48,71,0.45)",
             zIndex: 20,
           }}
         />
 
-        {/* Sidebar */}
         <View
           style={{
             position: "absolute",
             left: 0,
             top: 0,
             bottom: 0,
-            width: 285,
+            width: SIDEBAR_WIDTH,
             backgroundColor: theme.formBackground,
             zIndex: 21,
             paddingTop: 55,
@@ -327,256 +521,29 @@ export default function AdminDashboardScreen({ navigation }: Props) {
             ...Shadows.card,
           }}
         >
-          {/* Brand */}
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 35,
-            }}
-          >
-            <View
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 14,
-                backgroundColor: theme.primary,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 12,
-              }}
-            >
-              <Ionicons
-                name="shield-checkmark"
-                size={25}
-                color={theme.textOnPrimary}
-              />
-            </View>
-
-            <View>
-              <Text
-                style={{
-                  ...T.h3,
-                  color: theme.text,
-                }}
-              >
-                ResQMeal
-              </Text>
-
-              <Text
-                style={{
-                  ...T.caption,
-                  color: theme.textSecondary,
-                  marginTop: 2,
-                }}
-              >
-                Admin Panel
-              </Text>
-            </View>
-          </View>
-
-          {/* Admin profile */}
-          <View
-            style={{
-              backgroundColor: theme.background,
-              borderRadius: Radius.lg,
-              padding: 14,
-              marginBottom: 25,
-              borderWidth: 1,
-              borderColor: theme.border,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              <View
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 21,
-                  backgroundColor: theme.primaryLight,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginRight: 11,
-                }}
-              >
-                <Ionicons name="person" size={20} color={theme.primary} />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    ...T.body,
-                    color: theme.text,
-                    fontWeight: "700",
-                  }}
-                >
-                  {adminName || "Admin"}
-                </Text>
-
-                <Text
-                  style={{
-                    ...T.caption,
-                    color: theme.textSecondary,
-                    marginTop: 2,
-                  }}
-                >
-                  Administrator
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Navigation */}
-          <Text
-            style={{
-              ...T.caption,
-              color: theme.textSecondary,
-              marginBottom: 10,
-              marginLeft: 4,
-              letterSpacing: 0.8,
-            }}
-          >
-            MAIN MENU
-          </Text>
-
-          <TouchableOpacity
-            onPress={() => setSidebarOpen(false)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: theme.primaryLight,
-              borderRadius: Radius.md,
-              paddingVertical: 13,
-              paddingHorizontal: 13,
-              marginBottom: 8,
-            }}
-          >
-            <Ionicons name="grid-outline" size={20} color={theme.primary} />
-
-            <Text
-              style={{
-                ...T.body,
-                color: theme.primary,
-                fontWeight: "700",
-                marginLeft: 13,
-              }}
-            >
-              Dashboard
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => setSidebarOpen(false)}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 13,
-              paddingHorizontal: 13,
-              marginBottom: 8,
-            }}
-          >
-            <Ionicons
-              name="people-outline"
-              size={20}
-              color={theme.textSecondary}
-            />
-
-            <Text
-              style={{
-                ...T.body,
-                color: theme.textSecondary,
-                marginLeft: 13,
-              }}
-            >
-              User Verification
-            </Text>
-          </TouchableOpacity>
-
-          {/* <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingVertical: 13,
-              paddingHorizontal: 13,
-              marginBottom: 8,
-            }}
-          >
-            <Ionicons
-              name="analytics-outline"
-              size={20}
-              color={theme.textSecondary}
-            />
-
-            <Text
-              style={{
-                ...T.body,
-                color: theme.textSecondary,
-                marginLeft: 13,
-              }}
-            >
-              Analytics
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingVertical: 13,
-              paddingHorizontal: 13,
-            }}
-          >
-            <Ionicons
-              name="settings-outline"
-              size={20}
-              color={theme.textSecondary}
-            />
-
-            <Text
-              style={{
-                ...T.body,
-                color: theme.textSecondary,
-                marginLeft: 13,
-              }}
-            >
-              Settings
-            </Text>
-          </TouchableOpacity> */}
-
-          <View style={{ flex: 1 }} />
-
-          {/* Logout */}
-          <TouchableOpacity
-            onPress={handleLogout}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              paddingVertical: 15,
-              paddingHorizontal: 13,
-              borderTopWidth: 1,
-              borderTopColor: theme.border,
-            }}
-          >
-            <Ionicons name="log-out-outline" size={21} color={theme.error} />
-
-            <Text
-              style={{
-                ...T.body,
-                color: theme.error,
-                fontWeight: "600",
-                marginLeft: 13,
-              }}
-            >
-              Logout
-            </Text>
-          </TouchableOpacity>
+          <SidebarContent onNavigate={() => setSidebarOpen(false)} />
         </View>
       </>
+    );
+  }
+
+  function renderDesktopSidebar() {
+    if (!isDesktop) return null;
+
+    return (
+      <View
+        style={{
+          width: SIDEBAR_WIDTH,
+          backgroundColor: theme.formBackground,
+          borderRightWidth: 1,
+          borderRightColor: theme.border,
+          paddingTop: 40,
+          paddingHorizontal: 20,
+          paddingBottom: 24,
+        }}
+      >
+        <SidebarContent />
+      </View>
     );
   }
 
@@ -585,15 +552,19 @@ export default function AdminDashboardScreen({ navigation }: Props) {
     title: string,
     value: number,
     subtitle: string,
+    accent: string,
   ) {
     return (
       <View
         style={{
-          width: 155,
+          width: isDesktop ? undefined : 155,
+          flexGrow: isDesktop ? 1 : 0,
+          flexBasis: isDesktop ? 180 : undefined,
           backgroundColor: theme.formBackground,
           borderRadius: Radius.lg,
           padding: 16,
           marginRight: 12,
+          marginBottom: isDesktop ? 12 : 0,
           borderWidth: 1,
           borderColor: theme.border,
           ...Shadows.card,
@@ -604,54 +575,38 @@ export default function AdminDashboardScreen({ navigation }: Props) {
             width: 38,
             height: 38,
             borderRadius: 11,
-            backgroundColor: theme.primaryLight,
+            backgroundColor: `${accent}18`,
             alignItems: "center",
             justifyContent: "center",
             marginBottom: 12,
           }}
         >
-          <Ionicons name={icon} size={20} color={theme.primary} />
+          <Ionicons name={icon} size={20} color={accent} />
         </View>
 
-        <Text
-          style={{
-            fontSize: 25,
-            fontWeight: "800",
-            color: theme.text,
-          }}
-        >
+        <Text style={{ fontSize: 25, fontWeight: "800", color: theme.text }}>
           {value}
         </Text>
 
         <Text
-          style={{
-            ...T.bodySmall,
-            color: theme.text,
-            fontWeight: "700",
-            marginTop: 3,
-          }}
+          style={{ ...T.bodySmall, color: theme.text, fontWeight: "700", marginTop: 3 }}
         >
           {title}
         </Text>
 
-        <Text
-          style={{
-            ...T.caption,
-            color: theme.textSecondary,
-            marginTop: 2,
-          }}
-        >
+        <Text style={{ ...T.caption, color: theme.textSecondary, marginTop: 2 }}>
           {subtitle}
         </Text>
       </View>
     );
   }
 
-  function renderItem({ item }: { item: PendingEntry }) {
+  function renderItem({ item }: { item: UserEntry }) {
     const id = item.user._id;
     const isExpanded = expandedId === id;
     const isRejecting = rejectingId === id;
     const isActing = actingId === id;
+    const isPending = item.user.approvalStatus === "PENDING";
 
     const title =
       item.profile?.organizationName ??
@@ -661,6 +616,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
       "Unnamed applicant";
 
     const roleColor = getRoleColor(item.user.role);
+    const statusStyle = getStatusColor(item.user.approvalStatus);
 
     return (
       <View
@@ -678,13 +634,8 @@ export default function AdminDashboardScreen({ navigation }: Props) {
         <TouchableOpacity
           activeOpacity={0.75}
           onPress={() => setExpandedId(isExpanded ? null : id)}
-          style={{
-            padding: 17,
-            flexDirection: "row",
-            alignItems: "center",
-          }}
+          style={{ padding: 17, flexDirection: "row", alignItems: "center" }}
         >
-          {/* Avatar */}
           <View
             style={{
               width: 48,
@@ -696,44 +647,22 @@ export default function AdminDashboardScreen({ navigation }: Props) {
               marginRight: 13,
             }}
           >
-            <Ionicons
-              name={getRoleIcon(item.user.role)}
-              size={22}
-              color={roleColor}
-            />
+            <Ionicons name={getRoleIcon(item.user.role)} size={22} color={roleColor} />
           </View>
 
-          {/* Applicant info */}
           <View style={{ flex: 1 }}>
-            <Text
-              numberOfLines={1}
-              style={{
-                ...T.h3,
-                color: theme.text,
-                fontSize: 16,
-              }}
-            >
+            <Text numberOfLines={1} style={{ ...T.h3, color: theme.text, fontSize: 16 }}>
               {title}
             </Text>
 
             <Text
               numberOfLines={1}
-              style={{
-                ...T.caption,
-                color: theme.textSecondary,
-                marginTop: 3,
-              }}
+              style={{ ...T.caption, color: theme.textSecondary, marginTop: 3 }}
             >
               {item.user.email ?? item.user.phoneNumber}
             </Text>
 
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginTop: 8,
-              }}
-            >
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
               <View
                 style={{
                   backgroundColor: `${roleColor}18`,
@@ -743,33 +672,21 @@ export default function AdminDashboardScreen({ navigation }: Props) {
                   marginRight: 7,
                 }}
               >
-                <Text
-                  style={{
-                    ...T.caption,
-                    color: roleColor,
-                    fontWeight: "700",
-                  }}
-                >
+                <Text style={{ ...T.caption, color: roleColor, fontWeight: "700" }}>
                   {item.user.role}
                 </Text>
               </View>
 
               <View
                 style={{
-                  backgroundColor: WARNING_SOFT,
+                  backgroundColor: statusStyle.bg,
                   paddingHorizontal: 8,
                   paddingVertical: 4,
                   borderRadius: Radius.pill ?? 999,
                 }}
               >
-                <Text
-                  style={{
-                    ...T.caption,
-                    color: WARNING,
-                    fontWeight: "700",
-                  }}
-                >
-                  Pending
+                <Text style={{ ...T.caption, color: statusStyle.fg, fontWeight: "700" }}>
+                  {statusStyle.label}
                 </Text>
               </View>
             </View>
@@ -803,7 +720,6 @@ export default function AdminDashboardScreen({ navigation }: Props) {
               paddingTop: 15,
             }}
           >
-            {/* Details */}
             <Text
               style={{
                 ...T.bodySmall,
@@ -836,12 +752,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
                     borderBottomColor: theme.border,
                   }}
                 >
-                  <Text
-                    style={{
-                      ...T.bodySmall,
-                      color: theme.textSecondary,
-                    }}
-                  >
+                  <Text style={{ ...T.bodySmall, color: theme.textSecondary }}>
                     {field.label}
                   </Text>
 
@@ -860,8 +771,58 @@ export default function AdminDashboardScreen({ navigation }: Props) {
               ))}
             </View>
 
-            {/* Reject form */}
-            {isRejecting ? (
+            {item.user.approvalStatus === "REJECTED" && item.user.rejectionReason && (
+              <View
+                style={{
+                  backgroundColor: theme.errorSoft,
+                  borderRadius: Radius.md,
+                  padding: 13,
+                  marginBottom: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    ...T.bodySmall,
+                    color: theme.error,
+                    fontWeight: "700",
+                    marginBottom: 4,
+                  }}
+                >
+                  REJECTION REASON
+                </Text>
+                <Text style={{ ...T.bodySmall, color: theme.error }}>
+                  {item.user.rejectionReason}
+                </Text>
+              </View>
+            )}
+
+            {!isPending && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: statusStyle.bg,
+                  borderRadius: Radius.md,
+                  padding: 12,
+                }}
+              >
+                <Ionicons
+                  name={
+                    item.user.approvalStatus === "APPROVED"
+                      ? "checkmark-circle"
+                      : "close-circle"
+                  }
+                  size={18}
+                  color={statusStyle.fg}
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={{ ...T.bodySmall, color: statusStyle.fg, fontWeight: "600" }}>
+                  This registration has already been {statusStyle.label.toLowerCase()}.
+                </Text>
+              </View>
+            )}
+
+            {isPending && isRejecting && (
               <View>
                 <Text
                   style={{
@@ -894,11 +855,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
                   }}
                 />
 
-                <View
-                  style={{
-                    flexDirection: "row",
-                  }}
-                >
+                <View style={{ flexDirection: "row" }}>
                   <TouchableOpacity
                     onPress={() => {
                       setRejectingId(null);
@@ -915,12 +872,7 @@ export default function AdminDashboardScreen({ navigation }: Props) {
                       borderColor: theme.border,
                     }}
                   >
-                    <Text
-                      style={{
-                        ...T.button,
-                        color: theme.textSecondary,
-                      }}
-                    >
+                    <Text style={{ ...T.button, color: theme.textSecondary }}>
                       Cancel
                     </Text>
                   </TouchableOpacity>
@@ -941,25 +893,17 @@ export default function AdminDashboardScreen({ navigation }: Props) {
                     {isActing ? (
                       <ActivityIndicator color={theme.textOnPrimary} />
                     ) : (
-                      <Text
-                        style={{
-                          ...T.button,
-                          color: theme.textOnPrimary,
-                        }}
-                      >
+                      <Text style={{ ...T.button, color: theme.textOnPrimary }}>
                         Confirm Reject
                       </Text>
                     )}
                   </TouchableOpacity>
                 </View>
               </View>
-            ) : (
-              /* Action buttons */
-              <View
-                style={{
-                  flexDirection: "row",
-                }}
-              >
+            )}
+
+            {isPending && !isRejecting && (
+              <View style={{ flexDirection: "row" }}>
                 <TouchableOpacity
                   onPress={() => setRejectingId(id)}
                   disabled={isActing}
@@ -979,19 +923,9 @@ export default function AdminDashboardScreen({ navigation }: Props) {
                     name="close-circle-outline"
                     size={18}
                     color={theme.error}
-                    style={{
-                      marginRight: 6,
-                    }}
+                    style={{ marginRight: 6 }}
                   />
-
-                  <Text
-                    style={{
-                      ...T.button,
-                      color: theme.error,
-                    }}
-                  >
-                    Reject
-                  </Text>
+                  <Text style={{ ...T.button, color: theme.error }}>Reject</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1016,17 +950,9 @@ export default function AdminDashboardScreen({ navigation }: Props) {
                         name="checkmark-circle-outline"
                         size={18}
                         color={theme.textOnPrimary}
-                        style={{
-                          marginRight: 6,
-                        }}
+                        style={{ marginRight: 6 }}
                       />
-
-                      <Text
-                        style={{
-                          ...T.button,
-                          color: theme.textOnPrimary,
-                        }}
-                      >
+                      <Text style={{ ...T.button, color: theme.textOnPrimary }}>
                         Approve
                       </Text>
                     </>
@@ -1040,14 +966,12 @@ export default function AdminDashboardScreen({ navigation }: Props) {
     );
   }
 
-  return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: theme.background,
-      }}
-    >
-      {/* Main dashboard */}
+  // ----------------------------------------------------------------
+  // Main scrollable content — shared between mobile and desktop,
+  // just constrained to a readable max-width on wide screens.
+  // ----------------------------------------------------------------
+  function renderMainContent() {
+    return (
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -1055,447 +979,451 @@ export default function AdminDashboardScreen({ navigation }: Props) {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true);
-              fetchPending();
+              fetchUsers();
             }}
             tintColor={theme.primary}
           />
         }
       >
-        {/* Header */}
         <View
           style={{
-            paddingTop: 55,
-            paddingHorizontal: 20,
-            paddingBottom: 22,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
+            width: "100%",
+            maxWidth: isDesktop ? 1100 : undefined,
+            alignSelf: "center",
+            paddingHorizontal: isDesktop ? 40 : 0,
           }}
         >
-          <TouchableOpacity
-            onPress={() => setSidebarOpen(true)}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              backgroundColor: theme.formBackground,
-              borderWidth: 1,
-              borderColor: theme.border,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons name="menu-outline" size={24} color={theme.text} />
-          </TouchableOpacity>
-
+          {/* Header */}
           <View
             style={{
-              flex: 1,
-              marginLeft: 13,
-            }}
-          >
-            <Text
-              style={{
-                ...T.caption,
-                color: theme.textSecondary,
-              }}
-            >
-              Welcome back,
-            </Text>
-
-            <Text
-              numberOfLines={1}
-              style={{
-                ...T.h2,
-                color: theme.text,
-                marginTop: 2,
-              }}
-            >
-              {adminName || "Admin"}
-            </Text>
-          </View>
-
-          {/* <TouchableOpacity
-            onPress={handleLogout}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 13,
-              backgroundColor:
-                theme.formBackground,
-              borderWidth: 1,
-              borderColor: theme.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Ionicons
-              name="log-out-outline"
-              size={21}
-              color={theme.textSecondary}
-            />
-          </TouchableOpacity> */}
-        </View>
-
-        {/* Hero */}
-        <View
-          style={{
-            marginHorizontal: 20,
-            marginBottom: 22,
-            backgroundColor: theme.primary,
-            borderRadius: Radius.xl ?? 22,
-            padding: 20,
-            overflow: "hidden",
-            ...Shadows.card,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  ...T.h2,
-                  color: theme.textOnPrimary,
-                  fontSize: 22,
-                }}
-              >
-                Verification Center
-              </Text>
-
-              <Text
-                style={{
-                  ...T.bodySmall,
-                  color: theme.textOnPrimary,
-                  opacity: 0.85,
-                  marginTop: 6,
-                  lineHeight: 20,
-                }}
-              >
-                Review and manage pending user registrations.
-              </Text>
-            </View>
-
-            <View
-              style={{
-                width: 58,
-                height: 58,
-                borderRadius: 20,
-                backgroundColor: "rgba(255,255,255,0.16)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons
-                name="shield-checkmark-outline"
-                size={31}
-                color={theme.textOnPrimary}
-              />
-            </View>
-          </View>
-
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginTop: 20,
-            }}
-          >
-            <View
-              style={{
-                backgroundColor: "rgba(255,255,255,0.15)",
-                borderRadius: Radius.pill ?? 999,
-                paddingHorizontal: 11,
-                paddingVertical: 6,
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              <View
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: 4,
-                  backgroundColor: theme.textOnPrimary,
-                  marginRight: 7,
-                }}
-              />
-
-              <Text
-                style={{
-                  ...T.caption,
-                  color: theme.textOnPrimary,
-                  fontWeight: "700",
-                }}
-              >
-                {entries.length} pending
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Statistics */}
-        <View
-          style={{
-            paddingLeft: 20,
-            marginBottom: 25,
-          }}
-        >
-          <Text
-            style={{
-              ...T.h3,
-              color: theme.text,
-              marginBottom: 13,
-            }}
-          >
-            Overview
-          </Text>
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {renderStatCard(
-              "time-outline",
-              "Pending",
-              roleCounts.all,
-              "All requests",
-            )}
-
-            {renderStatCard(
-              "restaurant-outline",
-              "Donors",
-              roleCounts.donor,
-              "Awaiting review",
-            )}
-
-            {renderStatCard(
-              "people-outline",
-              "Recipients",
-              roleCounts.recipient,
-              "Awaiting review",
-            )}
-
-            {renderStatCard(
-              "business-outline",
-              "NGOs",
-              roleCounts.ngo,
-              "Awaiting review",
-            )}
-
-            {renderStatCard(
-              "car-outline",
-              "Volunteers",
-              roleCounts.volunteer,
-              "Awaiting review",
-            )}
-          </ScrollView>
-        </View>
-
-        {/* Requests section */}
-        <View
-          style={{
-            paddingHorizontal: 20,
-          }}
-        >
-          <View
-            style={{
+              paddingTop: isDesktop ? 36 : 55,
+              paddingHorizontal: isDesktop ? 0 : 20,
+              paddingBottom: 22,
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
-              marginBottom: 13,
             }}
           >
-            <View>
-              <Text
+            {!isDesktop && (
+              <TouchableOpacity
+                onPress={() => setSidebarOpen(true)}
                 style={{
-                  ...T.h3,
-                  color: theme.text,
-                }}
-              >
-                Verification Requests
-              </Text>
-
-              <Text
-                style={{
-                  ...T.caption,
-                  color: theme.textSecondary,
-                  marginTop: 3,
-                }}
-              >
-                Review applicant information
-              </Text>
-            </View>
-
-            <View
-              style={{
-                backgroundColor: WARNING_SOFT,
-                borderRadius: Radius.pill ?? 999,
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-              }}
-            >
-              <Text
-                style={{
-                  ...T.caption,
-                  color: WARNING,
-                  fontWeight: "700",
-                }}
-              >
-                {entries.length} Pending
-              </Text>
-            </View>
-          </View>
-
-          {/* Filters */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{
-              marginBottom: 17,
-            }}
-          >
-            {ROLE_FILTERS.map((role) => {
-              const active = role === roleFilter;
-
-              return (
-                <TouchableOpacity
-                  key={role}
-                  onPress={() => setRoleFilter(role)}
-                  style={{
-                    paddingHorizontal: 15,
-                    paddingVertical: 9,
-                    borderRadius: Radius.pill ?? 999,
-                    backgroundColor: active
-                      ? theme.primary
-                      : theme.formBackground,
-                    borderWidth: 1,
-                    borderColor: active ? theme.primary : theme.border,
-                    marginRight: 8,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  {role !== "ALL" && (
-                    <Ionicons
-                      name={getRoleIcon(role as PendingEntry["user"]["role"])}
-                      size={15}
-                      color={active ? theme.textOnPrimary : theme.textSecondary}
-                      style={{
-                        marginRight: 6,
-                      }}
-                    />
-                  )}
-
-                  <Text
-                    style={{
-                      ...T.bodySmall,
-                      color: active ? theme.textOnPrimary : theme.text,
-                      fontWeight: active ? "700" : "500",
-                    }}
-                  >
-                    {role === "ALL"
-                      ? "All"
-                      : role.charAt(0) + role.slice(1).toLowerCase()}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Loading */}
-          {loading ? (
-            <View
-              style={{
-                height: 300,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <ActivityIndicator size="large" color={theme.primary} />
-
-              <Text
-                style={{
-                  ...T.bodySmall,
-                  color: theme.textSecondary,
-                  marginTop: 12,
-                }}
-              >
-                Loading requests...
-              </Text>
-            </View>
-          ) : entries.length === 0 ? (
-            /* Empty state */
-            <View
-              style={{
-                minHeight: 300,
-                backgroundColor: theme.formBackground,
-                borderRadius: Radius.lg,
-                borderWidth: 1,
-                borderColor: theme.border,
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 30,
-              }}
-            >
-              <View
-                style={{
-                  width: 72,
-                  height: 72,
-                  borderRadius: 25,
-                  backgroundColor: theme.primaryLight,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 13,
+                  backgroundColor: theme.formBackground,
+                  borderWidth: 1,
+                  borderColor: theme.border,
                   alignItems: "center",
                   justifyContent: "center",
-                  marginBottom: 16,
+                }}
+              >
+                <Ionicons name="menu-outline" size={24} color={theme.text} />
+              </TouchableOpacity>
+            )}
+
+            <View style={{ flex: 1, marginLeft: isDesktop ? 0 : 13 }}>
+              <Text style={{ ...T.caption, color: theme.textSecondary }}>
+                Welcome back,
+              </Text>
+              <Text
+                numberOfLines={1}
+                style={{ ...T.h2, color: theme.text, marginTop: 2 }}
+              >
+                {adminName || "Admin"}
+              </Text>
+            </View>
+
+            {isDesktop && (
+              <TouchableOpacity
+                onPress={() => {
+                  setRefreshing(true);
+                  fetchUsers();
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: theme.formBackground,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  borderRadius: Radius.md,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                }}
+              >
+                <Ionicons name="refresh-outline" size={16} color={theme.textSecondary} />
+                <Text
+                  style={{ ...T.bodySmall, color: theme.textSecondary, marginLeft: 6 }}
+                >
+                  Refresh
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Hero */}
+          <View
+            style={{
+              marginHorizontal: isDesktop ? 0 : 20,
+              marginBottom: 22,
+              backgroundColor: theme.primary,
+              borderRadius: Radius.xl,
+              padding: isDesktop ? 28 : 20,
+              overflow: "hidden",
+              ...Shadows.card,
+            }}
+          >
+            {/* Decorative accents */}
+            <View
+              style={{
+                position: "absolute",
+                width: 180,
+                height: 180,
+                borderRadius: 90,
+                backgroundColor: theme.secondary,
+                opacity: 0.14,
+                top: -50,
+                right: -40,
+              }}
+            />
+            <View
+              style={{
+                position: "absolute",
+                width: 110,
+                height: 110,
+                borderRadius: 55,
+                backgroundColor: theme.warning,
+                opacity: 0.12,
+                bottom: -30,
+                right: 60,
+              }}
+            />
+
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ ...T.h2, color: theme.textOnPrimary, fontSize: isDesktop ? 26 : 22 }}
+                >
+                  Verification Center
+                </Text>
+
+                <Text
+                  style={{
+                    ...T.bodySmall,
+                    color: theme.textOnPrimary,
+                    opacity: 0.8,
+                    marginTop: 6,
+                    lineHeight: 20,
+                    maxWidth: 420,
+                  }}
+                >
+                  Review and manage user registrations across donors, recipients, NGOs
+                  and volunteers.
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  width: isDesktop ? 68 : 58,
+                  height: isDesktop ? 68 : 58,
+                  borderRadius: 20,
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
                 <Ionicons
-                  name="checkmark-done"
-                  size={35}
-                  color={theme.primary}
+                  name="shield-checkmark-outline"
+                  size={isDesktop ? 36 : 31}
+                  color={theme.textOnPrimary}
                 />
               </View>
-
-              <Text
-                style={{
-                  ...T.h3,
-                  color: theme.text,
-                  textAlign: "center",
-                }}
-              >
-                All caught up!
-              </Text>
-
-              <Text
-                style={{
-                  ...T.bodySmall,
-                  color: theme.textSecondary,
-                  textAlign: "center",
-                  marginTop: 7,
-                  lineHeight: 20,
-                }}
-              >
-                There are no pending verification requests for this filter.
-              </Text>
             </View>
-          ) : (
-            <View>
-              {entries.map((entry) => (
-                <View key={entry.user._id}>
-                  {renderItem({
-                    item: entry,
-                  })}
+
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 20 }}>
+              <View
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.14)",
+                  borderRadius: Radius.pill ?? 999,
+                  paddingHorizontal: 11,
+                  paddingVertical: 6,
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                <View
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 4,
+                    backgroundColor: theme.warning,
+                    marginRight: 7,
+                  }}
+                />
+                <Text style={{ ...T.caption, color: theme.textOnPrimary, fontWeight: "700" }}>
+                  {entries.length} {statusLabel.toLowerCase()}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Statistics */}
+          <View
+            style={{
+              paddingLeft: isDesktop ? 0 : 20,
+              marginBottom: 25,
+            }}
+          >
+            <Text style={{ ...T.h3, color: theme.text, marginBottom: 13, paddingHorizontal: isDesktop ? 0 : 0 }}>
+              Overview
+            </Text>
+
+            {isDesktop ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                {renderStatCard(
+                  STATUS_TABS.find((t) => t.key === statusFilter)?.icon ?? "time-outline",
+                  statusLabel,
+                  roleCounts.all,
+                  "All roles",
+                  theme.primary,
+                )}
+                {renderStatCard("restaurant-outline", "Donors", roleCounts.donor, statusLabel, theme.primary)}
+                {renderStatCard("people-outline", "Recipients", roleCounts.recipient, statusLabel, theme.info)}
+                {renderStatCard("business-outline", "NGOs", roleCounts.ngo, statusLabel, theme.secondary)}
+                {renderStatCard("car-outline", "Volunteers", roleCounts.volunteer, statusLabel, "#8B5CF6")}
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {renderStatCard(
+                  STATUS_TABS.find((t) => t.key === statusFilter)?.icon ?? "time-outline",
+                  statusLabel,
+                  roleCounts.all,
+                  "All roles",
+                  theme.primary,
+                )}
+                {renderStatCard("restaurant-outline", "Donors", roleCounts.donor, statusLabel, theme.primary)}
+                {renderStatCard("people-outline", "Recipients", roleCounts.recipient, statusLabel, theme.info)}
+                {renderStatCard("business-outline", "NGOs", roleCounts.ngo, statusLabel, theme.secondary)}
+                {renderStatCard("car-outline", "Volunteers", roleCounts.volunteer, statusLabel, "#8B5CF6")}
+              </ScrollView>
+            )}
+          </View>
+
+          {/* Requests section */}
+          <View style={{ paddingHorizontal: isDesktop ? 0 : 20 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 13,
+              }}
+            >
+              <View>
+                <Text style={{ ...T.h3, color: theme.text }}>Registrations</Text>
+                <Text style={{ ...T.caption, color: theme.textSecondary, marginTop: 3 }}>
+                  Review applicant information
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  backgroundColor: getStatusColor(
+                    statusFilter === "ALL" ? "PENDING" : statusFilter,
+                  ).bg,
+                  borderRadius: Radius.pill ?? 999,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
+                }}
+              >
+                <Text
+                  style={{
+                    ...T.caption,
+                    color: getStatusColor(
+                      statusFilter === "ALL" ? "PENDING" : statusFilter,
+                    ).fg,
+                    fontWeight: "700",
+                  }}
+                >
+                  {entries.length} {statusLabel}
+                </Text>
+              </View>
+            </View>
+
+            {/* Status tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 12 }}
+            >
+              {STATUS_TABS.map((tab) => {
+                const active = tab.key === statusFilter;
+
+                return (
+                  <TouchableOpacity
+                    key={tab.key}
+                    onPress={() => setStatusFilter(tab.key)}
+                    style={{
+                      paddingHorizontal: 15,
+                      paddingVertical: 9,
+                      borderRadius: Radius.pill ?? 999,
+                      backgroundColor: active ? theme.primary : theme.formBackground,
+                      borderWidth: 1,
+                      borderColor: active ? theme.primary : theme.border,
+                      marginRight: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name={tab.icon}
+                      size={15}
+                      color={active ? theme.textOnPrimary : theme.textSecondary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={{
+                        ...T.bodySmall,
+                        color: active ? theme.textOnPrimary : theme.text,
+                        fontWeight: active ? "700" : "500",
+                      }}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Role filters */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 17 }}
+            >
+              {ROLE_FILTERS.map((role) => {
+                const active = role === roleFilter;
+
+                return (
+                  <TouchableOpacity
+                    key={role}
+                    onPress={() => setRoleFilter(role)}
+                    style={{
+                      paddingHorizontal: 15,
+                      paddingVertical: 9,
+                      borderRadius: Radius.pill ?? 999,
+                      backgroundColor: active ? theme.secondary : theme.formBackground,
+                      borderWidth: 1,
+                      borderColor: active ? theme.secondary : theme.border,
+                      marginRight: 8,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
+                  >
+                    {role !== "ALL" && (
+                      <Ionicons
+                        name={getRoleIcon(role as UserEntry["user"]["role"])}
+                        size={15}
+                        color={active ? theme.textOnPrimary : theme.textSecondary}
+                        style={{ marginRight: 6 }}
+                      />
+                    )}
+
+                    <Text
+                      style={{
+                        ...T.bodySmall,
+                        color: active ? theme.textOnPrimary : theme.text,
+                        fontWeight: active ? "700" : "500",
+                      }}
+                    >
+                      {role === "ALL" ? "All roles" : role.charAt(0) + role.slice(1).toLowerCase()}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Loading */}
+            {loading ? (
+              <View style={{ height: 300, alignItems: "center", justifyContent: "center" }}>
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={{ ...T.bodySmall, color: theme.textSecondary, marginTop: 12 }}>
+                  Loading registrations...
+                </Text>
+              </View>
+            ) : entries.length === 0 ? (
+              <View
+                style={{
+                  minHeight: 300,
+                  backgroundColor: theme.formBackground,
+                  borderRadius: Radius.lg,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 30,
+                }}
+              >
+                <View
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: 25,
+                    backgroundColor: theme.primaryLight,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 16,
+                  }}
+                >
+                  <Ionicons name="checkmark-done" size={35} color={theme.primary} />
                 </View>
-              ))}
-            </View>
-          )}
+
+                <Text style={{ ...T.h3, color: theme.text, textAlign: "center" }}>
+                  Nothing here
+                </Text>
+
+                <Text
+                  style={{
+                    ...T.bodySmall,
+                    color: theme.textSecondary,
+                    textAlign: "center",
+                    marginTop: 7,
+                    lineHeight: 20,
+                  }}
+                >
+                  There are no {statusLabel.toLowerCase()} registrations for this filter.
+                </Text>
+              </View>
+            ) : isDesktop ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginHorizontal: -7 }}>
+                {entries.map((entry) => (
+                  <View key={entry.user._id} style={{ width: "50%", paddingHorizontal: 7 }}>
+                    {renderItem({ item: entry })}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View>
+                {entries.map((entry) => (
+                  <View key={entry.user._id}>{renderItem({ item: entry })}</View>
+                ))}
+              </View>
+            )}
+          </View>
+
+          <View style={{ height: 35 }} />
         </View>
-
-        <View style={{ height: 35 }} />
       </ScrollView>
+    );
+  }
 
-      {/* Sidebar */}
-      {renderSidebar()}
+  return (
+    <View style={{ flex: 1, flexDirection: "row", backgroundColor: theme.background }}>
+      {renderDesktopSidebar()}
+
+      <View style={{ flex: 1 }}>{renderMainContent()}</View>
+
+      {renderMobileSidebar()}
     </View>
   );
 }

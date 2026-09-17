@@ -1,13 +1,15 @@
 const {
-  listPendingUsers,
+  listUsers,
   getUserForReview,
   approveUser,
   rejectUser,
 } = require("../services/amasha-admin-userVerificationService");
 
-async function getPendingUsers(req, res) {
+// GET /api/admin/users?status=PENDING|APPROVED|REJECTED|ALL&role=NGO
+async function getUsers(req, res) {
   try {
-    const results = await listPendingUsers({ role: req.query.role });
+    const { role, status } = req.query;
+    const results = await listUsers({ role, status });
     return res.status(200).json({ success: true, count: results.length, results });
   } catch (error) {
     console.error(error);
@@ -59,4 +61,4 @@ async function reject(req, res) {
   }
 }
 
-module.exports = { getPendingUsers, getUserDetails, approve, reject };
+module.exports = { getUsers, getUserDetails, approve, reject };

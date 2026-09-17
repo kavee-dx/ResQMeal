@@ -21,6 +21,7 @@ import NotificationSettingsScreen from "../screens/amasha-NotificationSettingsSc
 import PrivacySettingsScreen from "../screens/amasha-PrivacySettingsScreen";
 import AdminLoginScreen from "../screens/amasha-AdminLoginScreen";
 import AdminDashboardScreen from "../screens/amasha-AdminDashboardScreen";
+import RegistrationPendingScreen from "../screens/amasha-RegistrationPendingScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -105,6 +106,11 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
 
         <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen
+          name="RegistrationPending"
+          component={RegistrationPendingScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

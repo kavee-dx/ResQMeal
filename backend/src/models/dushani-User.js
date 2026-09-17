@@ -55,7 +55,7 @@ const userSchema = new Schema(
     approvalStatus: {
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED"],
-      default: "APPROVED", 
+      default: "PENDING", 
     },
     rejectionReason: { type: String, trim: true },
     approvedAt: { type: Date },

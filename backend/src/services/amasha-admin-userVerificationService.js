@@ -12,11 +12,23 @@ const PROFILE_MODELS = {
   VOLUNTEER: VolunteerProfile,
 };
 
-async function listPendingUsers({ role } = {}) {
-  const filter = { approvalStatus: "PENDING" };
+const VALID_STATUSES = ["PENDING", "APPROVED", "REJECTED"];
+
+// status: "PENDING" | "APPROVED" | "REJECTED" | "ALL" | undefined (defaults to PENDING)
+async function listUsers({ role, status } = {}) {
+  const filter = {};
+
   if (role) filter.role = role;
 
-  const users = await User.find(filter).sort({ createdAt: 1 });
+  if (status && status !== "ALL") {
+    if (VALID_STATUSES.includes(status)) filter.approvalStatus = status;
+  } else if (!status) {
+    filter.approvalStatus = "PENDING";
+  }
+  // status === "ALL" -> no approvalStatus filter at all
+
+  const sortOrder = filter.approvalStatus === "PENDING" ? { createdAt: 1 } : { createdAt: -1 };
+  const users = await User.find(filter).sort(sortOrder);
 
   return Promise.all(
     users.map(async (user) => {
@@ -65,4 +77,4 @@ async function rejectUser(userId, adminId, reason) {
   return user;
 }
 
-module.exports = { listPendingUsers, getUserForReview, approveUser, rejectUser };
+module.exports = { listUsers, getUserForReview, approveUser, rejectUser };

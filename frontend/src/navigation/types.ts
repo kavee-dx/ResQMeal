@@ -28,7 +28,10 @@ export type RootStackParamList = {
 
   VerifyAccount: {
     email: string;
+    fullName?: string
   };
+
+  RegistrationPending: { fullName?: string } | undefined;
 
   DonorHome: HomeParams;
   RecipientHome: HomeParams;

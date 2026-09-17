@@ -4,7 +4,7 @@ const router = express.Router();
 const { adminLogin } = require("../controllers/amasha-admin-authController");
 const { requireAdmin } = require("../middleware/amasha-admin-authMiddleware");
 const {
-  getPendingUsers,
+  getUsers,
   getUserDetails,
   approve,
   reject,
@@ -12,7 +12,7 @@ const {
 
 router.post("/login", adminLogin); // public
 
-router.get("/users/pending", requireAdmin, getPendingUsers);
+router.get("/users", requireAdmin, getUsers); // ?status=&role=
 router.get("/users/:id", requireAdmin, getUserDetails);
 router.post("/users/:id/approve", requireAdmin, approve);
 router.post("/users/:id/reject", requireAdmin, reject);

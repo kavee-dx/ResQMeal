@@ -54,6 +54,7 @@ export type RootStackParamList = {
   AvailableFood: undefined;
   FoodRequest: { urgency?: "URGENT" | "NORMAL" } | undefined;
   RequestStatus: undefined;
+  RequestProgress: { requestId: string };
 };
 
 export type HomeRouteName =

@@ -6,6 +6,7 @@ const {
   createEmergencyFoodRequestHandler,
 } = require('../controllers/dushani-createFoodRequestController');
 const { getMyRequestsHandler } = require('../controllers/dushani-requestStatusController');
+const { getRequestProgressHandler } = require('../controllers/dushani-requestProgressController');
 
 // All recipient food-request endpoints require a logged-in user; requireAuth
 // attaches the decoded JWT payload ({ id, role }) to req.user.
@@ -21,5 +22,10 @@ router.post('/emergency', createEmergencyFoodRequestHandler);
 
 // GET /api/recipient/food-requests/mine
 router.get('/mine', getMyRequestsHandler);
+
+// GET /api/recipient/food-requests/:id/progress
+// Sprint task — Food Request Progress Tracking: one request plus its stage
+// timeline, scoped to the logged-in recipient.
+router.get('/:id/progress', getRequestProgressHandler);
 
 module.exports = router;

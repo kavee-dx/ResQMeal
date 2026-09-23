@@ -280,3 +280,110 @@ describe('dushani-requestStatusController (Task 13 backend support)', () => {
     expect(res.status).toHaveBeenCalledWith(500);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Sprint item 3 (backend) — request progress service, real implementation
+// ---------------------------------------------------------------------------
+const { getRequestProgress } = jest.requireActual(
+  '../../src/services/dushani-requestProgressService',
+);
+
+function stubRequest(overrides) {
+  return {
+    _id: { toString: () => 'req1' },
+    foodType: 'Cooked Rice',
+    quantity: 'Cooked Rice - 6 packets',
+    location: 'Galle Road, Colombo',
+    details: '',
+    contactNumber: '0771234567',
+    urgency: 'NORMAL',
+    priority: 'NORMAL',
+    status: 'PENDING',
+    createdAt: new Date('2026-09-23T09:00:00.000Z'),
+    updatedAt: new Date('2026-09-23T10:30:00.000Z'),
+    expiresAt: new Date('2026-09-24T09:00:00.000Z'),
+    ...overrides,
+  };
+}
+
+function mockFound(doc) {
+  return jest.spyOn(FoodRequest, 'findOne').mockResolvedValue(doc);
+}
+
+describe('getRequestProgress (sprint item 3)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('reports a pending request as step 1 of 3', async () => {
+    mockFound(stubRequest({}));
+    const { progress, timeline } = await getRequestProgress('recipient1', 'req1');
+
+    expect(progress).toMatchObject({
+      status: 'PENDING',
+      stageLabel: 'Looking for a donor',
+      stepsCompleted: 0,
+      percent: 33,
+      outcome: 'active',
+    });
+    expect(timeline.map((entry) => entry.state)).toEqual([
+      'done',
+      'current',
+      'upcoming',
+      'upcoming',
+    ]);
+    expect(timeline[1].at).toEqual(new Date('2026-09-23T09:00:00.000Z'));
+  });
+
+  it('marks the stages a matched request passed through as done', async () => {
+    mockFound(stubRequest({ status: 'MATCHED' }));
+    const { progress, timeline } = await getRequestProgress('recipient1', 'req1');
+
+    expect(progress).toMatchObject({ percent: 67, stepsCompleted: 1, outcome: 'active' });
+    expect(timeline.map((entry) => entry.state)).toEqual([
+      'done',
+      'done',
+      'current',
+      'upcoming',
+    ]);
+    expect(timeline[2].at).toEqual(new Date('2026-09-23T10:30:00.000Z'));
+  });
+
+  it('completes at 100% when fulfilled', async () => {
+    mockFound(stubRequest({ status: 'FULFILLED' }));
+    const { progress, timeline } = await getRequestProgress('recipient1', 'req1');
+
+    expect(progress).toMatchObject({ percent: 100, outcome: 'complete' });
+    expect(progress.expiresInMs).toBeNull();
+    expect(timeline.every((entry) => entry.state === 'done')).toBe(true);
+  });
+
+  it.each(['EXPIRED', 'CANCELLED'])('adds a stopped entry for %s', async (status) => {
+    mockFound(stubRequest({ status }));
+    const { progress, timeline } = await getRequestProgress('recipient1', 'req1');
+
+    expect(progress).toMatchObject({ percent: 33, outcome: 'stopped' });
+    expect(timeline).toHaveLength(5);
+    expect(timeline[4]).toMatchObject({ key: status, state: 'stopped' });
+    expect(progress.expiresInMs).toBeNull();
+  });
+
+  it('treats a pending request past its expiry as expired', async () => {
+    mockFound(stubRequest({ status: 'PENDING', expiresAt: new Date('2020-01-01T00:00:00.000Z') }));
+    const { progress } = await getRequestProgress('recipient1', 'req1');
+
+    expect(progress).toMatchObject({ status: 'EXPIRED', outcome: 'stopped' });
+  });
+
+  it('scopes the lookup to the owning recipient and 404s otherwise', async () => {
+    const spy = mockFound(null);
+    await expect(getRequestProgress('recipient1', 'other')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    expect(spy).toHaveBeenCalledWith({ _id: 'other', recipient: 'recipient1' });
+  });
+
+  it('rejects a missing recipient with 400', async () => {
+    await expect(getRequestProgress(null, 'req1')).rejects.toMatchObject({
+      statusCode: 400,
+    });
+  });
+});

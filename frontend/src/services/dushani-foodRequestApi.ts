@@ -59,3 +59,43 @@ export async function getMyFoodRequests(): Promise<FoodRequest[]> {
   );
   return response.data;
 }
+
+export type ProgressOutcome = 'active' | 'complete' | 'stopped';
+export type TimelineState = 'done' | 'current' | 'upcoming' | 'stopped';
+
+export interface RequestTimelineEntry {
+  key: string;
+  label: string;
+  description: string;
+  at: string | null;
+  state: TimelineState;
+}
+
+export interface RequestProgress {
+  status: FoodRequestStatus;
+  stage: string;
+  stageLabel: string;
+  stageTotal: number;
+  stepsCompleted: number;
+  stepsTotal: number;
+  percent: number;
+  outcome: ProgressOutcome;
+  expiresAt: string | null;
+  expiresInMs: number | null;
+}
+
+export interface FoodRequestProgress {
+  request: Omit<FoodRequest, '_id'> & { id: string };
+  progress: RequestProgress;
+  timeline: RequestTimelineEntry[];
+}
+
+// GET /api/recipient/food-requests/:id/progress
+export async function getFoodRequestProgress(
+  requestId: string,
+): Promise<FoodRequestProgress> {
+  const response = await api.get<FoodRequestProgress>(
+    `/recipient/food-requests/${requestId}/progress`,
+  );
+  return response.data;
+}

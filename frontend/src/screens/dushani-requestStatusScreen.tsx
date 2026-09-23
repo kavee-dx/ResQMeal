@@ -157,10 +157,16 @@ export default function RequestStatusScreen({ navigation }: Props) {
     const isUrgent = item.urgency === 'URGENT';
 
     return (
-      <View
+      <TouchableOpacity
         key={item._id}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('RequestProgress', { requestId: item._id })}
         style={[styles.requestItem, isUrgent && styles.requestItemUrgent]}
-        accessibilityLabel={isUrgent ? 'Emergency food request' : 'Standard food request'}
+        accessibilityLabel={
+          isUrgent
+            ? 'Emergency food request, view progress'
+            : 'Standard food request, view progress'
+        }
       >
         <View style={styles.itemHead}>
           <View style={styles.itemHeadText}>
@@ -220,18 +226,36 @@ export default function RequestStatusScreen({ navigation }: Props) {
               {meta.label}
             </Text>
           </View>
-          <Text style={{ ...T.caption, fontSize: 10, color: C.textMuted }} numberOfLines={1}>
-            {new Date(item.createdAt).toLocaleString()}
-          </Text>
+          <View style={styles.itemFootRight}>
+            <Text style={{ ...T.caption, fontSize: 10, color: C.textMuted }} numberOfLines={1}>
+              {new Date(item.createdAt).toLocaleString()}
+            </Text>
+            {expiry ? (
+              <Text
+                style={{
+                  ...T.caption,
+                  fontSize: 10,
+                  color: isUrgent ? C.error : C.textMuted,
+                  marginTop: 2,
+                }}
+              >
+                {expiry}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
-        {expiry && !isUrgent ? (
-          <Text style={{ ...T.caption, fontSize: 10, color: C.textMuted, marginTop: Spacing.one }}>
-            {expiry}
+        <View style={styles.viewProgressRow}>
+          <Text style={{ ...T.labelStrong, fontSize: 12, color: isUrgent ? C.error : C.teal }}>
+            View progress
           </Text>
-        ) : null}
-
-      </View>
+          <Ionicons
+            name="chevron-forward"
+            size={15}
+            color={isUrgent ? C.error : C.teal}
+          />
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -512,6 +536,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.three,
     marginTop: Spacing.three,
+  },
+  itemFootRight: {
+    alignItems: 'flex-end',
+    flexShrink: 1,
+  },
+  viewProgressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.one,
+    marginTop: Spacing.three,
+    paddingTop: Spacing.three,
+    borderTopWidth: 1,
+    borderTopColor: C.cardBorder,
   },
   statusPill: {
     flexDirection: 'row',

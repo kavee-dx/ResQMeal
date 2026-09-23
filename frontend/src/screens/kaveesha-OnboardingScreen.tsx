@@ -10,6 +10,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -55,7 +56,7 @@ type Slide = (typeof slides)[number];
 export default function OnboardingScreen({ navigation }: any) {
   const { width, height } = useWindowDimensions();
 
-  const scrollRef = useRef<Animated.ScrollView>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
 
   const [page, setPage] = useState(0);
   const [stageH, setStageH] = useState(0);
@@ -847,7 +848,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
 
     paddingTop: 10,
-    paddingBottom: 22,
+    paddingBottom: 40,
 
     overflow: 'hidden',
 
@@ -870,7 +871,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 38,
 
     paddingTop: 16,
-    paddingBottom: 30,
+    paddingBottom: 48,
   },
 
   cardTopBlock: {

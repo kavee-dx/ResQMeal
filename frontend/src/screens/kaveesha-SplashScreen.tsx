@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
 
   loadingSection: {
     position: 'absolute',
-    bottom: 86,
+    bottom: 130,
     alignItems: 'center',
     zIndex: 20,
   },
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
 
   footer: {
     position: 'absolute',
-    bottom: 26,
+    bottom: 70,
     alignItems: 'center',
     zIndex: 20,
   },

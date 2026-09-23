@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import { saveSession } from '../utils/kaveesha-authStorage';
 import type { RootStackParamList, Role } from "../navigation/types";
 import { getHomeRouteForRole } from "../navigation/types";
@@ -14,6 +14,7 @@ function isValidRole(value: unknown): value is Role {
 
 import {
   ActivityIndicator,
+  Animated,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -472,7 +473,10 @@ function Blobs() {
 }
 
 // ------------------------------------------------------------------
-// Status Message (success / error banner)
+// Status Message (success / error banner) — shown inline at the top
+// of the form, right where it was originally. This version adds a
+// fade + rise entrance animation and a circular icon badge instead
+// of a flat icon, for a more polished feel.
 // IMPORTANT: outside LoginScreen.
 // ------------------------------------------------------------------
 function StatusMessage({
@@ -486,37 +490,89 @@ function StatusMessage({
 }) {
   const isSuccess = type === 'success';
 
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(-10)).current;
+  const scale = useRef(new Animated.Value(0.96)).current;
+
+  useEffect(() => {
+    opacity.setValue(0);
+    translateY.setValue(-10);
+    scale.setValue(0.96);
+
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        damping: 14,
+        stiffness: 140,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scale, {
+        toValue: 1,
+        damping: 14,
+        stiffness: 140,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    // Re-run the entrance animation every time the message text changes.
+  }, [message, type]);
+
   return (
-    <View
+    <Animated.View
       style={{
         flexDirection: 'row',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         backgroundColor: isSuccess ? C.successSoft : C.errorSoft,
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: isSuccess ? C.success : C.error,
-        paddingVertical: 10,
+        paddingVertical: 12,
         paddingHorizontal: 14,
-        marginBottom: 18,
+        marginBottom: 20,
+        shadowColor: isSuccess ? C.success : C.error,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 3,
+        opacity,
+        transform: [{ translateY }, { scale }],
       }}
     >
-      <Ionicons
-        name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
-        size={18}
-        color={isSuccess ? C.success : C.error}
-        style={{ marginRight: 8, marginTop: 1 }}
-      />
+      <View
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: 16,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: isSuccess ? C.success : C.error,
+          marginRight: 10,
+        }}
+      >
+        <Ionicons
+          name={isSuccess ? 'checkmark' : 'close'}
+          size={17}
+          color={C.white}
+        />
+      </View>
 
       <Text
         style={{
           ...T.bodySmall,
           color: isSuccess ? C.success : C.error,
           flex: 1,
+          fontWeight: '600',
         }}
       >
         {message}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
 

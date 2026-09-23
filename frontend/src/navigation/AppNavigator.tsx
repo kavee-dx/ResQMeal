@@ -11,7 +11,7 @@ import RegisterScreen from "../screens/dushani-RegisterScreen";
 import ProfileScreen from "../screens/dilshara-ProfileScreen";
 import VerifyAccountScreen from "../screens/dushani-VerifyAccountScreen";
 import DonorHomeScreen from "../screens/kaveesha-DonorHomeScreen";
-import RecipientHomeScreen from "../screens/kaveesha-RecipientHomeScreen";
+import RecipientHomeScreen from "../screens/dushani-RecipientHomeScreen";
 import NgoHomeScreen from "../screens/kaveesha-NgoHomeScreen";
 import VolunteerHomeScreen from "../screens/kaveesha-VolunteerHomeScreen";
 import VerifyResetOtpScreen from "../screens/kaveesha-VerifyResetOtpScreen";
@@ -26,6 +26,9 @@ import CreateDonationScreen from "@/navigation/kaveesha-CreateDonationNavigator"
 import MyDonationsScreen from "@/screens/kaveesha-MyDonationsScreen";
 import DonationDetailScreen from "@/screens/kaveesha-DonationDetailScreen";
 import OnboardingScreen from "../screens/kaveesha-OnboardingScreen";
+import AvailableFoodScreen from "../screens/dushani-availableFoodScreen";
+import FoodRequestScreen from "../screens/dushani-foodRequestScreen";
+import RequestStatusScreen from "../screens/dushani-requestStatusScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -113,6 +116,10 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen name="MyDonations" component={MyDonationsScreen} />
 
         <Stack.Screen name="DonationDetail" component={DonationDetailScreen} />
+
+        <Stack.Screen name="AvailableFood" component={AvailableFoodScreen} />
+        <Stack.Screen name="FoodRequest" component={FoodRequestScreen} />
+        <Stack.Screen name="RequestStatus" component={RequestStatusScreen} />
 
         <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
 

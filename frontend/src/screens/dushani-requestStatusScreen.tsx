@@ -1,119 +1,253 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, useColorScheme, RefreshControl } from 'react-native';
-import { Colors, Spacing, Radius, Typography } from '../constants/theme';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  RefreshControl,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-type RequestStatus = 'PENDING' | 'MATCHED' | 'FULFILLED' | 'EXPIRED' | 'CANCELLED';
+import { Radius, Spacing } from '@/constants/theme';
+import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
+import type { RootStackParamList } from '../navigation/types';
+import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
+import {
+  getMyFoodRequests,
+  type FoodRequest,
+  type FoodRequestStatus,
+} from '../services/dushani-foodRequestApi';
 
-interface FoodRequestSummary {
-  id: string;
-  foodType: string;
-  quantity: string;
-  urgency: 'URGENT' | 'NORMAL';
-  status: RequestStatus;
-  createdAt: string;
-}
+type Props = NativeStackScreenProps<RootStackParamList, 'RequestStatus'>;
 
-// Mock data standing in for the real API response until this screen is
-// wired to GET /api/recipient/food-requests/mine
-// (backend/src/routes/dushani-foodRequestRoutes.js).
-const MOCK_REQUESTS: FoodRequestSummary[] = [
-  { id: 'r1', foodType: 'Rice', quantity: '5 kg', urgency: 'URGENT', status: 'PENDING', createdAt: new Date().toISOString() },
-  { id: 'r2', foodType: 'Veg', quantity: '3 kg', urgency: 'NORMAL', status: 'MATCHED', createdAt: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'r3', foodType: 'Fruits', quantity: '10 pcs', urgency: 'NORMAL', status: 'EXPIRED', createdAt: new Date(Date.now() - 172800000).toISOString() },
-];
-
-const STATUS_LABELS: Record<RequestStatus, string> = {
-  PENDING: 'Waiting for a donor',
-  MATCHED: 'Matched with a donor',
-  FULFILLED: 'Fulfilled',
-  EXPIRED: 'Expired',
-  CANCELLED: 'Cancelled',
+// User-management palette (same constants as RegisterScreen / LoginScreen).
+const C = {
+  navy: '#023047',
+  teal: '#126782',
+  white: '#FFFFFF',
+  offWhite: '#F6F8FA',
+  cardBorder: '#E4E9ED',
+  textMuted: '#6B7B85',
+  error: '#D64545',
+  errorSoft: '#FBEAEA',
+  amber: '#FFB703',
+  amberSoft: '#FFF3D6',
+  tealSoft: '#E1EEF2',
+  success: '#3FA34D',
+  successSoft: '#E2F2E5',
 };
 
-/**
- * Task 13 — Add Request Status Screen
- */
-export default function RequestStatusScreen() {
-  const scheme = useColorScheme();
-  const theme = Colors[scheme === 'dark' ? 'dark' : 'light'];
+const STATUS_META: Record<
+  FoodRequestStatus,
+  { label: string; bg: string; text: string }
+> = {
+  PENDING: { label: 'Waiting for a donor', bg: C.amberSoft, text: '#8A6100' },
+  MATCHED: { label: 'Matched with a donor', bg: C.tealSoft, text: C.teal },
+  FULFILLED: { label: 'Fulfilled', bg: C.successSoft, text: C.success },
+  EXPIRED: { label: 'Expired', bg: C.errorSoft, text: C.error },
+  CANCELLED: { label: 'Cancelled', bg: C.errorSoft, text: C.error },
+};
 
-  const [requests, setRequests] = useState<FoodRequestSummary[]>([]);
+function formatExpiry(expiresAt?: string): string | null {
+  if (!expiresAt) return null;
+  const diffMs = new Date(expiresAt).getTime() - Date.now();
+  if (diffMs <= 0) return 'Expiring now';
+  const hours = Math.floor(diffMs / 3_600_000);
+  const minutes = Math.round((diffMs % 3_600_000) / 60_000);
+  if (hours <= 0) return `Expires in ${minutes} min`;
+  return `Expires in ${hours}h ${minutes}m`;
+}
+
+export default function RequestStatusScreen({ navigation }: Props) {
+  const T = useAppTypography();
+
+  const [requests, setRequests] = useState<FoodRequest[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadRequests = useCallback(async () => {
-    // Replace with: const res = await fetch('/api/recipient/food-requests/mine');
-    setRequests(MOCK_REQUESTS);
+  const loadRequests = useCallback(async (showSpinner: boolean) => {
+    if (showSpinner) setLoading(true);
+    setError(null);
+    try {
+      const data = await getMyFoodRequests();
+      setRequests(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load your requests. Please try again.',
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
-    loadRequests();
+    loadRequests(true);
   }, [loadRequests]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     setRefreshing(true);
-    await loadRequests();
-    setRefreshing(false);
+    loadRequests(false);
   };
 
-  const statusColor = (status: RequestStatus) => {
-    switch (status) {
-      case 'PENDING':
-        return { bg: theme.warningSoft, text: theme.warning };
-      case 'MATCHED':
-        return { bg: theme.infoSoft, text: theme.info };
-      case 'FULFILLED':
-        return { bg: theme.successSoft, text: theme.success };
-      case 'EXPIRED':
-      case 'CANCELLED':
-        return { bg: theme.errorSoft, text: theme.error };
-      default:
-        return { bg: theme.surfaceSoft, text: theme.textSecondary };
-    }
+  const renderItem = ({ item }: { item: FoodRequest }) => {
+    const meta = STATUS_META[item.status];
+    const expiry = item.status === 'PENDING' ? formatExpiry(item.expiresAt) : null;
+    const isUrgent = item.urgency === 'URGENT';
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.rowBetween}>
+          <Text style={{ ...T.h3, color: C.navy, flex: 1 }} numberOfLines={1}>
+            {item.foodType}
+          </Text>
+          <EmergencyStatusBadge urgency={item.urgency} />
+        </View>
+
+        <View style={styles.detailRow}>
+          <Ionicons name="people-outline" size={14} color={C.textMuted} />
+          <Text style={{ ...T.bodySmall, color: C.teal }}>{item.quantity}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Ionicons name="location-outline" size={14} color={C.textMuted} />
+          <Text
+            style={{ ...T.bodySmall, color: C.textMuted, flex: 1 }}
+            numberOfLines={1}
+          >
+            {item.location}
+          </Text>
+        </View>
+
+        <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+          <Ionicons
+            name={item.status === 'FULFILLED' ? 'checkmark-circle' : 'time-outline'}
+            size={13}
+            color={meta.text}
+            style={{ marginRight: 5 }}
+          />
+          <Text style={{ ...T.labelStrong, fontSize: 12, color: meta.text }}>
+            {meta.label}
+          </Text>
+        </View>
+
+        <Text style={{ ...T.caption, color: C.textMuted, marginTop: Spacing.two }}>
+          Submitted {new Date(item.createdAt).toLocaleString()}
+        </Text>
+        {expiry && isUrgent ? (
+          <Text style={{ ...T.caption, color: C.error, marginTop: 2 }}>
+            {expiry}
+          </Text>
+        ) : null}
+      </View>
+    );
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Text style={[styles.title, { color: theme.text }]}>My Requests</Text>
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="arrow-back" size={22} color={C.navy} />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={{ ...T.h2, color: C.navy }}>My Requests</Text>
+          <Text style={{ ...T.bodySmall, color: C.textMuted }}>
+            Track the progress of your food requests.
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('FoodRequest')}
+          style={styles.newRequestButton}
+        >
+          <Ionicons name="add" size={18} color={C.white} />
+        </TouchableOpacity>
+      </View>
 
-      <FlatList
-        data={requests}
-        keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-        ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: theme.textMuted }]}>You haven't submitted any requests yet.</Text>
-        }
-        renderItem={({ item }) => {
-          const colors = statusColor(item.status);
-          return (
-            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <View style={styles.rowBetween}>
-                <Text style={[styles.foodType, { color: theme.text }]}>{item.foodType}</Text>
-                <View style={[styles.badge, { backgroundColor: colors.bg }]}>
-                  <Text style={[styles.badgeText, { color: colors.text }]}>{STATUS_LABELS[item.status]}</Text>
-                </View>
-              </View>
-              <Text style={[styles.detail, { color: theme.textSecondary }]}>Quantity: {item.quantity}</Text>
-              <Text style={[styles.detail, { color: theme.textSecondary }]}>
-                Priority: {item.urgency === 'URGENT' ? 'Urgent' : 'Normal'}
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={C.teal} />
+        </View>
+      ) : error ? (
+        <View style={styles.centered}>
+          <Ionicons name="cloud-offline-outline" size={36} color={C.textMuted} />
+          <Text style={{ ...T.body, color: C.error, marginTop: Spacing.two, textAlign: 'center' }}>
+            {error}
+          </Text>
+          <TouchableOpacity style={styles.retryButton} onPress={() => loadRequests(true)}>
+            <Text style={{ ...T.button, color: C.white }}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={requests}
+          keyExtractor={(item) => item._id}
+          renderItem={renderItem}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.teal} />
+          }
+          contentContainerStyle={
+            requests.length === 0 ? styles.emptyContainer : undefined
+          }
+          ListEmptyComponent={
+            <View style={styles.centered}>
+              <Ionicons name="receipt-outline" size={40} color={C.textMuted} />
+              <Text style={{ ...T.body, color: C.textMuted, marginTop: Spacing.two, textAlign: 'center' }}>
+                You haven't submitted any requests yet.
               </Text>
-              <Text style={[styles.detail, { color: theme.textMuted }]}>
-                Submitted {new Date(item.createdAt).toLocaleString()}
-              </Text>
+              <TouchableOpacity
+                style={[styles.retryButton, { backgroundColor: C.teal }]}
+                onPress={() => navigation.navigate('FoodRequest')}
+              >
+                <Ionicons
+                  name="add"
+                  size={16}
+                  color={C.white}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={{ ...T.button, color: C.white }}>Make a Request</Text>
+              </TouchableOpacity>
             </View>
-          );
-        }}
-      />
+          }
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: Spacing.three },
-  title: { ...Typography.h2, marginBottom: Spacing.three },
+  container: { flex: 1, backgroundColor: C.offWhite, padding: Spacing.four },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.four,
+  },
+  backButton: {
+    marginRight: Spacing.three,
+    padding: Spacing.one,
+  },
+  newRequestButton: {
+    backgroundColor: C.teal,
+    borderRadius: Radius.pill,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   card: {
-    borderRadius: Radius.md,
+    backgroundColor: C.white,
+    borderRadius: Radius.lg,
     borderWidth: 1,
-    padding: Spacing.three,
+    borderColor: C.cardBorder,
+    padding: Spacing.four,
     marginBottom: Spacing.three,
   },
   rowBetween: {
@@ -122,13 +256,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.two,
   },
-  foodType: { ...Typography.h3 },
-  badge: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
-    borderRadius: Radius.pill,
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: Spacing.one,
   },
-  badgeText: { ...Typography.caption, textTransform: 'none' },
-  detail: { ...Typography.bodySmall, marginBottom: 2 },
-  emptyText: { ...Typography.body, textAlign: 'center', marginTop: Spacing.six },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Radius.pill,
+    marginTop: Spacing.two,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: { flexGrow: 1 },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.navy,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    borderRadius: Radius.md,
+    marginTop: Spacing.four,
+  },
 });

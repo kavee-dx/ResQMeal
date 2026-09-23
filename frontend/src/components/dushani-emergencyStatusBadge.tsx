@@ -6,12 +6,10 @@ import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
 // User-management palette (same constants as RegisterScreen).
 const C = {
-  navy: '#023047',
   teal: '#126782',
+  tealSoft: '#E1EEF2',
+  white: '#FFFFFF',
   error: '#D64545',
-  errorSoft: '#FBEAEA',
-  offWhite: '#F6F8FA',
-  cardBorder: '#E4E9ED',
 };
 
 export type UrgencyLevel = 'URGENT' | 'NORMAL';
@@ -22,8 +20,8 @@ interface EmergencyStatusBadgeProps {
 
 /**
  * Sprint task — Emergency Food Requests: Emergency Request Status indicator.
- * URGENT renders as a red pill (with warning icon) so donors/recipients can
- * spot emergency requests at a glance; NORMAL renders as a quiet grey pill.
+ * URGENT renders as a solid red pill (white flash icon/label) so emergency
+ * requests stand out on any card tint; NORMAL is a quiet teal pill.
  */
 export default function EmergencyStatusBadge({ urgency }: EmergencyStatusBadgeProps) {
   const T = useAppTypography();
@@ -34,25 +32,26 @@ export default function EmergencyStatusBadge({ urgency }: EmergencyStatusBadgePr
       style={[
         styles.badge,
         {
-          backgroundColor: isUrgent ? C.errorSoft : C.offWhite,
-          borderColor: isUrgent ? C.error : C.cardBorder,
+          backgroundColor: isUrgent ? C.error : C.tealSoft,
+          borderColor: isUrgent ? C.error : C.teal,
         },
       ]}
     >
       <Ionicons
-        name={isUrgent ? 'warning' : 'time-outline'}
-        size={12}
-        color={isUrgent ? C.error : C.teal}
-        style={{ marginRight: 4 }}
+        name={isUrgent ? 'flash' : 'time-outline'}
+        size={13}
+        color={isUrgent ? C.white : C.teal}
+        style={{ marginRight: 5 }}
       />
       <Text
         style={{
           ...T.labelStrong,
           fontSize: 11,
-          color: isUrgent ? C.error : C.navy,
+          letterSpacing: 0.4,
+          color: isUrgent ? C.white : C.teal,
         }}
       >
-        {isUrgent ? 'URGENT' : 'NORMAL'}
+        {isUrgent ? 'EMERGENCY' : 'STANDARD'}
       </Text>
     </View>
   );
@@ -63,9 +62,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one + 2,
     borderRadius: Radius.pill,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
 });

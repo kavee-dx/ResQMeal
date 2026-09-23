@@ -654,7 +654,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
               </View>
               <View style={styles.postalCol}>
                 <Field
-                  label="Postal Code"
+                  label="Postal Code (optional)"
                   value={postal}
                   onChangeText={(text) => {
                     setPostal(text);

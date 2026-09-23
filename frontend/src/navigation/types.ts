@@ -49,6 +49,11 @@ export type RootStackParamList = {
   CreateDonation: undefined;
   MyDonations: undefined;
   DonationDetail: { donationId: string };
+
+  // Recipient management
+  AvailableFood: undefined;
+  FoodRequest: { urgency?: "URGENT" | "NORMAL" } | undefined;
+  RequestStatus: undefined;
 };
 
 export type HomeRouteName =

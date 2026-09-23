@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
@@ -30,22 +30,6 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
       }}
       showsVerticalScrollIndicator={false}
     >
-      
-
-      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-        
-
-        <TouchableOpacity
-          onPress={() => navigation.navigate("Profile")}
-          style={{ marginRight: Spacing.two, padding: 6 }}
-        >
-          <Ionicons name="person-circle-outline" size={28} color={ACCENT} />
-        </TouchableOpacity>
-
-        <LogoutButton navigation={navigation} compact />
-      </View>
-
-
       <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
         <View style={{ flex: 1 }}>
           <HomeHeader fullName={fullName} roleLabel="Recipient" accentColor={ACCENT} />
@@ -90,9 +74,7 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
       </View>
 
       <TouchableOpacity
-        onPress={() =>
-          Alert.alert("Coming soon", "Browsing donations will be available in a future update.")
-        }
+        onPress={() => navigation.navigate("AvailableFood")}
         activeOpacity={0.85}
         style={{
           flexDirection: "row",
@@ -107,6 +89,41 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
       >
         <Ionicons name="search-outline" size={20} color={theme.textOnPrimary} style={{ marginRight: 8 }} />
         <Text style={{ ...T.button, color: theme.textOnPrimary }}>Browse Donations</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("FoodRequest")}
+        activeOpacity={0.85}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 54,
+          borderRadius: Radius.md,
+          backgroundColor: theme.surface,
+          borderWidth: 1,
+          borderColor: ACCENT,
+          marginTop: Spacing.three,
+        }}
+      >
+        <Ionicons name="add-circle-outline" size={20} color={ACCENT} style={{ marginRight: 8 }} />
+        <Text style={{ ...T.button, color: ACCENT }}>Make a Food Request</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("RequestStatus")}
+        activeOpacity={0.85}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 48,
+          borderRadius: Radius.md,
+          marginTop: Spacing.three,
+        }}
+      >
+        <Ionicons name="list-outline" size={18} color={ACCENT} style={{ marginRight: 8 }} />
+        <Text style={{ ...T.button, color: ACCENT }}>Track My Requests</Text>
       </TouchableOpacity>
     </ScrollView>
   );

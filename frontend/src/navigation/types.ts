@@ -8,6 +8,7 @@ export type HomeParams = {
 
 export type RootStackParamList = {
   Splash: undefined;
+  Onboarding: undefined;
 
   Login: undefined;
 

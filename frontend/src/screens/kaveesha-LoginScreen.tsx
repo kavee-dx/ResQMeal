@@ -14,7 +14,7 @@ function isValidRole(value: unknown): value is Role {
 
 import {
   ActivityIndicator,
-  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -22,18 +22,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Ionicons } from '@expo/vector-icons';
 
-import {
-  Colors,
-  Radius,
-  Shadows,
-  Spacing,
-} from '@/constants/theme';
 import api from '../services/api';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 
@@ -49,9 +44,33 @@ type StatusBanner = {
   message: string;
 } | null;
 
+// ------------------------------------------------------------------
+// Scoped brand palette for this screen — matches the splash & admin
+// login screens (navy / teal / amber / orange).
+// ------------------------------------------------------------------
+const C = {
+  navy: "#023047",
+  navyDeep: "#011C2E",
+  teal: "#126782",
+  amber: "#FFB703",
+  orange: "#FB8500",
+  green: "#6B8E23",
+  white: "#FFFFFF",
+  offWhite: "#F6F8FA",
+  cardBorder: "#E4E9ED",
+  textMuted: "#6B7B85",
+  success: "#2E8B57",
+  successSoft: "#E9F6EF",
+  error: "#D64545",
+  errorSoft: "#FBEAEA",
+};
+
+const DESKTOP_BREAKPOINT = 900;
+
 export default function LoginScreen({ navigation }: Props) {
-  const theme = Colors.light;
   const T = useAppTypography();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= DESKTOP_BREAKPOINT;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -185,289 +204,286 @@ export default function LoginScreen({ navigation }: Props) {
     }
   }
 
+  // =================================================================
+  // DESKTOP LAYOUT
+  // =================================================================
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1, flexDirection: 'row', backgroundColor: C.white }}>
+        <BrandPanel />
+
+        <ScrollView
+          style={{ flex: 1 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={
+            Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+          }
+          contentContainerStyle={{
+            flexGrow: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 48,
+          }}
+        >
+          <View style={{ width: '100%', maxWidth: 420, paddingHorizontal: 20 }}>
+            <Text style={{ ...T.h2, color: C.navy, marginBottom: 6 }}>
+              Welcome back
+            </Text>
+
+            <Text style={{ ...T.body, color: C.textMuted, marginBottom: 28 }}>
+              Log in to continue rescuing food with ResQMeal.
+            </Text>
+
+            <FormFields
+              T={T}
+              email={email}
+              password={password}
+              showPassword={showPassword}
+              errors={errors}
+              banner={banner}
+              submitting={submitting}
+              setEmail={setEmail}
+              setPassword={setPassword}
+              setShowPassword={setShowPassword}
+              setBanner={setBanner}
+              handleLogin={handleLogin}
+              navigation={navigation}
+            />
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // =================================================================
+  // MOBILE LAYOUT
+  // =================================================================
   return (
     <KeyboardAvoidingView
-      style={{
-        flex: 1,
-        backgroundColor: theme.background,
-      }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, backgroundColor: C.white }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingHorizontal: Spacing.three,
-          paddingTop: Spacing.six,
-          paddingBottom: Spacing.seven,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
+        keyboardDismissMode={
+          Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+        }
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
       >
+        {/* ------------------------------------------------------
+            HERO HEADER
+        ------------------------------------------------------ */}
         <View
           style={{
-            width: '100%',
-            maxWidth: 480,
+            backgroundColor: C.navy,
+            paddingTop: 64,
+            paddingBottom: 56,
+            paddingHorizontal: 24,
+            borderBottomLeftRadius: 32,
+            borderBottomRightRadius: 32,
+            overflow: 'hidden',
+            alignItems: 'center',
           }}
         >
-          <View
+          <Blobs />
+
+          <Image
+            source={require('../../assets/images/ResQMeal_icon.png')}
+            style={{ width: 180, height: 180, marginBottom: 5 }}
+            resizeMode="contain"
+          />
+
+          <Text style={{ ...T.h1, color: C.white, textAlign: 'center' }}>
+            Welcome back
+          </Text>
+
+          <Text
             style={{
-              alignItems: 'center',
-              marginBottom: Spacing.five,
+              ...T.body,
+              color: 'rgba(255,255,255,0.75)',
+              textAlign: 'center',
+              marginTop: 6,
+              maxWidth: 300,
             }}
           >
-            <View
-              style={{
-                width: 68,
-                height: 68,
-                borderRadius: 22,
-                backgroundColor: theme.primaryLight,
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: Spacing.three,
-              }}
-            >
-              <Ionicons
-                name="restaurant"
-                size={32}
-                color={theme.primary}
-              />
-            </View>
+            Log in to continue rescuing food with ResQMeal.
+          </Text>
+        </View>
 
-            <Text
-              style={{
-                ...T.h1,
-                color: theme.text,
-                textAlign: 'center',
-              }}
-            >
-              Welcome back
-            </Text>
+        {/* ------------------------------------------------------
+            FORM CARD
+        ------------------------------------------------------ */}
+        <View
+          style={{
+            marginTop: -32,
+            marginHorizontal: 20,
+            backgroundColor: C.white,
+            borderRadius: 24,
+            borderWidth: 1,
+            borderColor: C.cardBorder,
+            padding: 24,
+            shadowColor: C.navy,
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.12,
+            shadowRadius: 20,
+            elevation: 6,
+          }}
+        >
+          <FormFields
+            T={T}
+            email={email}
+            password={password}
+            showPassword={showPassword}
+            errors={errors}
+            banner={banner}
+            submitting={submitting}
+            setEmail={setEmail}
+            setPassword={setPassword}
+            setShowPassword={setShowPassword}
+            setBanner={setBanner}
+            handleLogin={handleLogin}
+            navigation={navigation}
+          />
+        </View>
 
-            <Text
-              style={{
-                ...T.body,
-                color: theme.textSecondary,
-                textAlign: 'center',
-                marginTop: Spacing.one,
-                maxWidth: 340,
-              }}
-            >
-              Log in to continue rescuing food with ResQMeal.
-            </Text>
-          </View>
+        {/* ------------------------------------------------------
+            FOOTER
+        ------------------------------------------------------ */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 24,
+          }}
+        >
+          <Ionicons name="leaf-outline" size={15} color={C.teal} />
 
-          <View
-            style={{
-              backgroundColor: theme.formBackground,
-              borderRadius: Radius.xl,
-              borderWidth: 1,
-              borderColor: theme.border,
-              padding: Spacing.four,
-              ...Shadows.card,
-            }}
-          >
-            {banner && (
-              <StatusMessage
-                type={banner.type}
-                message={banner.message}
-              />
-            )}
-
-            <Field
-              icon="mail-outline"
-              label="Email"
-              placeholder="you@example.com"
-              value={email}
-              onChangeText={(value) => {
-                setEmail(value);
-                setBanner(null);
-              }}
-              error={errors.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-
-            <Field
-              icon="lock-closed-outline"
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                setBanner(null);
-              }}
-              error={errors.password}
-              secureTextEntry={!showPassword}
-              showPassword={showPassword}
-              onToggleSecure={() =>
-                setShowPassword((prev) => !prev)
-              }
-            />
-
-            <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('ForgotPassword')
-              }
-              activeOpacity={0.7}
-              style={{
-                alignSelf: 'flex-end',
-                marginBottom: Spacing.four,
-                marginTop: -Spacing.one,
-              }}
-            >
-              <Text
-                style={{
-                  ...T.label,
-                  color: theme.primary,
-                }}
-              >
-                Forgot password?
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={submitting}
-              activeOpacity={0.85}
-              style={{
-                minHeight: 54,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: theme.primary,
-                borderRadius: Radius.md,
-                opacity: submitting ? 0.7 : 1,
-                ...Shadows.button,
-              }}
-            >
-              {submitting ? (
-                <ActivityIndicator
-                  color={theme.textOnPrimary}
-                />
-              ) : (
-                <>
-                  <Ionicons
-                    name="log-in-outline"
-                    size={20}
-                    color={theme.textOnPrimary}
-                    style={{ marginRight: 8 }}
-                  />
-
-                  <Text
-                    style={{
-                      ...T.button,
-                      color: theme.textOnPrimary,
-                    }}
-                  >
-                    Log In
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginTop: Spacing.four,
-              }}
-            >
-              <Text
-                style={{
-                  ...T.bodySmall,
-                  color: theme.textSecondary,
-                }}
-              >
-                Don&apos;t have an account?
-              </Text>
-
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate('Register')
-                }
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={{
-                    ...T.label,
-                    color: theme.primary,
-                    marginLeft: 5,
-                  }}
-                >
-                  Register here
-                </Text>
-              </TouchableOpacity>
-            </View>
-                        <View
-              style={{
-                borderTopWidth: 1,
-                borderTopColor: theme.border,
-                marginTop: Spacing.four,
-                paddingTop: Spacing.three,
-                alignItems: 'center',
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => navigation.navigate('AdminLogin')}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={{
-                    ...T.bodySmall,
-                    color: theme.textSecondary,
-                    textDecorationLine: 'underline',
-                  }}
-                >
-                  Admin Login
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginTop: Spacing.four,
-            }}
-          >
-            <Ionicons
-              name="leaf-outline"
-              size={15}
-              color={theme.primary}
-            />
-
-            <Text
-              style={{
-                ...T.bodySmall,
-                color: theme.textSecondary,
-                marginLeft: 5,
-              }}
-            >
-              Together, we can reduce food waste.
-            </Text>
-          </View>
+          <Text style={{ ...T.bodySmall, color: C.textMuted, marginLeft: 5 }}>
+            Together, we can reduce food waste.
+          </Text>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
+// ------------------------------------------------------------------
+// Brand Panel (desktop left column)
+// IMPORTANT: outside LoginScreen so it isn't recreated on rerender.
+// ------------------------------------------------------------------
+function BrandPanel() {
+  const T = useAppTypography();
+
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: C.navy,
+        overflow: 'hidden',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 60,
+      }}
+    >
+      <Blobs />
+
+      <Image
+        source={require('../../assets/images/ResQMeal_icon.png')}
+        style={{ width: 200, height: 200, marginBottom: 8 }}
+        resizeMode="contain"
+      />
+
+      <Text
+        style={{
+          ...T.h1,
+          color: C.white,
+          textAlign: 'center',
+          marginBottom: 12,
+        }}
+      >
+        ResQMeal
+      </Text>
+
+      <Text
+        style={{
+          ...T.body,
+          color: 'rgba(255,255,255,0.75)',
+          textAlign: 'center',
+          maxWidth: 380,
+        }}
+      >
+        Connecting donors, volunteers, NGOs and communities to rescue
+        surplus food and fight hunger — together.
+      </Text>
+    </View>
+  );
+}
+
+// ------------------------------------------------------------------
+// Decorative blobs — shared visual language with the splash & admin
+// login screens.
+// ------------------------------------------------------------------
+function Blobs() {
+  return (
+    <>
+      <View
+        style={{
+          position: 'absolute',
+          width: 220,
+          height: 220,
+          borderRadius: 110,
+          backgroundColor: C.teal,
+          opacity: 0.35,
+          top: -60,
+          right: -60,
+        }}
+      />
+
+      <View
+        style={{
+          position: 'absolute',
+          width: 160,
+          height: 160,
+          borderRadius: 80,
+          backgroundColor: C.orange,
+          opacity: 0.25,
+          bottom: -40,
+          left: -40,
+        }}
+      />
+
+      <View
+        style={{
+          position: 'absolute',
+          width: 90,
+          height: 90,
+          borderRadius: 45,
+          backgroundColor: C.amber,
+          opacity: 0.2,
+          bottom: 60,
+          right: 30,
+        }}
+      />
+    </>
+  );
+}
+
+// ------------------------------------------------------------------
+// Status Message (success / error banner)
+// IMPORTANT: outside LoginScreen.
+// ------------------------------------------------------------------
 function StatusMessage({
   type,
   message,
+  T,
 }: {
   type: 'success' | 'error';
   message: string;
+  T: ReturnType<typeof useAppTypography>;
 }) {
-  const theme = Colors.light;
-  const T = useAppTypography();
-
   const isSuccess = type === 'success';
 
   return (
@@ -475,36 +491,26 @@ function StatusMessage({
       style={{
         flexDirection: 'row',
         alignItems: 'flex-start',
-        backgroundColor: isSuccess
-          ? theme.successSoft
-          : theme.errorSoft,
-        borderRadius: Radius.md,
+        backgroundColor: isSuccess ? C.successSoft : C.errorSoft,
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: isSuccess
-          ? theme.success
-          : theme.error,
-        paddingVertical: Spacing.two,
-        paddingHorizontal: Spacing.three,
-        marginBottom: Spacing.four,
+        borderColor: isSuccess ? C.success : C.error,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        marginBottom: 18,
       }}
     >
       <Ionicons
-        name={
-          isSuccess
-            ? 'checkmark-circle'
-            : 'alert-circle'
-        }
+        name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
         size={18}
-        color={isSuccess ? theme.success : theme.error}
+        color={isSuccess ? C.success : C.error}
         style={{ marginRight: 8, marginTop: 1 }}
       />
 
       <Text
         style={{
           ...T.bodySmall,
-          color: isSuccess
-            ? theme.primaryDark
-            : theme.error,
+          color: isSuccess ? C.success : C.error,
           flex: 1,
         }}
       >
@@ -514,12 +520,186 @@ function StatusMessage({
   );
 }
 
+// ------------------------------------------------------------------
+// Form Fields — email, password, links and the submit button.
+// IMPORTANT: outside LoginScreen so TextInput never loses focus.
+// Shared between the desktop panel and the mobile card.
+// ------------------------------------------------------------------
+type FormFieldsProps = {
+  T: ReturnType<typeof useAppTypography>;
+  email: string;
+  password: string;
+  showPassword: boolean;
+  errors: { email?: string; password?: string };
+  banner: StatusBanner;
+  submitting: boolean;
+  setEmail: (value: string) => void;
+  setPassword: (value: string) => void;
+  setShowPassword: React.Dispatch<React.SetStateAction<boolean>>;
+  setBanner: (value: StatusBanner) => void;
+  handleLogin: () => void;
+  navigation: Props['navigation'];
+};
+
+function FormFields({
+  T,
+  email,
+  password,
+  showPassword,
+  errors,
+  banner,
+  submitting,
+  setEmail,
+  setPassword,
+  setShowPassword,
+  setBanner,
+  handleLogin,
+  navigation,
+}: FormFieldsProps) {
+  return (
+    <>
+      {banner && (
+        <StatusMessage type={banner.type} message={banner.message} T={T} />
+      )}
+
+      <Field
+        icon="mail-outline"
+        label="Email"
+        placeholder="you@example.com"
+        value={email}
+        onChangeText={(value) => {
+          setEmail(value);
+          setBanner(null);
+        }}
+        error={errors.email}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoComplete="email"
+        T={T}
+      />
+
+      <Field
+        icon="lock-closed-outline"
+        label="Password"
+        placeholder="Enter your password"
+        value={password}
+        onChangeText={(value) => {
+          setPassword(value);
+          setBanner(null);
+        }}
+        error={errors.password}
+        secureTextEntry={!showPassword}
+        showPassword={showPassword}
+        onToggleSecure={() => setShowPassword((prev) => !prev)}
+        T={T}
+      />
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate('ForgotPassword')}
+        activeOpacity={0.7}
+        style={{ alignSelf: 'flex-end', marginBottom: 22, marginTop: -6 }}
+      >
+        <Text style={{ ...T.label, color: C.teal }}>
+          Forgot password?
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={handleLogin}
+        disabled={submitting}
+        activeOpacity={0.88}
+        style={{
+          minHeight: 56,
+          borderRadius: 14,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: C.orange,
+          opacity: submitting ? 0.7 : 1,
+          shadowColor: C.orange,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.28,
+          shadowRadius: 12,
+          elevation: 5,
+        }}
+      >
+        {submitting ? (
+          <ActivityIndicator color={C.white} />
+        ) : (
+          <>
+            <Ionicons
+              name="log-in-outline"
+              size={20}
+              color={C.white}
+              style={{ marginRight: 8 }}
+            />
+
+            <Text style={{ ...T.button, color: C.white }}>Log In</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginTop: 22,
+        }}
+      >
+        <Text style={{ ...T.bodySmall, color: C.textMuted }}>
+          Don&apos;t have an account?
+        </Text>
+
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Register')}
+          activeOpacity={0.7}
+        >
+          <Text style={{ ...T.label, color: C.teal, marginLeft: 5 }}>
+            Register here
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: C.cardBorder,
+          marginTop: 20,
+          paddingTop: 16,
+          alignItems: 'center',
+        }}
+      >
+        <TouchableOpacity
+          onPress={() => navigation.navigate('AdminLogin')}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={{
+              ...T.bodySmall,
+              color: C.textMuted,
+              textDecorationLine: 'underline',
+            }}
+          >
+            Admin Login
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+}
+
+// ------------------------------------------------------------------
+// Field — a single labeled input with an icon and inline error.
+// IMPORTANT: outside LoginScreen.
+// ------------------------------------------------------------------
 function Field({
   label,
   error,
   icon,
   showPassword,
   onToggleSecure,
+  T,
   ...inputProps
 }: {
   label: string;
@@ -527,29 +707,21 @@ function Field({
   icon?: IconName;
   showPassword?: boolean;
   onToggleSecure?: () => void;
+  T: ReturnType<typeof useAppTypography>;
 } & React.ComponentProps<typeof TextInput>) {
-  const theme = Colors.light;
-  const T = useAppTypography();
-
   const [focused, setFocused] = useState(false);
 
   const isSecureField = inputProps.secureTextEntry !== undefined;
 
   const borderColor = error
-    ? theme.error
+    ? C.error
     : focused
-      ? theme.borderFocus
-      : theme.border;
+      ? C.teal
+      : C.cardBorder;
 
   return (
-    <View style={{ marginBottom: Spacing.three }}>
-      <Text
-        style={{
-          ...T.label,
-          color: theme.text,
-          marginBottom: 6,
-        }}
-      >
+    <View style={{ marginBottom: 18 }}>
+      <Text style={{ ...T.label, color: C.navy, marginBottom: 6 }}>
         {label}
       </Text>
 
@@ -557,35 +729,27 @@ function Field({
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          minHeight: 52,
-          borderWidth: focused && !error ? 1.5 : 1,
+          minHeight: 54,
+          borderWidth: 1.5,
           borderColor,
-          borderRadius: Radius.md,
-          backgroundColor: theme.inputBackground,
-          paddingHorizontal: Spacing.three,
+          borderRadius: 14,
+          backgroundColor: C.offWhite,
+          paddingHorizontal: 16,
         }}
       >
         {icon && (
           <Ionicons
             name={icon}
             size={18}
-            color={
-              error
-                ? theme.error
-                : focused
-                  ? theme.primary
-                  : theme.textSecondary
-            }
-            style={{ marginRight: Spacing.two }}
+            color={error ? C.error : focused ? C.teal : C.textMuted}
+            style={{ marginRight: 10 }}
           />
         )}
 
         <TextInput
           {...inputProps}
-          placeholderTextColor={theme.inputPlaceholder}
-          secureTextEntry={
-            isSecureField ? !showPassword : undefined
-          }
+          placeholderTextColor={C.textMuted}
+          secureTextEntry={isSecureField ? !showPassword : undefined}
           onFocus={(event) => {
             setFocused(true);
             inputProps.onFocus?.(event);
@@ -597,14 +761,9 @@ function Field({
           style={{
             ...T.input,
             flex: 1,
-            color: theme.inputText,
-            shadowColor: 'transparent',
-            shadowOpacity: 0,
-            shadowRadius: 0,
-            elevation: 0,
-            backgroundColor: 'transparent',
+            color: C.navy,
           }}
-          selectionColor={theme.primary}
+          selectionColor={C.teal}
         />
 
         {isSecureField && (
@@ -615,22 +774,11 @@ function Field({
             accessibilityLabel={
               showPassword ? 'Hide password' : 'Show password'
             }
-            style={{ marginLeft: Spacing.two }}
           >
             <Ionicons
-              name={
-                showPassword
-                  ? 'eye-off-outline'
-                  : 'eye-outline'
-              }
+              name={showPassword ? 'eye-off-outline' : 'eye-outline'}
               size={18}
-              color={
-                error
-                  ? theme.error
-                  : focused
-                    ? theme.primary
-                    : theme.textSecondary
-              }
+              color={error ? C.error : focused ? C.teal : C.textMuted}
             />
           </TouchableOpacity>
         )}
@@ -647,14 +795,14 @@ function Field({
           <Ionicons
             name="alert-circle"
             size={13}
-            color={theme.error}
+            color={C.error}
             style={{ marginRight: 4 }}
           />
 
           <Text
             style={{
               ...T.bodySmall,
-              color: theme.error,
+              color: C.error,
               fontSize: 11,
               flex: 1,
             }}

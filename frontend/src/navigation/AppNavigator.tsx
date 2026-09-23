@@ -22,6 +22,7 @@ import PrivacySettingsScreen from "../screens/amasha-PrivacySettingsScreen";
 import AdminLoginScreen from "../screens/amasha-AdminLoginScreen";
 import AdminDashboardScreen from "../screens/amasha-AdminDashboardScreen";
 import RegistrationPendingScreen from "../screens/amasha-RegistrationPendingScreen";
+import OnboardingScreen from "../screens/kaveesha-OnboardingScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -54,6 +55,7 @@ export default function AppNavigator({ initialAuth }: Props) {
         screenOptions={{ headerShown: false }}
       >
         <Stack.Screen name="Splash" component={SplashScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="VerifyResetOtp" component={VerifyResetOtpScreen} />

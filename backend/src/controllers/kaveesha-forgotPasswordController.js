@@ -4,7 +4,7 @@ const {
   generateVerificationCode,
   getExpiryDate,
 } = require("../utils/dushani-otp");
-const { sendPasswordResetEmail } = require("../utils/kaveesha-resendMailer");
+const { sendPasswordResetEmail } = require("../utils/kaveesha-smtpMailer");
 
 /**
  * POST /api/auth/forgot-password

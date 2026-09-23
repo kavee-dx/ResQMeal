@@ -10,6 +10,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,13 +18,78 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import {
-  Colors,
   Radius,
-  Shadows,
   Spacing,
-  Typography,
 } from '@/constants/theme';
 import api, { resendVerificationCode } from '../services/api';
+import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
+
+// ------------------------------------------------------------------
+// Admin-style color palette (matching AdminLoginScreen)
+// ------------------------------------------------------------------
+const C = {
+  navy: "#023047",
+  navyDeep: "#011C2E",
+  teal: "#126782",
+  amber: "#FFB703",
+  orange: "#FB8500",
+  white: "#FFFFFF",
+  offWhite: "#F6F8FA",
+  cardBorder: "#E4E9ED",
+  textMuted: "#6B7B85",
+  error: "#D64545",
+  errorSoft: "#FBEAEA",
+};
+
+const DESKTOP_BREAKPOINT = 900;
+
+// ------------------------------------------------------------------
+// Decorative blobs (matching Admin login screen)
+// ------------------------------------------------------------------
+function Blobs() {
+  return (
+    <>
+      <View
+        style={{
+          position: "absolute",
+          width: 220,
+          height: 220,
+          borderRadius: 110,
+          backgroundColor: C.teal,
+          opacity: 0.35,
+          top: -60,
+          right: -60,
+        }}
+      />
+
+      <View
+        style={{
+          position: "absolute",
+          width: 160,
+          height: 160,
+          borderRadius: 80,
+          backgroundColor: C.orange,
+          opacity: 0.25,
+          bottom: -40,
+          left: -40,
+        }}
+      />
+
+      <View
+        style={{
+          position: "absolute",
+          width: 90,
+          height: 90,
+          borderRadius: 45,
+          backgroundColor: C.amber,
+          opacity: 0.2,
+          bottom: 60,
+          right: 30,
+        }}
+      />
+    </>
+  );
+}
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -298,20 +364,14 @@ type Props = NativeStackScreenProps<any, 'Register'>;
  * REGISTER SCREEN
  * ============================================================
  *
- * IMPORTANT:
- * This screen intentionally uses Colors.light directly.
- *
- * There is NO useTheme() here.
- *
- * Therefore:
- * Android = same colors
- * iOS     = same colors
- * Web     = same colors
- *
- * The screen will not automatically switch to dark colors.
+ * Uses Admin login color palette and typography for consistency.
+ * Features two-column layout on desktop with decorative elements.
  */
 export default function RegisterScreen({ navigation }: Props) {
-  const theme = Colors.light;
+  const T = useAppTypography();
+  const { width } = useWindowDimensions();
+
+  const isDesktop = width >= DESKTOP_BREAKPOINT;
 
   const [form, setForm] = useState<FormState>(INITIAL_STATE);
 
@@ -334,6 +394,293 @@ export default function RegisterScreen({ navigation }: Props) {
 
   const needsVehicleNumber =
     VEHICLE_TYPES_REQUIRING_NUMBER.includes(form.vehicleType);
+
+  // ----------------------------------------------------------------
+  // Form content renderer (shared between desktop and mobile)
+  // ----------------------------------------------------------------
+  function renderFormContent(
+    T: ReturnType<typeof useAppTypography>,
+    formState: FormState,
+    updateFn: <K extends keyof FormState>(field: K, value: FormState[K]) => void,
+    errorState: Record<string, string>,
+    touchedState: Record<string, boolean>,
+    submittingState: boolean,
+    isBusiness: boolean,
+    isOrg: boolean,
+    needsVehicleNum: boolean,
+    toggleFoodFn: (item: string) => void,
+    handleFn: () => void,
+    nav: Props['navigation']
+  ) {
+    return (
+      <>
+        <View
+          style={{
+            backgroundColor: C.white,
+            borderRadius: Radius.xl,
+            borderWidth: 1,
+            borderColor: C.cardBorder,
+            padding: Spacing.four,
+            shadowColor: C.navy,
+            shadowOffset: {
+              width: 0,
+              height: 4,
+            },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
+            elevation: 4,
+          }}
+        >
+          <SectionHeader
+            icon="people-outline"
+            title="Account Type"
+            subtitle="Choose how you want to participate in ResQMeal."
+          />
+
+          <RoleGrid
+            options={ROLES}
+            selected={formState.role}
+            onSelect={(value) => updateFn('role', value as Role)}
+          />
+
+          {formState.role === 'DONOR' && (
+            <DonorFields
+              form={formState}
+              update={updateFn}
+              errors={errorState}
+              isBusiness={isBusiness}
+            />
+          )}
+
+          {formState.role === 'RECIPIENT' && (
+            <RecipientFields
+              form={formState}
+              update={updateFn}
+              errors={errorState}
+              isOrganization={isOrg}
+              toggleFoodRequirement={toggleFoodFn}
+            />
+          )}
+
+          {formState.role === 'NGO' && (
+            <NgoFields
+              form={formState}
+              update={updateFn}
+              errors={errorState}
+            />
+          )}
+
+          {formState.role === 'VOLUNTEER' && (
+            <VolunteerFields
+              form={formState}
+              update={updateFn}
+              errors={errorState}
+              needsVehicleNumber={needsVehicleNum}
+            />
+          )}
+
+          <SectionHeader
+            icon="shield-checkmark-outline"
+            title="Contact & Security"
+            subtitle="Keep your account secure and reachable."
+          />
+
+          <Field
+            icon="call-outline"
+            label="Phone Number"
+            placeholder="+94 77 123 4567"
+            value={formState.phoneNumber}
+            onChangeText={(value) => {
+              const digits = value.replace(/\D/g, '').slice(0, 10);
+              updateFn('phoneNumber', digits);
+            }}
+            error={errorState.phoneNumber}
+            keyboardType="number-pad"
+            maxLength={10}
+          />
+
+          <Field
+            icon="lock-closed-outline"
+            label="Password"
+            placeholder="Create a strong password"
+            value={formState.password}
+            onChangeText={(value) => updateFn('password', value)}
+            error={errorState.password}
+            secureTextEntry
+          />
+
+          <Field
+            icon="lock-closed-outline"
+            label="Confirm Password"
+            placeholder="Re-enter your password"
+            value={formState.confirmPassword}
+            onChangeText={(value) => updateFn('confirmPassword', value)}
+            error={errorState.confirmPassword}
+            secureTextEntry
+          />
+
+          <SectionHeader
+            icon="location-outline"
+            title="Location"
+            subtitle="Tell us where you are based."
+          />
+
+          <Field
+            icon="location-outline"
+            label="Address"
+            placeholder="Enter your address"
+            value={formState.address}
+            onChangeText={(value) => updateFn('address', value)}
+            error={errorState.address}
+          />
+
+          <View
+            style={{
+              flexDirection: 'row',
+              gap: Spacing.two,
+            }}
+          >
+            <View style={{ flex: 1 }}>
+              <Field
+                icon="map-outline"
+                label="District"
+                placeholder="District"
+                value={formState.district}
+                onChangeText={(value) => updateFn('district', value)}
+                error={errorState.district}
+              />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Field
+                icon="business-outline"
+                label="City"
+                placeholder="City"
+                value={formState.city}
+                onChangeText={(value) => updateFn('city', value)}
+                error={errorState.city}
+              />
+            </View>
+          </View>
+
+          {/* REGISTER */}
+
+          <TouchableOpacity
+            onPress={() => {
+              console.log('Create Account pressed');
+              handleFn();
+            }}
+            disabled={submittingState}
+            activeOpacity={0.88}
+            style={{
+              minHeight: 56,
+              borderRadius: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: C.orange,
+              opacity: submittingState ? 0.7 : 1,
+              shadowColor: C.orange,
+              shadowOffset: {
+                width: 0,
+                height: 6,
+              },
+              shadowOpacity: 0.28,
+              shadowRadius: 12,
+              elevation: 5,
+              marginTop: Spacing.two,
+            }}
+          >
+            {submittingState ? (
+              <ActivityIndicator color={C.white} />
+            ) : (
+              <>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={20}
+                  color={C.white}
+                  style={{
+                    marginRight: 8,
+                  }}
+                />
+
+                <Text
+                  style={{
+                    ...T.button,
+                    color: C.white,
+                  }}
+                >
+                  Create Account
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* LOGIN */}
+
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginTop: Spacing.four,
+            }}
+          >
+            <Text
+              style={{
+                ...T.bodySmall,
+                color: C.textMuted,
+              }}
+            >
+              Already have an account?
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => nav.navigate('Login')}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={{
+                  ...T.label,
+                  color: C.navy,
+                  marginLeft: 5,
+                }}
+              >
+                Log in
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* FOOTER */}
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: Spacing.three,
+          }}
+        >
+          <Ionicons
+            name="leaf-outline"
+            size={15}
+            color={C.teal}
+          />
+
+          <Text
+            style={{
+              ...T.bodySmall,
+              color: C.textMuted,
+              marginLeft: 5,
+            }}
+          >
+            Together, we can reduce food waste.
+          </Text>
+        </View>
+      </>
+    );
+  }
 
   const sriLankanPhonePrefixes = {
     mobile: ['070', '071', '072', '074', '075', '076', '077', '078', '079'],
@@ -866,13 +1213,16 @@ export default function RegisterScreen({ navigation }: Props) {
         payload,
       );
 
-            if (response?.data?.success) {
-        Alert.alert(
-          'Registration successful',
-          response.data?.message ??
-            'Your account has been created. A verification code has been sent to your email.',
-        );
+      console.log('Registration response:', response);
+      console.log('Response status:', response.status);
+      console.log('Response data:', response.data);
 
+      // Check for successful registration - handle different response structures
+      const isSuccess = response?.data?.success || response?.data?.status === 'success' || response?.status === 200 || response?.status === 201;
+
+      console.log('Is success:', isSuccess);
+
+      if (isSuccess) {
         const verificationEmail =
           (payload as any).email || form.email || form.businessEmail;
 
@@ -886,12 +1236,32 @@ export default function RegisterScreen({ navigation }: Props) {
           form.authorizedPerson ||
           undefined;
 
+        console.log('Navigating to VerifyAccount with:', { email: verificationEmail, fullName: displayName });
+        console.log('Navigation object:', navigation);
+
         // Backend already sends the verification code on successful registration,
         // so do not call resend here to avoid duplicate OTP emails.
-        navigation?.navigate?.('VerifyAccount', {
-          email: verificationEmail,
-          fullName: displayName,
-        });
+        try {
+          // Use replace instead of navigate to replace the current screen
+          navigation?.replace?.('VerifyAccount', {
+            email: verificationEmail,
+            fullName: displayName,
+          });
+          console.log('Navigation successful');
+        } catch (navError) {
+          console.error('Navigation error:', navError);
+          // Fallback to navigate if replace doesn't work
+          try {
+            navigation?.navigate?.('VerifyAccount', {
+              email: verificationEmail,
+              fullName: displayName,
+            });
+            console.log('Navigation with navigate successful');
+          } catch (navError2) {
+            console.error('Navigate error:', navError2);
+            Alert.alert('Navigation Error', 'Could not navigate to verification screen. Please try again.');
+          }
+        }
       } else {
         Alert.alert('Registration', response.data?.message ?? 'Registration completed.');
       }
@@ -934,11 +1304,168 @@ export default function RegisterScreen({ navigation }: Props) {
     }
   }
 
+  // =================================================================
+  // DESKTOP LAYOUT
+  // =================================================================
+  if (isDesktop) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          flexDirection: 'row',
+          backgroundColor: C.white,
+        }}
+      >
+        {/* ----------------------------------------------------------
+            LEFT BRANDING PANEL
+        ---------------------------------------------------------- */}
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: C.navy,
+            overflow: 'hidden',
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 60,
+          }}
+        >
+          <Blobs />
+
+          <View
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: 26,
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 28,
+            }}
+          >
+            <Ionicons
+              name="restaurant"
+              size={40}
+              color={C.amber}
+            />
+          </View>
+
+          <Text
+            style={{
+              ...T.h1,
+              color: C.white,
+              textAlign: 'center',
+              marginBottom: 12,
+            }}
+          >
+            Join ResQMeal
+          </Text>
+
+          <Text
+            style={{
+              ...T.body,
+              color: 'rgba(255,255,255,0.75)',
+              textAlign: 'center',
+              maxWidth: 380,
+            }}
+          >
+            Create your account and help redirect surplus food to where it is needed most. Join our community of donors, recipients, NGOs, and volunteers.
+          </Text>
+
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginTop: 32,
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 3,
+                borderRadius: 3,
+                backgroundColor: C.white,
+                opacity: 0.5,
+              }}
+            />
+
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 8,
+                backgroundColor: C.amber,
+                marginHorizontal: 8,
+              }}
+            />
+
+            <View
+              style={{
+                width: 32,
+                height: 3,
+                borderRadius: 3,
+                backgroundColor: C.white,
+                opacity: 0.5,
+              }}
+            />
+          </View>
+        </View>
+
+        {/* ----------------------------------------------------------
+            RIGHT FORM PANEL
+        ---------------------------------------------------------- */}
+        <ScrollView
+          style={{ flex: 1 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          contentContainerStyle={{
+            flexGrow: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 48,
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              paddingHorizontal: 20,
+            }}
+          >
+            <Text
+              style={{
+                ...T.h2,
+                color: C.navy,
+                marginBottom: 6,
+              }}
+            >
+              Create your account
+            </Text>
+
+            <Text
+              style={{
+                ...T.body,
+                color: C.textMuted,
+                marginBottom: 32,
+              }}
+            >
+              Choose your role and provide your details to get started.
+            </Text>
+
+            {renderFormContent(T, form, update, errors, touched, submitting, isBusinessDonor, isOrganizationRecipient, needsVehicleNumber, toggleFoodRequirement, handleSubmit, navigation)}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // =================================================================
+  // MOBILE LAYOUT
+  // =================================================================
   return (
     <KeyboardAvoidingView
       style={{
         flex: 1,
-        backgroundColor: Colors.light.background,
+        backgroundColor: C.white,
       }}
       behavior={
         Platform.OS === 'ios'
@@ -976,8 +1503,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 width: 68,
                 height: 68,
                 borderRadius: 22,
-                backgroundColor:
-                  Colors.light.primaryLight,
+                backgroundColor: C.offWhite,
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginBottom: Spacing.three,
@@ -986,14 +1512,14 @@ export default function RegisterScreen({ navigation }: Props) {
               <Ionicons
                 name="restaurant"
                 size={32}
-                color={Colors.light.primary}
+                color={C.navy}
               />
             </View>
 
             <Text
               style={{
-                ...Typography.h1,
-                color: Colors.light.text,
+                ...T.h1,
+                color: C.navy,
                 textAlign: 'center',
               }}
             >
@@ -1002,8 +1528,8 @@ export default function RegisterScreen({ navigation }: Props) {
 
             <Text
               style={{
-                ...Typography.body,
-                color: Colors.light.textSecondary,
+                ...T.body,
+                color: C.textMuted,
                 textAlign: 'center',
                 marginTop: Spacing.one,
                 maxWidth: 420,
@@ -1026,8 +1552,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   width: 32,
                   height: 3,
                   borderRadius: 3,
-                  backgroundColor:
-                    Colors.light.primary,
+                  backgroundColor: C.navy,
                 }}
               />
 
@@ -1036,8 +1561,7 @@ export default function RegisterScreen({ navigation }: Props) {
                   width: 8,
                   height: 8,
                   borderRadius: 8,
-                  backgroundColor:
-                    Colors.light.secondary,
+                  backgroundColor: C.amber,
                   marginHorizontal: 8,
                 }}
               />
@@ -1047,297 +1571,14 @@ export default function RegisterScreen({ navigation }: Props) {
                   width: 32,
                   height: 3,
                   borderRadius: 3,
-                  backgroundColor:
-                    Colors.light.primary,
+                  backgroundColor: C.navy,
                 }}
               />
             </View>
           </View>
 
           {/* MAIN FORM */}
-
-          <View
-            style={{
-              backgroundColor:
-                Colors.light.formBackground,
-              borderRadius: Radius.xl,
-              borderWidth: 1,
-              borderColor: Colors.light.border,
-              padding: Spacing.four,
-              ...Shadows.card,
-            }}
-          >
-            <SectionHeader
-              icon="people-outline"
-              title="Account Type"
-              subtitle="Choose how you want to participate in ResQMeal."
-            />
-
-            <RoleGrid
-              options={ROLES}
-              selected={form.role}
-              onSelect={(value) =>
-                update('role', value as Role)
-              }
-            />
-
-            {form.role === 'DONOR' && (
-              <DonorFields
-                form={form}
-                update={update}
-                errors={errors}
-                isBusiness={isBusinessDonor}
-              />
-            )}
-
-            {form.role === 'RECIPIENT' && (
-              <RecipientFields
-                form={form}
-                update={update}
-                errors={errors}
-                isOrganization={
-                  isOrganizationRecipient
-                }
-                toggleFoodRequirement={
-                  toggleFoodRequirement
-                }
-              />
-            )}
-
-            {form.role === 'NGO' && (
-              <NgoFields
-                form={form}
-                update={update}
-                errors={errors}
-              />
-            )}
-
-            {form.role === 'VOLUNTEER' && (
-              <VolunteerFields
-                form={form}
-                update={update}
-                errors={errors}
-                needsVehicleNumber={
-                  needsVehicleNumber
-                }
-              />
-            )}
-
-            <SectionHeader
-              icon="shield-checkmark-outline"
-              title="Contact & Security"
-              subtitle="Keep your account secure and reachable."
-            />
-
-            <Field
-              icon="call-outline"
-              label="Phone Number"
-              placeholder="+94 77 123 4567"
-              value={form.phoneNumber}
-              onChangeText={(value) => {
-                const digits = value.replace(/\D/g, '').slice(0, 10);
-                update('phoneNumber', digits);
-              }}
-              error={errors.phoneNumber}
-              keyboardType="number-pad"
-              maxLength={10}
-            />
-
-            <Field
-              icon="lock-closed-outline"
-              label="Password"
-              placeholder="Create a strong password"
-              value={form.password}
-              onChangeText={(value) =>
-                update('password', value)
-              }
-              error={errors.password}
-              secureTextEntry
-            />
-
-            <Field
-              icon="lock-closed-outline"
-              label="Confirm Password"
-              placeholder="Re-enter your password"
-              value={form.confirmPassword}
-              onChangeText={(value) =>
-                update('confirmPassword', value)
-              }
-              error={errors.confirmPassword}
-              secureTextEntry
-            />
-
-            <SectionHeader
-              icon="location-outline"
-              title="Location"
-              subtitle="Tell us where you are based."
-            />
-
-            <Field
-              icon="location-outline"
-              label="Address"
-              placeholder="Enter your address"
-              value={form.address}
-              onChangeText={(value) =>
-                update('address', value)
-              }
-              error={errors.address}
-            />
-
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: Spacing.two,
-              }}
-            >
-              <View style={{ flex: 1 }}>
-                <Field
-                  icon="map-outline"
-                  label="District"
-                  placeholder="District"
-                  value={form.district}
-                  onChangeText={(value) =>
-                    update('district', value)
-                  }
-                  error={errors.district}
-                />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Field
-                  icon="business-outline"
-                  label="City"
-                  placeholder="City"
-                  value={form.city}
-                  onChangeText={(value) =>
-                    update('city', value)
-                  }
-                  error={errors.city}
-                />
-              </View>
-            </View>
-
-            {/* REGISTER */}
-
-            <TouchableOpacity
-              onPress={() => {
-                console.log('Create Account pressed');
-                handleSubmit();
-              }}
-              disabled={submitting}
-              activeOpacity={0.85}
-              style={{
-                minHeight: 54,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor:
-                  Colors.light.primary,
-                borderRadius: Radius.md,
-                marginTop: Spacing.two,
-                opacity: submitting ? 0.7 : 1,
-                ...Shadows.button,
-              }}
-            >
-              {submitting ? (
-                <ActivityIndicator
-                  color={
-                    Colors.light.textOnPrimary
-                  }
-                />
-              ) : (
-                <>
-                  <Ionicons
-                    name="checkmark-circle-outline"
-                    size={21}
-                    color={
-                      Colors.light.textOnPrimary
-                    }
-                    style={{
-                      marginRight: 8,
-                    }}
-                  />
-
-                  <Text
-                    style={{
-                      ...Typography.button,
-                      color:
-                        Colors.light.textOnPrimary,
-                    }}
-                  >
-                    Create Account
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-
-            {/* LOGIN */}
-
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginTop: Spacing.four,
-              }}
-            >
-              <Text
-                style={{
-                  ...Typography.bodySmall,
-                  color:
-                    Colors.light.textSecondary,
-                }}
-              >
-                Already have an account?
-              </Text>
-
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate('Login')
-                }
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={{
-                    ...Typography.label,
-                    color:
-                      Colors.light.primary,
-                    marginLeft: 5,
-                  }}
-                >
-                  Log in
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* FOOTER */}
-
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginTop: Spacing.three,
-            }}
-          >
-            <Ionicons
-              name="leaf-outline"
-              size={15}
-              color={Colors.light.primary}
-            />
-
-            <Text
-              style={{
-                ...Typography.bodySmall,
-                color:
-                  Colors.light.textSecondary,
-                marginLeft: 5,
-              }}
-            >
-              Together, we can reduce food waste.
-            </Text>
-          </View>
+          {renderFormContent(T, form, update, errors, touched, submitting, isBusinessDonor, isOrganizationRecipient, needsVehicleNumber, toggleFoodRequirement, handleSubmit, navigation)}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -1362,7 +1603,7 @@ function RoleGrid({
   selected: string;
   onSelect: (value: string) => void;
 }) {
-  const theme = Colors.light;
+  const T = useAppTypography();
 
   return (
     <View
@@ -1388,18 +1629,15 @@ function RoleGrid({
               width: '48%',
               minHeight: 104,
               padding: Spacing.three,
-              borderRadius: Radius.md,
+              borderRadius: 14,
               borderWidth: active ? 1.5 : 1,
               borderColor: active
-                ? theme.primary
-                : theme.border,
+                ? C.teal
+                : C.cardBorder,
 
-              // IMPORTANT:
-              // Same selected/unselected colors
-              // on mobile and Web.
               backgroundColor: active
-                ? theme.primaryLight
-                : theme.backgroundElement,
+                ? C.offWhite
+                : C.offWhite,
             }}
           >
             <View
@@ -1417,16 +1655,16 @@ function RoleGrid({
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: active
-                    ? theme.primary
-                    : theme.surface,
+                    ? C.teal
+                    : C.white,
                 }}
               >
                 <Ionicons
                   name={option.icon}
                   size={19}
                   color={active
-                    ? theme.textOnPrimary
-                    : theme.primary}
+                    ? C.white
+                    : C.navy}
                 />
               </View>
 
@@ -1436,8 +1674,7 @@ function RoleGrid({
                     width: 20,
                     height: 20,
                     borderRadius: 20,
-                    backgroundColor:
-                      theme.primary,
+                    backgroundColor: C.teal,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -1445,9 +1682,7 @@ function RoleGrid({
                   <Ionicons
                     name="checkmark"
                     size={13}
-                    color={
-                      theme.textOnPrimary
-                    }
+                    color={C.white}
                   />
                 </View>
               )}
@@ -1455,8 +1690,8 @@ function RoleGrid({
 
             <Text
               style={{
-                ...Typography.label,
-                color: theme.text,
+                ...T.label,
+                color: C.navy,
                 marginTop: Spacing.two,
               }}
             >
@@ -1465,8 +1700,8 @@ function RoleGrid({
 
             <Text
               style={{
-                ...Typography.bodySmall,
-                color: theme.textSecondary,
+                ...T.bodySmall,
+                color: C.textMuted,
                 fontSize: 11,
                 marginTop: 2,
               }}
@@ -2146,7 +2381,7 @@ function SectionHeader({
   title: string;
   subtitle: string;
 }) {
-  const theme = Colors.light;
+  const T = useAppTypography();
 
   return (
     <View
@@ -2166,8 +2401,7 @@ function SectionHeader({
             width: 34,
             height: 34,
             borderRadius: 10,
-            backgroundColor:
-              theme.primaryLight,
+            backgroundColor: C.offWhite,
             alignItems: 'center',
             justifyContent: 'center',
             marginRight: Spacing.two,
@@ -2176,15 +2410,15 @@ function SectionHeader({
           <Ionicons
             name={icon}
             size={17}
-            color={theme.primary}
+            color={C.navy}
           />
         </View>
 
         <View style={{ flex: 1 }}>
           <Text
             style={{
-              ...Typography.h3,
-              color: theme.text,
+              ...T.h3,
+              color: C.navy,
             }}
           >
             {title}
@@ -2192,8 +2426,8 @@ function SectionHeader({
 
           <Text
             style={{
-              ...Typography.bodySmall,
-              color: theme.textSecondary,
+              ...T.bodySmall,
+              color: C.textMuted,
               marginTop: 1,
             }}
           >
@@ -2205,7 +2439,7 @@ function SectionHeader({
       <View
         style={{
           height: 1,
-          backgroundColor: theme.border,
+          backgroundColor: C.cardBorder,
           marginTop: Spacing.three,
         }}
       />
@@ -2234,7 +2468,7 @@ function SelectionRow({
   onSelect: (value: string) => void;
   multi?: boolean;
 }) {
-  const theme = Colors.light;
+  const T = useAppTypography();
 
   const isSelected = (value: string) => {
     return multi
@@ -2250,8 +2484,8 @@ function SelectionRow({
     >
       <Text
         style={{
-          ...Typography.label,
-          color: theme.text,
+          ...T.label,
+          color: C.navy,
           marginBottom: Spacing.two,
         }}
       >
@@ -2281,16 +2515,16 @@ function SelectionRow({
                 alignItems: 'center',
                 paddingVertical: 9,
                 paddingHorizontal: 13,
-                borderRadius: Radius.pill,
+                borderRadius: 999,
                 borderWidth: 1,
 
                 borderColor: active
-                  ? theme.primary
-                  : theme.border,
+                  ? C.teal
+                  : C.cardBorder,
 
                 backgroundColor: active
-                  ? theme.primary
-                  : theme.backgroundElement,
+                  ? C.teal
+                  : C.offWhite,
 
                 marginRight: Spacing.two,
               }}
@@ -2299,8 +2533,8 @@ function SelectionRow({
                 name={option.icon}
                 size={14}
                 color={active
-                  ? theme.textOnPrimary
-                  : theme.textSecondary}
+                  ? C.white
+                  : C.textMuted}
                 style={{
                   marginRight: 6,
                 }}
@@ -2308,11 +2542,11 @@ function SelectionRow({
 
               <Text
                 style={{
-                  ...Typography.button,
+                  ...T.button,
                   fontSize: 12,
                   color: active
-                    ? theme.textOnPrimary
-                    : theme.text,
+                    ? C.white
+                    : C.navy,
                 }}
               >
                 {option.label}
@@ -2322,7 +2556,7 @@ function SelectionRow({
                 <Ionicons
                   name="checkmark"
                   size={13}
-                  color={theme.textOnPrimary}
+                  color={C.white}
                   style={{
                     marginLeft: 5,
                   }}
@@ -2356,7 +2590,7 @@ function Field({
   icon?: IconName;
   optional?: boolean;
 } & React.ComponentProps<typeof TextInput>) {
-  const theme = Colors.light;
+  const T = useAppTypography();
 
   const [focused, setFocused] =
     useState(false);
@@ -2368,10 +2602,10 @@ function Field({
   const isSecureField =
     inputProps.secureTextEntry === true;
   const borderColor = error
-    ? theme.error
+    ? C.error
     : focused
-      ? theme.borderFocus
-      : theme.border;
+      ? C.teal
+      : C.cardBorder;
 
   return (
     <View
@@ -2388,8 +2622,8 @@ function Field({
       >
         <Text
           style={{
-            ...Typography.label,
-            color: theme.text,
+            ...T.label,
+            color: C.navy,
           }}
         >
           {label}
@@ -2398,8 +2632,8 @@ function Field({
         {optional && (
           <Text
             style={{
-              ...Typography.bodySmall,
-              color: theme.textSecondary,
+              ...T.bodySmall,
+              color: C.textMuted,
               fontSize: 11,
               marginLeft: 5,
             }}
@@ -2420,7 +2654,7 @@ function Field({
           minHeight:
             inputProps.multiline
               ? 110
-              : 52,
+              : 54,
 
           borderWidth:
             focused && !error
@@ -2429,15 +2663,13 @@ function Field({
 
           borderColor,
 
-          borderRadius: Radius.md,
+          borderRadius: 14,
 
-          // FIXED COLOR
-          // Same Web + Android + iOS
           backgroundColor: disabled
-            ? theme.backgroundElement
-            : theme.inputBackground,
+            ? C.offWhite
+            : C.offWhite,
 
-          paddingHorizontal: Spacing.three,
+          paddingHorizontal: 16,
 
           paddingVertical:
             inputProps.multiline
@@ -2451,13 +2683,13 @@ function Field({
             size={18}
             color={
               error
-                ? theme.error
+                ? C.error
                 : focused
-                  ? theme.primary
-                  : theme.textSecondary
+                  ? C.teal
+                  : C.textMuted
             }
             style={{
-              marginRight: Spacing.two,
+              marginRight: 10,
               marginTop:
                 inputProps.multiline
                   ? 3
@@ -2469,9 +2701,7 @@ function Field({
         <TextInput
           {...inputProps}
           editable={editable}
-          placeholderTextColor={
-            theme.inputPlaceholder
-          }
+          placeholderTextColor={C.textMuted}
           secureTextEntry={
             isSecureField && !showPassword
           }
@@ -2484,12 +2714,12 @@ function Field({
             onBlur?.(event);
           }}
           style={{
-            ...Typography.input,
+            ...T.input,
             flex: 1,
 
             color: disabled
-              ? theme.textSecondary
-              : theme.inputText,
+              ? C.textMuted
+              : C.navy,
 
             paddingVertical:
               inputProps.multiline
@@ -2512,7 +2742,7 @@ function Field({
             elevation: 0,
             backgroundColor: 'transparent',
           }}
-          selectionColor={theme.primary}
+          selectionColor={C.teal}
         />
 
         {isSecureField && (
@@ -2528,7 +2758,7 @@ function Field({
                 : 'Show password'
             }
             style={{
-              marginLeft: Spacing.two,
+              marginLeft: 10,
             }}
           >
             <Ionicons
@@ -2540,10 +2770,10 @@ function Field({
               size={18}
               color={
                 error
-                  ? theme.error
+                  ? C.error
                   : focused
-                    ? theme.primary
-                    : theme.textSecondary
+                    ? C.teal
+                    : C.textMuted
               }
             />
           </TouchableOpacity>
@@ -2561,7 +2791,7 @@ function Field({
           <Ionicons
             name="alert-circle"
             size={13}
-            color={theme.error}
+            color={C.error}
             style={{
               marginRight: 4,
             }}
@@ -2569,8 +2799,8 @@ function Field({
 
           <Text
             style={{
-              ...Typography.bodySmall,
-              color: theme.error,
+              ...T.bodySmall,
+              color: C.error,
               fontSize: 11,
               flex: 1,
             }}
@@ -2592,16 +2822,15 @@ function InlineHint({
 }: {
   text: string;
 }) {
-  const theme = Colors.light;
+  const T = useAppTypography();
 
   return (
     <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor:
-          theme.primaryLight,
-        borderRadius: Radius.sm,
+        backgroundColor: C.offWhite,
+        borderRadius: 10,
         paddingVertical: Spacing.two,
         paddingHorizontal: Spacing.three,
         marginBottom: Spacing.three,
@@ -2610,7 +2839,7 @@ function InlineHint({
       <Ionicons
         name="information-circle-outline"
         size={16}
-        color={theme.primary}
+        color={C.navy}
         style={{
           marginRight: 7,
         }}
@@ -2618,8 +2847,8 @@ function InlineHint({
 
       <Text
         style={{
-          ...Typography.bodySmall,
-          color: theme.primaryDark,
+          ...T.bodySmall,
+          color: C.navy,
           fontSize: 12,
           flex: 1,
         }}
@@ -2639,7 +2868,7 @@ function ErrorText({
 }: {
   text: string;
 }) {
-  const theme = Colors.light;
+  const T = useAppTypography();
 
   return (
     <View
@@ -2653,7 +2882,7 @@ function ErrorText({
       <Ionicons
         name="alert-circle"
         size={13}
-        color={theme.error}
+        color={C.error}
         style={{
           marginRight: 4,
         }}
@@ -2661,8 +2890,8 @@ function ErrorText({
 
       <Text
         style={{
-          ...Typography.bodySmall,
-          color: theme.error,
+          ...T.bodySmall,
+          color: C.error,
           fontSize: 11,
           flex: 1,
         }}

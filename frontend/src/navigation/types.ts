@@ -8,6 +8,7 @@ export type HomeParams = {
 
 export type RootStackParamList = {
   Splash: undefined;
+  Onboarding: undefined;
 
   Login: undefined;
 
@@ -24,14 +25,11 @@ export type RootStackParamList = {
 
   Register: undefined;
   Home: undefined;
-  CreateDonation: undefined;
-  MyDonations: undefined;
-  DonationDetail: { donationId: string };
   Profile: undefined;
 
   VerifyAccount: {
     email: string;
-    fullName?: string
+    fullName?: string;
   };
 
   RegistrationPending: { fullName?: string } | undefined;
@@ -47,6 +45,10 @@ export type RootStackParamList = {
 
   AdminLogin: undefined;
   AdminDashboard: undefined;
+
+  CreateDonation: undefined;
+  MyDonations: undefined;
+  DonationDetail: { donationId: string };
 };
 
 export type HomeRouteName =

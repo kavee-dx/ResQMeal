@@ -13,6 +13,7 @@ export interface FoodRequestPayload {
   quantity: string;
   location: string;
   details?: string;
+  contactNumber: string;
   urgency?: FoodRequestUrgency;
 }
 
@@ -22,6 +23,7 @@ export interface FoodRequest {
   quantity: string;
   location: string;
   details?: string;
+  contactNumber?: string;
   urgency: FoodRequestUrgency;
   priority: 'HIGH' | 'NORMAL';
   status: FoodRequestStatus;

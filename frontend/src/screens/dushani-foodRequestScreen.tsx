@@ -37,6 +37,9 @@ const C = {
   textMuted: '#6B7B85',
   error: '#D64545',
   errorSoft: '#FBEAEA',
+  // Matches Colors.light.success / successSoft in @/constants/theme.
+  success: '#3FA34D',
+  successSoft: '#E2F2E5',
 };
 
 const OTHER_FOOD = 'Other';
@@ -54,16 +57,17 @@ const FOOD_TYPE_OPTIONS: {
 ];
 
 /**
- * Soft colour wash behind the request card — same decorative language as the
- * user-management auth screens, so the form never floats on a flat grey page.
+ * Navy brand band behind the card — same navy (#023047) used across the
+ * user-management auth screens. The card overlaps its lower edge so the form
+ * reads as an elevated panel rather than a box on flat grey.
  */
 function Backdrop() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={[styles.blob, { width: 340, height: 340, borderRadius: 170, backgroundColor: C.teal, opacity: 0.18, top: -90, left: -80 }]} />
-      <View style={[styles.blob, { width: 280, height: 280, borderRadius: 140, backgroundColor: C.amber, opacity: 0.16, top: 180, right: -100 }]} />
-      <View style={[styles.blob, { width: 220, height: 220, borderRadius: 110, backgroundColor: C.navy, opacity: 0.1, bottom: 90, left: -60 }]} />
-      <View style={[styles.blob, { width: 180, height: 180, borderRadius: 90, backgroundColor: C.orange, opacity: 0.14, bottom: -60, right: 40 }]} />
+      <View style={styles.band}>
+        <View style={styles.bandGlowTeal} />
+        <View style={styles.bandGlowAmber} />
+      </View>
     </View>
   );
 }
@@ -173,8 +177,8 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
             <Ionicons name="arrow-back" size={22} color={C.navy} />
           </TouchableOpacity>
           <View>
-            <Text style={{ ...T.caption, color: C.teal }}>Recipient</Text>
-            <Text style={{ ...T.h2, color: C.navy, fontSize: 26 }}>
+            <Text style={{ ...T.caption, color: C.amber }}>Recipient</Text>
+            <Text style={{ ...T.h2, color: C.white, fontSize: 26 }}>
               Create Request
             </Text>
           </View>
@@ -567,11 +571,37 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: Spacing.five,
+    paddingTop: Spacing.six,
     paddingBottom: Spacing.seven,
   },
-  blob: {
+  band: {
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 248,
+    backgroundColor: C.navy,
+    overflow: 'hidden',
+  },
+  bandGlowTeal: {
+    position: 'absolute',
+    width: 330,
+    height: 330,
+    borderRadius: 165,
+    backgroundColor: C.teal,
+    opacity: 0.5,
+    top: -120,
+    right: -80,
+  },
+  bandGlowAmber: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    backgroundColor: C.amber,
+    opacity: 0.22,
+    bottom: -78,
+    left: 70,
   },
   page: {
     width: '100%',
@@ -583,35 +613,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.five,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.five,
   },
   backButton: {
     width: 44,
     height: 44,
     borderRadius: Radius.pill,
     backgroundColor: C.white,
-    borderWidth: 1,
-    borderColor: C.cardBorder,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.three,
-    ...Shadows.card,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   card: {
     backgroundColor: C.white,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: C.cardBorder,
     padding: Spacing.five,
-    ...Shadows.card,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 26,
+    elevation: 10,
   },
   cardIntro: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.offWhite,
-    borderRadius: Radius.lg,
+    backgroundColor: C.successSoft,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: C.cardBorder,
+    borderLeftWidth: 4,
+    borderLeftColor: C.success,
     padding: Spacing.four,
     marginBottom: Spacing.four,
   },
@@ -619,7 +657,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: Radius.pill,
-    backgroundColor: C.teal,
+    backgroundColor: C.success,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.four,

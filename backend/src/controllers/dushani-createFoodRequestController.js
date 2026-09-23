@@ -11,7 +11,7 @@ function getRecipientId(req) {
 
 async function createFoodRequestHandler(req, res) {
   try {
-    const { foodType, quantity, location, details, urgency } = req.body;
+    const { foodType, quantity, location, details, contactNumber, urgency } = req.body;
 
     const foodRequest = await createFoodRequest({
       recipientId: getRecipientId(req),
@@ -19,6 +19,7 @@ async function createFoodRequestHandler(req, res) {
       quantity,
       location,
       details,
+      contactNumber,
       urgency,
     });
 
@@ -33,7 +34,7 @@ async function createFoodRequestHandler(req, res) {
 // requests. Urgency/priority are forced server-side (URGENT/HIGH).
 async function createEmergencyFoodRequestHandler(req, res) {
   try {
-    const { foodType, quantity, location, details } = req.body;
+    const { foodType, quantity, location, details, contactNumber } = req.body;
 
     const foodRequest = await createEmergencyFoodRequest({
       recipientId: getRecipientId(req),
@@ -41,6 +42,7 @@ async function createEmergencyFoodRequestHandler(req, res) {
       quantity,
       location,
       details,
+      contactNumber,
     });
 
     return res.status(201).json(foodRequest);

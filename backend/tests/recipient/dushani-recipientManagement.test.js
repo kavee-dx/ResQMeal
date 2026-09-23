@@ -122,6 +122,7 @@ describe('createFoodRequest service (Task 11 backend support)', () => {
       quantity: '5 kg',
       location: 'Colombo 05',
       details: '',
+      contactNumber: '077 123 4567',
       urgency: 'NORMAL',
     });
 
@@ -131,9 +132,29 @@ describe('createFoodRequest service (Task 11 backend support)', () => {
       quantity: '5 kg',
       location: 'Colombo 05',
       details: '',
+      contactNumber: '0771234567',
       urgency: 'NORMAL',
     });
     expect(result).toEqual({ id: 'req1' });
+  });
+
+  it.each([
+    ['empty', ''],
+    ['too short', '077123456'],
+    ['unknown prefix', '0731234567'],
+  ])('throws a 400 error when contactNumber is %s', async (_label, contactNumber) => {
+    const createSpy = jest.spyOn(FoodRequest, 'create');
+
+    await expect(
+      createFoodRequest({
+        recipientId: 'recipient1',
+        foodType: 'Rice',
+        quantity: '5 kg',
+        location: 'Colombo 05',
+        contactNumber,
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    expect(createSpy).not.toHaveBeenCalled();
   });
 
   it.each(['foodType', 'quantity', 'location'])('throws a 400 error when %s is missing', async (field) => {
@@ -183,7 +204,7 @@ describe('dushani-createFoodRequestController (Task 11 backend support)', () => 
     mockedCreateService.createFoodRequest.mockResolvedValue({ id: 'req1' });
     const req = {
       body: { foodType: 'Rice', quantity: '5 kg', location: 'Colombo 05' },
-      user: { _id: 'user1' },
+      user: { id: 'user1' },
     };
     const res = mockResponse();
 
@@ -195,6 +216,7 @@ describe('dushani-createFoodRequestController (Task 11 backend support)', () => 
       quantity: '5 kg',
       location: 'Colombo 05',
       details: undefined,
+      contactNumber: undefined,
       urgency: undefined,
     });
     expect(res.status).toHaveBeenCalledWith(201);
@@ -206,7 +228,7 @@ describe('dushani-createFoodRequestController (Task 11 backend support)', () => 
     error.statusCode = 400;
     mockedCreateService.createFoodRequest.mockRejectedValue(error);
 
-    const req = { body: {}, user: { _id: 'user1' } };
+    const req = { body: {}, user: { id: 'user1' } };
     const res = mockResponse();
 
     await createFoodRequestHandler(req, res);
@@ -219,7 +241,7 @@ describe('dushani-createFoodRequestController (Task 11 backend support)', () => 
     mockedCreateService.createFoodRequest.mockRejectedValue(new Error('DB unavailable'));
     const req = {
       body: { foodType: 'Rice', quantity: '5 kg', location: 'Colombo 05' },
-      user: { _id: 'user1' },
+      user: { id: 'user1' },
     };
     const res = mockResponse();
 
@@ -239,7 +261,7 @@ describe('dushani-requestStatusController (Task 13 backend support)', () => {
 
   it('returns the recipient requests as JSON', async () => {
     mockedStatusService.getRequestsByRecipient.mockResolvedValue([{ id: 'r1' }]);
-    const req = { user: { _id: 'user1' } };
+    const req = { user: { id: 'user1' } };
     const res = mockResponse();
 
     await getMyRequestsHandler(req, res);
@@ -250,7 +272,7 @@ describe('dushani-requestStatusController (Task 13 backend support)', () => {
 
   it('returns 500 when the service throws', async () => {
     mockedStatusService.getRequestsByRecipient.mockRejectedValue(new Error('DB down'));
-    const req = { user: { _id: 'user1' } };
+    const req = { user: { id: 'user1' } };
     const res = mockResponse();
 
     await getMyRequestsHandler(req, res);

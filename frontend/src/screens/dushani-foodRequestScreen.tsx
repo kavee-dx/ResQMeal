@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { Radius, Spacing, Shadows } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import type { RootStackParamList } from '../navigation/types';
 import {
@@ -22,6 +22,7 @@ import {
 } from '../services/dushani-foodRequestApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FoodRequest'>;
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 // User-management palette (same constants as RegisterScreen / LoginScreen).
 const C = {
@@ -42,24 +43,107 @@ const C = {
   successSoft: '#E2F2E5',
 };
 
-const OTHER_FOOD = 'Other';
+type CategoryKey = 'Rice' | 'Vegetables' | 'Dry Foods' | 'Bread' | 'Water' | 'Other';
 
-const FOOD_TYPE_OPTIONS: {
+interface CategoryDef {
+  key: CategoryKey;
   label: string;
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-}[] = [
-  { label: 'Rice', icon: 'restaurant-outline' },
-  { label: 'Vegetables', icon: 'leaf-outline' },
-  { label: 'Dry Foods', icon: 'cube-outline' },
-  { label: 'Bread', icon: 'fast-food-outline' },
-  { label: 'Water', icon: 'water-outline' },
-  { label: OTHER_FOOD, icon: 'ellipsis-horizontal-outline' },
+  icon: IconName;
+  /** fixed = one preset line; multi = recipient adds named lines. */
+  kind: 'fixed' | 'multi';
+  /** Written to foodType for fixed categories. */
+  itemName?: string;
+  unit: string;
+  unitLocked?: boolean;
+  namePlaceholder?: string;
+  addLabel?: string;
+}
+
+const CATEGORIES: CategoryDef[] = [
+  {
+    key: 'Rice',
+    label: 'Rice',
+    icon: 'restaurant-outline',
+    kind: 'fixed',
+    itemName: 'Cooked Rice',
+    unit: 'packets',
+    unitLocked: true,
+  },
+  {
+    key: 'Vegetables',
+    label: 'Vegetables',
+    icon: 'leaf-outline',
+    kind: 'multi',
+    unit: 'kg',
+    namePlaceholder: 'e.g. Carrot, Beans, Dhal leaves',
+    addLabel: 'Add another vegetable',
+  },
+  {
+    key: 'Dry Foods',
+    label: 'Dry Foods',
+    icon: 'cube-outline',
+    kind: 'multi',
+    unit: 'kg',
+    namePlaceholder: 'e.g. Parboiled rice, Milk powder, Lentils',
+    addLabel: 'Add another dry food',
+  },
+  {
+    key: 'Bread',
+    label: 'Bread',
+    icon: 'fast-food-outline',
+    kind: 'fixed',
+    itemName: 'Bread',
+    unit: 'slices',
+  },
+  {
+    key: 'Water',
+    label: 'Water',
+    icon: 'water-outline',
+    kind: 'fixed',
+    itemName: 'Water',
+    unit: 'bottles',
+  },
+  {
+    key: 'Other',
+    label: 'Other',
+    icon: 'ellipsis-horizontal-outline',
+    kind: 'multi',
+    unit: '',
+    namePlaceholder: 'e.g. Baby formula, Eggs, Toothpaste',
+    addLabel: 'Add another item',
+  },
 ];
+
+const CATEGORY_BY_KEY = Object.fromEntries(
+  CATEGORIES.map((category) => [category.key, category]),
+) as Record<CategoryKey, CategoryDef>;
+
+interface Item {
+  id: string;
+  group: CategoryKey;
+  name: string;
+  amount: string;
+  unit: string;
+}
+
+// Same rule as the phone field in the recipient registration form:
+// 10 digits with a Sri Lankan mobile or landline prefix.
+const SRI_LANKAN_PHONE_PREFIXES = [
+  '070', '071', '072', '074', '075', '076', '077', '078', '079',
+  '011', '021', '023', '024', '025', '026', '027', '031', '032', '033', '034',
+  '035', '036', '037', '038', '041', '045', '047', '052', '054', '055', '057',
+  '058', '061', '062', '063', '064', '065', '066', '067', '068', '069',
+];
+
+function isValidSriLankanPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, '');
+  if (!/^\d{10}$/.test(digits)) return false;
+  return SRI_LANKAN_PHONE_PREFIXES.includes(digits.slice(0, 3));
+}
 
 /**
  * Navy brand band behind the card — same navy (#023047) used across the
- * user-management auth screens. The card overlaps its lower edge so the form
- * reads as an elevated panel rather than a box on flat grey.
+ * user-management auth screens. The card overlaps its lower edge.
  */
 function Backdrop() {
   return (
@@ -74,11 +158,16 @@ function Backdrop() {
 
 export default function FoodRequestScreen({ navigation, route }: Props) {
   const T = useAppTypography();
+  const idRef = useRef(1);
 
-  const [foodTypes, setFoodTypes] = useState<string[]>([]);
-  const [otherFood, setOtherFood] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [location, setLocation] = useState('');
+  const [selected, setSelected] = useState<CategoryKey[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [invalidIds, setInvalidIds] = useState<string[]>([]);
+  const [street, setStreet] = useState('');
+  const [city, setCity] = useState('');
+  const [postal, setPostal] = useState('');
+  const [landmark, setLandmark] = useState('');
+  const [phone, setPhone] = useState('');
   const [details, setDetails] = useState('');
   const [urgency, setUrgency] = useState<FoodRequestUrgency>(
     route.params?.urgency ?? 'NORMAL',
@@ -86,41 +175,162 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<{
     foodTypes?: string;
-    otherFood?: string;
-    quantity?: string;
-    location?: string;
+    quantities?: string;
+    address?: string;
+    phone?: string;
   }>({});
 
-  const otherSelected = foodTypes.includes(OTHER_FOOD);
   const isUrgent = urgency === 'URGENT';
+  const groupsWithItems = CATEGORIES.filter((c) => selected.includes(c.key));
 
-  const toggleFoodType = (label: string) => {
-    setFoodTypes((current) =>
-      current.includes(label)
-        ? current.filter((item) => item !== label)
-        : [...current, label],
+  const clearQtyErrors = () => {
+    setInvalidIds([]);
+    setErrors((current) => ({ ...current, quantities: undefined }));
+  };
+
+  const toggleCategory = (key: CategoryKey) => {
+    const def = CATEGORY_BY_KEY[key];
+    const removing = selected.includes(key);
+
+    setSelected((current) =>
+      removing ? current.filter((item) => item !== key) : [...current, key],
     );
+    setItems((current) => {
+      if (removing) return current.filter((item) => item.group !== key);
+      return [
+        ...current,
+        {
+          id: `it-${idRef.current++}`,
+          group: key,
+          name: def.itemName ?? '',
+          amount: '',
+          unit: def.unit,
+        },
+      ];
+    });
+    clearQtyErrors();
     setErrors((current) => ({ ...current, foodTypes: undefined }));
+  };
+
+  const updateItem = (id: string, patch: Partial<Omit<Item, 'id' | 'group'>>) => {
+    setItems((current) =>
+      current.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    );
+    clearQtyErrors();
+  };
+
+  const addItem = (key: CategoryKey) => {
+    const def = CATEGORY_BY_KEY[key];
+    setItems((current) => [
+      ...current,
+      {
+        id: `it-${idRef.current++}`,
+        group: key,
+        name: '',
+        amount: '',
+        unit: def.unit,
+      },
+    ]);
+    clearQtyErrors();
+  };
+
+  const removeItem = (id: string) => {
+    setItems((current) => current.filter((item) => item.id !== id));
+    clearQtyErrors();
   };
 
   const validate = () => {
     const nextErrors: typeof errors = {};
-    if (foodTypes.length === 0) {
+    const bad: string[] = [];
+    const emptyGroups: string[] = [];
+    let missingName = false;
+    let missingAmount = false;
+
+    if (selected.length === 0) {
       nextErrors.foodTypes = 'Select at least one food type';
     }
-    if (foodTypes.includes(OTHER_FOOD) && !otherFood.trim()) {
-      nextErrors.otherFood = 'Please specify the food you need';
+
+    selected.forEach((key) => {
+      const def = CATEGORY_BY_KEY[key];
+      const groupItems = items.filter((item) => item.group === key);
+      if (groupItems.length === 0) {
+        emptyGroups.push(def.label);
+        return;
+      }
+      groupItems.forEach((item) => {
+        const amount = item.amount.trim();
+        const amountOk = /^\d+(\.\d{1,2})?$/.test(amount) && Number(amount) > 0;
+        if (def.kind === 'multi' && !item.name.trim()) {
+          missingName = true;
+          bad.push(item.id);
+        } else if (!amountOk) {
+          missingAmount = true;
+          bad.push(item.id);
+        }
+      });
+    });
+
+    if (emptyGroups.length) {
+      nextErrors.quantities = `Add at least one item to ${emptyGroups.join(' and ')}`;
+    } else if (missingName) {
+      nextErrors.quantities = 'Give every item a name';
+    } else if (missingAmount) {
+      nextErrors.quantities = 'Enter a valid amount for every item';
     }
-    if (!quantity.trim()) nextErrors.quantity = 'Quantity is required';
-    if (!location.trim()) nextErrors.location = 'Location is required';
+    const streetValue = street.trim();
+    const cityValue = city.trim();
+    const postalValue = postal.trim();
+
+    if (!streetValue) nextErrors.address = 'Enter your street address';
+    else if (!cityValue) nextErrors.address = 'Enter your city or town';
+    else if (postalValue && !/^\d{4,5}$/.test(postalValue))
+      nextErrors.address = 'Postal code must be 4-5 digits';
+
+    if (!phone.trim()) nextErrors.phone = 'Phone number is required';
+    else if (!isValidSriLankanPhone(phone))
+      nextErrors.phone = 'Enter a valid 10-digit local phone number.';
+
     setErrors(nextErrors);
+    setInvalidIds(nextErrors.quantities ? bad : []);
     return Object.keys(nextErrors).length === 0;
   };
 
-  const buildFoodType = () => {
-    const named = foodTypes.filter((label) => label !== OTHER_FOOD);
-    if (otherSelected) named.push(otherFood.trim());
-    return named.join(', ');
+  // Show the single address message under the field that actually failed.
+  const addressErrorFor = (
+    field: 'street' | 'city' | 'postal',
+  ): string | undefined => {
+    if (!errors.address) return undefined;
+    const streetMissing = !street.trim();
+    const cityMissing = !streetMissing && !city.trim();
+    const postalBad =
+      !streetMissing && !!postal.trim() && !/^\d{4,5}$/.test(postal.trim());
+    const match =
+      (field === 'street' && streetMissing) ||
+      (field === 'city' && cityMissing) ||
+      (field === 'postal' && postalBad);
+    return match ? errors.address : undefined;
+  };
+
+  const cleanName = (item: Item) =>
+    item.group === 'Rice' ? 'Cooked Rice' : item.name.trim();
+
+  const buildFoodType = () =>
+    items.map(cleanName).filter(Boolean).join(', ');
+
+  // e.g. "Cooked Rice - 6 packets, Carrot - 2 kg, Beans - 1 kg"
+  const buildQuantity = () =>
+    items
+      .map((item) => {
+        const unit = item.unit.trim();
+        return `${cleanName(item)} - ${item.amount.trim()}${unit ? ` ${unit}` : ''}`;
+      })
+      .join(', ');
+
+  // e.g. "No. 24, Galle Road, Colombo, 00300 — opposite the temple"
+  const buildLocation = () => {
+    const parts = [street.trim(), city.trim(), postal.trim()].filter(Boolean);
+    const landmarkValue = landmark.trim();
+    return parts.join(', ') + (landmarkValue ? ` — ${landmarkValue}` : '');
   };
 
   const handleSubmit = async () => {
@@ -129,9 +339,10 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
     setSubmitting(true);
     const basePayload = {
       foodType: buildFoodType(),
-      quantity: quantity.trim(),
-      location: location.trim(),
+      quantity: buildQuantity(),
+      location: buildLocation(),
       details: details.trim(),
+      contactNumber: phone.replace(/\D/g, ''),
     };
     try {
       if (isUrgent) {
@@ -139,13 +350,8 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
       } else {
         await createFoodRequest({ ...basePayload, urgency: 'NORMAL' });
       }
-      Alert.alert('Request submitted', 'Your food request has been posted.', [
-        {
-          text: 'View status',
-          onPress: () => navigation.replace('RequestStatus'),
-        },
-        { text: 'OK', style: 'cancel' },
-      ]);
+      // Posted — go straight to the recipient's request dashboard.
+      navigation.replace('RequestStatus');
     } catch (err) {
       Alert.alert(
         'Something went wrong',
@@ -185,7 +391,6 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.page}>
-
           <View style={styles.card}>
             <View style={styles.cardIntro}>
               <View style={styles.heroIcon}>
@@ -208,12 +413,12 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
               subtitle="Select all that apply"
             />
             <View style={styles.chipGrid}>
-              {FOOD_TYPE_OPTIONS.map((option) => {
-                const active = foodTypes.includes(option.label);
+              {CATEGORIES.map((category) => {
+                const active = selected.includes(category.key);
                 return (
                   <TouchableOpacity
-                    key={option.label}
-                    onPress={() => toggleFoodType(option.label)}
+                    key={category.key}
+                    onPress={() => toggleCategory(category.key)}
                     activeOpacity={0.8}
                     style={[
                       styles.chip,
@@ -230,7 +435,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                       ]}
                     >
                       <Ionicons
-                        name={option.icon}
+                        name={category.icon}
                         size={18}
                         color={C.teal}
                       />
@@ -242,7 +447,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                         color: active ? C.white : C.navy,
                       }}
                     >
-                      {option.label}
+                      {category.label}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -250,58 +455,240 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
             </View>
             {errors.foodTypes && <ErrorText message={errors.foodTypes} />}
 
-            {otherSelected && (
-              <View style={styles.otherBox}>
-                <Field
-                  label="Specify the food you need"
-                  value={otherFood}
-                  onChangeText={(text) => {
-                    setOtherFood(text);
-                    setErrors((c) => ({ ...c, otherFood: undefined }));
-                  }}
-                  error={errors.otherFood}
-                  placeholder="e.g. Baby formula, lentils, milk..."
-                  icon="create-outline"
+            <SectionTitle
+              step="02"
+              title="How much of each?"
+              subtitle="Add an amount for every item you need"
+            />
+            {groupsWithItems.length === 0 ? (
+              <View style={styles.qtyEmpty}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={17}
+                  color={C.textMuted}
+                  style={{ marginRight: Spacing.two }}
                 />
+                <Text style={{ ...T.bodySmall, color: C.textMuted, flex: 1 }}>
+                  Choose your food types in step 01 and quantity lines appear
+                  here for each one.
+                </Text>
+              </View>
+            ) : (
+              <View>
+                {groupsWithItems.map((def) => {
+                  const groupItems = items.filter(
+                    (item) => item.group === def.key,
+                  );
+                  return (
+                    <View key={def.key} style={styles.group}>
+                      <View style={styles.groupHead}>
+                        <Ionicons
+                          name={def.icon}
+                          size={15}
+                          color={C.teal}
+                          style={{ marginRight: Spacing.one + 2 }}
+                        />
+                        <Text style={{ ...T.label, fontSize: 12, color: C.teal }}>
+                          {def.label}
+                        </Text>
+                        {def.kind === 'multi' && (
+                          <View style={styles.groupCount}>
+                            <Text
+                              style={{ ...T.caption, fontSize: 10, color: C.teal }}
+                            >
+                              {groupItems.length}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      {groupItems.map((item) => {
+                        const invalid = invalidIds.includes(item.id);
+                        return (
+                          <View
+                            key={item.id}
+                            style={[styles.qtyRow, invalid && { borderColor: C.error }]}
+                          >
+                            {def.kind === 'fixed' ? (
+                              <View style={styles.qtyIcon}>
+                                <Ionicons
+                                  name={def.icon}
+                                  size={17}
+                                  color={C.teal}
+                                />
+                              </View>
+                            ) : null}
+
+                            {def.kind === 'multi' ? (
+                              <TextInput
+                                style={[styles.itemName, invalid && !item.name.trim() && { borderColor: C.error }]}
+                                value={item.name}
+                                onChangeText={(text) =>
+                                  updateItem(item.id, { name: text })
+                                }
+                                placeholder={def.namePlaceholder}
+                                placeholderTextColor={C.textMuted}
+                              />
+                            ) : (
+                              <Text
+                                style={{
+                                  ...T.labelStrong,
+                                  fontSize: 14,
+                                  color: C.navy,
+                                  flex: 1,
+                                  marginRight: Spacing.two,
+                                }}
+                              >
+                                {def.itemName}
+                              </Text>
+                            )}
+
+                            <TextInput
+                              style={[
+                                styles.qtyAmount,
+                                invalid && item.name.trim() && { borderColor: C.error },
+                              ]}
+                              value={item.amount}
+                              onChangeText={(text) =>
+                                updateItem(item.id, { amount: text })
+                              }
+                              placeholder="0"
+                              placeholderTextColor={C.textMuted}
+                              keyboardType="numeric"
+                            />
+
+                            {def.unitLocked ? (
+                              <View style={styles.unitStatic}>
+                                <Text
+                                  style={{
+                                    ...T.bodySmall,
+                                    color: C.textMuted,
+                                  }}
+                                >
+                                  {item.unit}
+                                </Text>
+                              </View>
+                            ) : (
+                              <TextInput
+                                style={styles.qtyUnit}
+                                value={item.unit}
+                                onChangeText={(text) =>
+                                  updateItem(item.id, { unit: text })
+                                }
+                                placeholder="unit"
+                                placeholderTextColor={C.textMuted}
+                                autoCapitalize="none"
+                              />
+                            )}
+
+                            {def.kind === 'multi' && groupItems.length > 1 && (
+                              <TouchableOpacity
+                                onPress={() => removeItem(item.id)}
+                                style={styles.removeBtn}
+                                accessibilityLabel={`Remove ${def.label} item`}
+                              >
+                                <Ionicons
+                                  name="trash-outline"
+                                  size={17}
+                                  color={C.error}
+                                />
+                              </TouchableOpacity>
+                            )}
+                          </View>
+                        );
+                      })}
+
+                      {def.kind === 'multi' && (
+                        <TouchableOpacity
+                          onPress={() => addItem(def.key)}
+                          style={styles.addBtn}
+                        >
+                          <Ionicons
+                            name="add"
+                            size={16}
+                            color={C.teal}
+                            style={{ marginRight: Spacing.one + 2 }}
+                          />
+                          <Text style={{ ...T.labelStrong, fontSize: 12, color: C.teal }}>
+                            {def.addLabel}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+
+                {errors.quantities && <ErrorText message={errors.quantities} />}
               </View>
             )}
 
             <SectionTitle
-              step="02"
-              title="How much and where?"
-              subtitle="So donors know what to prepare"
+              step="03"
+              title="Where should it be delivered?"
+              subtitle="Where to drop the food and how the donor can reach you"
             />
-            <View style={styles.fieldRow}>
-              <View style={styles.fieldHalf}>
+            <Field
+              label="Street Address"
+              value={street}
+              onChangeText={(text) => {
+                setStreet(text);
+                setErrors((c) => ({ ...c, address: undefined }));
+              }}
+              error={addressErrorFor('street')}
+              placeholder="e.g. No. 24, Galle Road"
+              icon="home-outline"
+            />
+            <View style={styles.addressRow}>
+              <View style={styles.cityCol}>
                 <Field
-                  label="Quantity"
-                  value={quantity}
+                  label="City / Town"
+                  value={city}
                   onChangeText={(text) => {
-                    setQuantity(text);
-                    setErrors((c) => ({ ...c, quantity: undefined }));
+                    setCity(text);
+                    setErrors((c) => ({ ...c, address: undefined }));
                   }}
-                  error={errors.quantity}
-                  placeholder="e.g. 5 kg"
-                  icon="scale-outline"
+                  error={addressErrorFor('city')}
+                  placeholder="e.g. Colombo"
+                  icon="business-outline"
                 />
               </View>
-              <View style={styles.fieldHalf}>
+              <View style={styles.postalCol}>
                 <Field
-                  label="Preferred Location"
-                  value={location}
+                  label="Postal Code"
+                  value={postal}
                   onChangeText={(text) => {
-                    setLocation(text);
-                    setErrors((c) => ({ ...c, location: undefined }));
+                    setPostal(text);
+                    setErrors((c) => ({ ...c, address: undefined }));
                   }}
-                  error={errors.location}
-                  placeholder="e.g. Colombo 05"
-                  icon="location-outline"
+                  error={addressErrorFor('postal')}
+                  placeholder="e.g. 00300"
+                  keyboardType="numeric"
                 />
               </View>
             </View>
+            <Field
+              label="Nearest Landmark (optional)"
+              value={landmark}
+              onChangeText={setLandmark}
+              placeholder="e.g. opposite the temple"
+              icon="pin-outline"
+            />
+            <Field
+              label="Mobile Number"
+              value={phone}
+              onChangeText={(text) => {
+                setPhone(text.replace(/\D/g, '').slice(0, 10));
+                setErrors((c) => ({ ...c, phone: undefined }));
+              }}
+              error={errors.phone}
+              placeholder="e.g. 0771234567"
+              icon="call-outline"
+              keyboardType="numeric"
+              maxLength={10}
+            />
 
             <SectionTitle
-              step="03"
+              step="04"
               title="How urgent is it?"
               subtitle="Urgent requests expire after 5 hours"
             />
@@ -334,11 +721,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                       name={urgent ? 'flash' : 'time-outline'}
                       size={26}
                       color={
-                        active
-                          ? urgent
-                            ? C.error
-                            : C.teal
-                          : C.textMuted
+                        active ? (urgent ? C.error : C.teal) : C.textMuted
                       }
                       style={{ marginBottom: Spacing.two }}
                     />
@@ -381,12 +764,12 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
             )}
 
             <SectionTitle
-              step="04"
+              step="05"
               title="Anything else?"
-              subtitle="Optional — allergies, pickup notes"
+              subtitle="Everything here is optional"
             />
             <Field
-              label="Details"
+              label="Details (optional)"
               value={details}
               onChangeText={setDetails}
               placeholder="e.g. Halal only, pickup after 6 PM"
@@ -426,9 +809,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                       color: isUrgent ? C.white : C.navy,
                     }}
                   >
-                    {isUrgent
-                      ? 'Post Emergency Request'
-                      : 'Post Food Request'}
+                    {isUrgent ? 'Post Emergency Request' : 'Post Food Request'}
                   </Text>
                 </>
               )}
@@ -441,11 +822,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
               <Text style={{ ...T.bodyMedium, color: C.textMuted }}>
                 View my requests
               </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={16}
-                color={C.textMuted}
-              />
+              <Ionicons name="chevron-forward" size={16} color={C.textMuted} />
             </TouchableOpacity>
           </View>
         </View>
@@ -489,8 +866,10 @@ interface FieldProps {
   onChangeText: (text: string) => void;
   placeholder?: string;
   error?: string;
-  icon?: React.ComponentProps<typeof Ionicons>['name'];
+  icon?: IconName;
   multiline?: boolean;
+  keyboardType?: 'default' | 'numeric';
+  maxLength?: number;
 }
 
 function Field({
@@ -501,6 +880,8 @@ function Field({
   error,
   icon,
   multiline,
+  keyboardType,
+  maxLength,
 }: FieldProps) {
   const T = useAppTypography();
   const [focused, setFocused] = useState(false);
@@ -533,6 +914,8 @@ function Field({
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={C.textMuted}
+          keyboardType={keyboardType}
+          maxLength={maxLength}
           multiline={multiline}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -703,22 +1086,130 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: Spacing.three,
   },
-  otherBox: {
-    marginTop: Spacing.four,
+  qtyEmpty: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: C.offWhite,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: C.tealSoft,
-    padding: Spacing.four,
+    borderStyle: 'dashed',
+    borderColor: C.cardBorder,
+    padding: Spacing.three,
   },
-  fieldRow: {
+  group: {
+    marginBottom: Spacing.four,
+  },
+  groupHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.two,
+  },
+  groupCount: {
+    minWidth: 22,
+    height: 20,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.pill,
+    backgroundColor: C.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.two,
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.offWhite,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: C.cardBorder,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    marginBottom: Spacing.two,
+  },
+  qtyIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.pill,
+    backgroundColor: C.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.three,
+  },
+  itemName: {
+    flex: 1,
+    height: 42,
+    backgroundColor: C.white,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    paddingHorizontal: Spacing.three,
+    color: C.navy,
+    fontSize: 14,
+    marginRight: Spacing.two,
+    minWidth: 90,
+  },
+  qtyAmount: {
+    width: 52,
+    height: 42,
+    backgroundColor: C.white,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    textAlign: 'center',
+    color: C.navy,
+    fontSize: 15,
+    marginRight: Spacing.two,
+  },
+  qtyUnit: {
+    width: 78,
+    height: 42,
+    backgroundColor: C.white,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    paddingHorizontal: Spacing.two,
+    color: C.navy,
+    fontSize: 14,
+  },
+  unitStatic: {
+    width: 78,
+    height: 42,
+    borderRadius: Radius.sm,
+    backgroundColor: C.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBtn: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.one,
+  },
+  addBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: C.teal,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  addressRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
-  fieldHalf: {
-    flex: 1,
-    minWidth: 240,
+  cityCol: {
+    flexGrow: 1,
+    flexBasis: '48%',
+    minWidth: 200,
+  },
+  postalCol: {
+    flexGrow: 1,
+    flexBasis: '30%',
+    minWidth: 150,
   },
   urgencyRow: {
     flexDirection: 'row',
@@ -782,7 +1273,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 60,
     borderRadius: Radius.md,
-    ...Shadows.button,
+    shadowColor: C.orange,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   trackLink: {
     flexDirection: 'row',

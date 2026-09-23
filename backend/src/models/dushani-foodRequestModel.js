@@ -27,6 +27,13 @@ const FoodRequestSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    // Sri Lankan phone number (10 digits) so the donor/volunteer can call the
+    // recipient about the delivery.
+    contactNumber: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     urgency: {
       type: String,
       enum: ['URGENT', 'NORMAL'],

@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
+import { useIsWide } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import LogoutButton from '../components/kaveesha-LogoutButton';
 import {
@@ -28,6 +29,7 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const C = {
   navy: '#023047',
   teal: '#126782',
+  tealDeep: '#0B4B63',
   tealSoft: '#E1EEF2',
   amber: '#FFB703',
   orange: '#FB8500',
@@ -41,19 +43,17 @@ const C = {
   successSoft: '#E2F2E5',
 };
 
-/** Navy brand band behind the card — identical to the Create Request screen. */
-function Backdrop() {
+/** Full-bleed navy masthead — the overview is deliberately not a card-on-band page. */
+function MastheadGlow() {
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={styles.band}>
-        <View style={styles.bandGlowTeal} />
-        <View style={styles.bandGlowAmber} />
-      </View>
+      <View style={styles.mastGlowTeal} />
+      <View style={styles.mastGlowAmber} />
     </View>
   );
 }
 
-function StatTile({
+function StatPill({
   icon,
   value,
   label,
@@ -75,82 +75,111 @@ function StatTile({
   }[tone];
 
   return (
-    <View style={[styles.statTile, { backgroundColor: meta.background }]}>
-      <View style={styles.statHead}>
-        <Ionicons name={icon} size={17} color={meta.color} />
-        <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted, flex: 1 }}>
+    <View style={[styles.statPill, { backgroundColor: meta.background }]}>
+      <View style={styles.statBadge}>
+        <Ionicons name={icon} size={18} color={meta.color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        {loading ? (
+          <ActivityIndicator size="small" color={meta.color} />
+        ) : (
+          <Text style={{ ...T.h2, fontSize: 24, color: meta.color }}>{value}</Text>
+        )}
+        <Text style={{ ...T.bodySmall, fontSize: 11.5, color: C.textMuted, marginTop: 1 }}>
           {label}
         </Text>
       </View>
-      {loading ? (
-        <ActivityIndicator size="small" color={meta.color} style={{ marginTop: Spacing.two }} />
-      ) : (
-        <Text style={{ ...T.h2, fontSize: 26, color: meta.color, marginTop: 2 }}>
-          {value}
-        </Text>
-      )}
     </View>
   );
 }
 
-function ActionTile({
+function BigTile({
   icon,
   title,
   subtitle,
+  action,
   onPress,
-  primary,
+  variant = 'default',
 }: {
   icon: IconName;
   title: string;
   subtitle: string;
+  action: string;
   onPress: () => void;
-  primary?: boolean;
+  variant?: 'default' | 'primary' | 'accent';
 }) {
   const T = useAppTypography();
+  const primary = variant === 'primary';
+  const accent = variant === 'accent';
+
   return (
     <TouchableOpacity
       onPress={onPress}
-      activeOpacity={0.88}
-      style={[styles.actionTile, primary && styles.actionTilePrimary]}
+      activeOpacity={0.9}
+      style={[
+        styles.bigTile,
+        primary && styles.bigTilePrimary,
+        accent && styles.bigTileAccent,
+      ]}
       accessibilityLabel={title}
     >
-      <View style={[styles.actionIcon, primary && styles.actionIconPrimary]}>
-        <Ionicons name={icon} size={20} color={primary ? C.navy : C.teal} />
+      <View
+        style={[
+          styles.bigTileIcon,
+          primary && styles.bigTileIconPrimary,
+          accent && styles.bigTileIconAccent,
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={24}
+          color={primary ? C.navy : accent ? C.orange : C.teal}
+        />
       </View>
-      <View style={{ flex: 1 }}>
+      <Text
+        style={{
+          ...T.h3,
+          fontSize: 18,
+          color: primary ? C.white : C.navy,
+          marginTop: Spacing.three,
+        }}
+      >
+        {title}
+      </Text>
+      <Text
+        style={{
+          ...T.bodySmall,
+          fontSize: 13,
+          lineHeight: 19,
+          color: primary ? '#D7E7EE' : accent ? C.textMuted : C.textMuted,
+          marginTop: 4,
+        }}
+      >
+        {subtitle}
+      </Text>
+      <View style={styles.bigTileFooter}>
         <Text
           style={{
             ...T.labelStrong,
-            fontSize: 15,
-            color: primary ? C.white : C.navy,
+            fontSize: 12.5,
+            color: primary ? C.amber : accent ? C.orange : C.teal,
           }}
-          numberOfLines={1}
         >
-          {title}
+          {action}
         </Text>
-        <Text
-          style={{
-            ...T.bodySmall,
-            fontSize: 12,
-            color: primary ? '#DCE9EF' : C.textMuted,
-            marginTop: 2,
-          }}
-          numberOfLines={2}
-        >
-          {subtitle}
-        </Text>
+        <Ionicons
+          name="arrow-forward"
+          size={15}
+          color={primary ? C.amber : accent ? C.orange : C.teal}
+        />
       </View>
-      <Ionicons
-        name="chevron-forward"
-        size={18}
-        color={primary ? C.white : C.textMuted}
-      />
     </TouchableOpacity>
   );
 }
 
 export default function RecipientHomeScreen({ navigation, route }: Props) {
   const T = useAppTypography();
+  const wide = useIsWide();
   const displayName = useDisplayName(route.params?.fullName || 'there');
 
   const [counts, setCounts] = useState({
@@ -197,8 +226,6 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.screen}>
-      <Backdrop />
-
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -214,21 +241,47 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
           />
         }
       >
-        <View style={styles.page}>
-          <View style={styles.headerRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ ...T.caption, color: C.amber }}>{displayName}</Text>
-              <Text style={{ ...T.h1, color: C.white, fontSize: 28, marginTop: 2 }}>
-                Overview
-              </Text>
-              <Text style={{ ...T.bodySmall, color: '#CFE3EA', marginTop: 4 }}>
-                Track your requests and see what the community needs.
-              </Text>
+        <View style={styles.masthead}>
+          <MastheadGlow />
+          <View style={[styles.page, wide && styles.pageWide]}>
+            <View style={styles.heroRow}>
+              <View style={{ flex: 1 }}>
+                <View style={styles.eyebrowRow}>
+                  <View style={styles.eyebrowBar} />
+                  <Text style={{ ...T.caption, color: C.amber }}>
+                    RECIPIENT DASHBOARD
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    ...T.h1,
+                    color: C.white,
+                    fontSize: wide ? 34 : 27,
+                    marginTop: Spacing.two,
+                  }}
+                >
+                  Hello, {displayName}
+                </Text>
+                <Text
+                  style={{
+                    ...T.bodySmall,
+                    fontSize: 13.5,
+                    color: '#BEDAE4',
+                    marginTop: 6,
+                    maxWidth: 460,
+                  }}
+                >
+                  Everything you have asked for, and every meal still waiting for
+                  a donor — in one place.
+                </Text>
+              </View>
+              <LogoutButton navigation={navigation} compact />
             </View>
-            <LogoutButton navigation={navigation} compact />
           </View>
+        </View>
 
-          <View style={styles.body}>
+        <View style={[styles.page, wide && styles.pageWide]}>
+          <View style={styles.strip}>
             {error ? (
               <View style={styles.errorBox}>
                 <Ionicons
@@ -255,29 +308,29 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
             ) : (
-              <View style={styles.statGrid}>
-                <StatTile
+              <View style={styles.stripRow}>
+                <StatPill
                   icon="paper-plane-outline"
                   value={counts.open}
                   label="Waiting for a donor"
                   tone="teal"
                   loading={loading}
                 />
-                <StatTile
+                <StatPill
                   icon="car-outline"
                   value={counts.inProgress}
                   label="On the way"
                   tone="amber"
                   loading={loading}
                 />
-                <StatTile
+                <StatPill
                   icon="checkmark-done-outline"
                   value={counts.received}
                   label="Food received"
                   tone="success"
                   loading={loading}
                 />
-                <StatTile
+                <StatPill
                   icon="megaphone-outline"
                   value={counts.onBoard}
                   label="Open across ResQMeal"
@@ -286,53 +339,76 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                 />
               </View>
             )}
+          </View>
 
-            <Text style={{ ...T.caption, color: C.textMuted, marginTop: Spacing.five, marginBottom: Spacing.three }}>
-              NEED FOOD?
-            </Text>
-
-            <ActionTile
-              primary
-              icon="add-circle"
-              title="Make a food request"
-              subtitle="Post what you need and when — nearby donors see it instantly."
-              onPress={() => navigation.navigate('FoodRequest')}
-            />
-            <ActionTile
-              icon="restaurant-outline"
-              title="Browse donations"
-              subtitle="Look through food donors have already made available."
-              onPress={() => navigation.navigate('AvailableFood')}
-            />
-
-            <Text style={{ ...T.caption, color: C.textMuted, marginTop: Spacing.five, marginBottom: Spacing.three }}>
-              STAY UPDATED
-            </Text>
-
-            <ActionTile
-              icon="list-outline"
-              title="Track my requests"
-              subtitle="Follow every request from posting to delivery."
-              onPress={() => navigation.navigate('RequestStatus')}
-            />
-            <ActionTile
-              icon="megaphone-outline"
-              title="Request board"
-              subtitle="See the live requests other recipients still need help with."
-              onPress={() => navigation.navigate('RequestBoard')}
-            />
-
-            <View style={styles.footNote}>
-              <Ionicons
-                name="information-circle-outline"
-                size={15}
-                color={C.teal}
-                style={{ marginRight: Spacing.two }}
-              />
-              <Text style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, flex: 1 }}>
-                A request stays open until a donor accepts it, and you can delete it
-                up to that moment.
+          <View style={wide ? styles.columns : undefined}>
+            <View style={wide ? styles.column : undefined}>
+              <Text
+                style={{
+                  ...T.caption,
+                  color: C.textMuted,
+                  marginTop: Spacing.five,
+                  marginBottom: Spacing.three,
+                }}
+              >
+                NEED FOOD
               </Text>
+              <BigTile
+                variant="primary"
+                icon="add-circle"
+                title="Make a food request"
+                subtitle="Post what you need and when you need it. Requests placed within hours are treated as emergencies and shown to nearby donors first."
+                action="Start a request"
+                onPress={() => navigation.navigate('FoodRequest')}
+              />
+              <BigTile
+                icon="restaurant-outline"
+                title="Browse donations"
+                subtitle="See the food donors have already put out, matched to your open requests by food type, quantity, distance and urgency."
+                action="Browse available food"
+                onPress={() => navigation.navigate('AvailableFood')}
+              />
+            </View>
+
+            <View style={wide ? styles.column : undefined}>
+              <Text
+                style={{
+                  ...T.caption,
+                  color: C.textMuted,
+                  marginTop: wide ? 0 : Spacing.five,
+                  marginBottom: Spacing.three,
+                }}
+              >
+                STAY UPDATED
+              </Text>
+              <BigTile
+                icon="list-outline"
+                title="Track my requests"
+                subtitle="Follow each request through accepted, on the way and delivered — and confirm the food when it arrives."
+                action="Open my requests"
+                onPress={() => navigation.navigate('RequestStatus')}
+              />
+              <BigTile
+                variant="accent"
+                icon="megaphone-outline"
+                title="Request board"
+                subtitle="The live requests every recipient still needs help with, urgent ones at the top."
+                action="View the board"
+                onPress={() => navigation.navigate('RequestBoard')}
+              />
+
+              <View style={styles.footNote}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={16}
+                  color={C.teal}
+                  style={{ marginRight: Spacing.two }}
+                />
+                <Text style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, flex: 1 }}>
+                  A request stays open until a donor accepts it, and you can delete
+                  it up to that moment.
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -354,79 +430,151 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingBottom: Spacing.seven,
   },
-  band: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 236,
+  masthead: {
     backgroundColor: C.navy,
     overflow: 'hidden',
+    paddingTop: Spacing.seven,
+    paddingBottom: Spacing.six,
   },
-  bandGlowTeal: {
+  mastGlowTeal: {
     position: 'absolute',
-    width: 330,
-    height: 330,
-    borderRadius: 165,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
     backgroundColor: C.teal,
-    opacity: 0.5,
-    top: -130,
-    right: -90,
+    opacity: 0.55,
+    top: -170,
+    right: -110,
   },
-  bandGlowAmber: {
+  mastGlowAmber: {
     position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: C.amber,
-    opacity: 0.22,
-    bottom: -86,
-    left: 60,
+    opacity: 0.18,
+    bottom: -120,
+    left: 40,
   },
   page: {
     width: '100%',
-    maxWidth: 720,
+    maxWidth: 760,
     alignSelf: 'center',
+    paddingHorizontal: Spacing.four,
   },
-  headerRow: {
+  pageWide: {
+    maxWidth: 1160,
+    paddingHorizontal: Spacing.five,
+  },
+  heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.three,
-    paddingTop: Spacing.six,
-    paddingHorizontal: Spacing.five,
-    paddingBottom: Spacing.seven,
   },
-  body: {
+  eyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two + 1,
+  },
+  eyebrowBar: {
+    width: 22,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: C.amber,
+  },
+  strip: {
     backgroundColor: C.white,
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: C.cardBorder,
-    marginHorizontal: Spacing.four,
-    padding: Spacing.five,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.four,
+    marginTop: -Spacing.five,
     shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.14,
-    shadowRadius: 26,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.16,
+    shadowRadius: 28,
+    elevation: 12,
   },
-  statGrid: {
+  stripRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'stretch',
     gap: Spacing.three,
   },
-  statTile: {
-    flexBasis: '47%',
+  statPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    flexBasis: '23%',
     flexGrow: 1,
-    minWidth: 150,
+    minWidth: 210,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: C.cardBorder,
-    padding: Spacing.three + 2,
+    padding: Spacing.three,
   },
-  statHead: {
+  statBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.pill,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  columns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.five,
+  },
+  column: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 320,
+  },
+  bigTile: {
+    flexGrow: 1,
+    flexBasis: '100%',
+    minWidth: 280,
+    borderRadius: Radius.lg,
+    borderWidth: 1.5,
+    borderColor: C.cardBorder,
+    backgroundColor: C.white,
+    padding: Spacing.five,
+    marginBottom: Spacing.four,
+  },
+  bigTilePrimary: {
+    backgroundColor: C.tealDeep,
+    borderColor: C.tealDeep,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 22,
+    elevation: 8,
+  },
+  bigTileAccent: {
+    backgroundColor: '#FFF9EA',
+    borderColor: '#F6DFA8',
+  },
+  bigTileIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.md,
+    backgroundColor: C.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bigTileIconPrimary: {
+    backgroundColor: C.amber,
+  },
+  bigTileIconAccent: {
+    backgroundColor: '#FFE9BF',
+  },
+  bigTileFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    marginTop: Spacing.four,
   },
   errorBox: {
     backgroundColor: C.errorSoft,
@@ -435,6 +583,7 @@ const styles = StyleSheet.create({
     borderColor: C.error,
     padding: Spacing.four,
     alignItems: 'center',
+    width: '100%',
   },
   retryButton: {
     flexDirection: 'row',
@@ -446,47 +595,16 @@ const styles = StyleSheet.create({
     backgroundColor: C.amber,
     marginTop: Spacing.three,
   },
-  actionTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: C.cardBorder,
-    backgroundColor: C.offWhite,
-    padding: Spacing.four,
-    marginBottom: Spacing.three,
-  },
-  actionTilePrimary: {
-    backgroundColor: C.navy,
-    borderColor: C.navy,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 14,
-    elevation: 6,
-  },
-  actionIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: Radius.pill,
-    backgroundColor: C.tealSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionIconPrimary: {
-    backgroundColor: C.amber,
-  },
   footNote: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: C.tealSoft,
+    alignItems: 'center',
+    backgroundColor: C.white,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: C.cardBorder,
     borderLeftWidth: 4,
     borderLeftColor: C.teal,
-    padding: Spacing.three,
-    marginTop: Spacing.four,
+    padding: Spacing.three + 2,
+    marginTop: Spacing.two,
   },
 });

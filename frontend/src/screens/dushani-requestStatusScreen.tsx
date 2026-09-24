@@ -13,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
+import { useIsWide } from '../hooks/dushani-useWideLayout';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
@@ -104,6 +105,7 @@ function Backdrop() {
 
 export default function RequestStatusScreen({ navigation }: Props) {
   const T = useAppTypography();
+  const wide = useIsWide();
   const displayName = useDisplayName();
 
   const [requests, setRequests] = useState<FoodRequest[]>([]);
@@ -229,7 +231,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
   const renderClosedItem = (item: FoodRequest) => {
     const meta = STATUS_META[item.status];
     return (
-      <View key={item._id} style={styles.closedItem}>
+      <View key={item._id} style={[styles.closedItem, wide && styles.gridFull]}>
         <Text
           style={{ ...T.labelStrong, fontSize: 13, color: C.textMuted, flex: 1 }}
           numberOfLines={1}
@@ -262,7 +264,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
     return (
       <View
         key={item._id}
-        style={[styles.requestItem, isUrgent && styles.requestItemUrgent]}
+        style={[styles.requestItem, isUrgent && styles.requestItemUrgent, wide && styles.gridItem]}
       >
         <TouchableOpacity
           activeOpacity={0.85}
@@ -471,7 +473,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.page}>
+        <View style={[styles.page, wide && styles.pageWide]}>
           <View style={styles.card}>
             <View style={styles.cardHead}>
               <View style={{ flex: 1 }}>
@@ -585,7 +587,11 @@ export default function RequestStatusScreen({ navigation }: Props) {
                   // The running requests need no heading — they are the list.
                   // Only the closed ones are called out.
                   if (group.key === 'LIVE') {
-                    return <View key={group.key}>{items.map(renderItem)}</View>;
+                    return (
+                      <View key={group.key} style={wide ? styles.listGrid : undefined}>
+                        {items.map(renderItem)}
+                      </View>
+                    );
                   }
 
                   const expired = group.key === 'CLOSED';
@@ -626,13 +632,17 @@ export default function RequestStatusScreen({ navigation }: Props) {
                           {items.length}
                         </Text>
                       </View>
-                      {items.map((item) => renderItem(item))}
+                      <View style={wide ? styles.listGrid : undefined}>
+                        {items.map((item) => renderItem(item))}
+                      </View>
                     </View>
                   );
                 })}
               </View>
             ) : (
-              <View>{visible.map((item) => renderItem(item))}</View>
+              <View style={wide ? styles.listGrid : undefined}>
+                {visible.map((item) => renderItem(item))}
+              </View>
             )}
           </View>
 
@@ -693,6 +703,26 @@ const styles = StyleSheet.create({
     maxWidth: 720,
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
+  },
+  // On a wide screen the list stops being a narrow column: each request card
+  // takes almost half the page and two sit side by side.
+  pageWide: {
+    maxWidth: 1160,
+    paddingHorizontal: Spacing.five,
+  },
+  listGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.four,
+  },
+  gridItem: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    minWidth: 330,
+    marginBottom: 0,
+  },
+  gridFull: {
+    flexBasis: '100%',
   },
   topBar: {
     flexDirection: 'row',

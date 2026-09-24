@@ -191,3 +191,69 @@ export async function deleteFoodRequest(requestId: string) {
   );
   return response.data;
 }
+
+/** One of the four criteria the matcher scores a donation on. */
+export interface MatchCriterion {
+  key: 'foodType' | 'quantity' | 'proximity' | 'urgency';
+  label: string;
+  weight: number;
+  description: string;
+}
+
+/** A live donation scored against one of the recipient's own requests. */
+export interface DonationMatch {
+  donationId: string;
+  donationCode: string | null;
+  foodType: string;
+  foodCategory: string;
+  photoUrl: string | null;
+  quantity: number;
+  numberOfPortions: number | null;
+  pickupAddress: string;
+  pickupDistrict: string;
+  status: string;
+  priority: string;
+  expiryTime: string | null;
+  score: number;
+  percent: number;
+  breakdown: Record<MatchCriterion['key'], number>;
+  reasons: string[];
+}
+
+export interface SuggestionGroup {
+  request: {
+    id: string;
+    foodType: string;
+    quantity: string;
+    location: string;
+    urgency: FoodRequestUrgency;
+    status: FoodRequestStatus;
+    preferredAt: string | null;
+    expiresAt: string | null;
+  };
+  urgent: boolean;
+  score: number;
+  matches: DonationMatch[];
+}
+
+export interface MatchSuggestions {
+  criteria: MatchCriterion[];
+  groups: SuggestionGroup[];
+  suggestions: (DonationMatch & { requestId: string; urgent: boolean })[];
+}
+
+// GET /api/recipient/food-requests/matches
+// Emergency requests' suggestions are ranked first, so an urgent need is the
+// first thing the recipient sees when they search for food.
+export async function getMatchSuggestions(): Promise<MatchSuggestions> {
+  const response = await api.get<MatchSuggestions>('/recipient/food-requests/matches');
+  return response.data;
+}
+
+// GET /api/recipient/food-requests/:id/matches
+export async function getRequestMatches(
+  requestId: string,
+): Promise<{ criteria: MatchCriterion[]; request: SuggestionGroup['request']; matches: DonationMatch[] }> {
+  const response = await api.get(`/recipient/food-requests/${requestId}/matches`);
+  return response.data;
+}

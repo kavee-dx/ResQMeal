@@ -29,6 +29,7 @@ import OnboardingScreen from "../screens/kaveesha-OnboardingScreen";
 import AvailableFoodScreen from "../screens/dushani-availableFoodScreen";
 import FoodRequestScreen from "../screens/dushani-foodRequestScreen";
 import RequestStatusScreen from "../screens/dushani-requestStatusScreen";
+import VolunteerAvailabilityScreen from "../screens/dilshara-volunteerAvailabilityScreen"; // NEW
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -77,6 +78,12 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen
           name="PrivacySettings"
           component={PrivacySettingsScreen}
+        />
+
+        {/* NEW — volunteer availability screen */}
+        <Stack.Screen
+          name="VolunteerAvailability"
+          component={VolunteerAvailabilityScreen}
         />
 
         <Stack.Screen

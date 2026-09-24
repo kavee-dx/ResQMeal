@@ -15,7 +15,7 @@ const getDonationsRoute = require("./routes/kaveesha-getDonations.route");
 const updateDonationRoute = require("./routes/kaveesha-updateDonation.route");
 const deleteDonationRoute = require("./routes/kaveesha-deleteDonation.route");
 const foodRequestRoutes = require("./routes/dushani-foodRequestRoutes");
-const volunteerAvailabilityRoutes = require("./routes/dilshara-volunteerAvailabilityRoutes");
+const volunteerAvailabilityRoutes = require("./routes/dilshara-volunteerAvailability.routes");
 
 const app = express();
 

@@ -18,6 +18,7 @@ import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import {
   getFoodRequestProgress,
+  updateFoodRequestStatus,
   type FoodRequestProgress,
   type RequestTimelineEntry,
   type TimelineState,
@@ -95,6 +96,8 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const load = useCallback(
     async (showSpinner: boolean) => {
@@ -119,6 +122,25 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
   useEffect(() => {
     load(true);
   }, [load]);
+
+  // The recipient closes their own loop: once the food is in hand they confirm
+  // receipt, which moves the request to FULFILLED.
+  const confirmReceived = async () => {
+    setConfirmError(null);
+    setConfirming(true);
+    try {
+      await updateFoodRequestStatus(requestId, 'FULFILLED');
+      await load(false);
+    } catch (err) {
+      setConfirmError(
+        err instanceof Error
+          ? err.message
+          : 'Could not confirm receipt. Please try again.',
+      );
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const meta = data ? OUTCOME_META[data.progress.outcome] : OUTCOME_META.active;
   const request = data?.request;
@@ -263,6 +285,49 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
                       isLast={index === data.timeline.length - 1}
                     />
                   ))}
+
+                  {request.status === 'DISPATCHED' && (
+                    <View style={styles.receiptBox}>
+                      <Text style={{ ...T.body, color: C.navy }}>
+                        Your food is on the way. Confirm once it reaches you so the
+                        request closes as delivered.
+                      </Text>
+                      <TouchableOpacity
+                        onPress={confirmReceived}
+                        disabled={confirming}
+                        activeOpacity={0.88}
+                        style={[styles.receiptButton, confirming && { opacity: 0.7 }]}
+                        accessibilityLabel="Confirm that you received the food"
+                      >
+                        {confirming ? (
+                          <ActivityIndicator size="small" color={C.white} />
+                        ) : (
+                          <>
+                            <Ionicons
+                              name="checkmark-done"
+                              size={17}
+                              color={C.white}
+                              style={{ marginRight: Spacing.two }}
+                            />
+                            <Text style={{ ...T.button, color: C.white }}>
+                              I received the food
+                            </Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      {confirmError && (
+                        <Text
+                          style={{
+                            ...T.bodySmall,
+                            color: C.error,
+                            marginTop: Spacing.two,
+                          }}
+                        >
+                          {confirmError}
+                        </Text>
+                      )}
+                    </View>
+                  )}
 
                   <View style={styles.divider} />
 
@@ -586,6 +651,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.six,
+  },
+  receiptBox: {
+    backgroundColor: C.tealSoft,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: C.teal,
+    borderLeftWidth: 4,
+    padding: Spacing.four,
+    marginTop: Spacing.four,
+  },
+  receiptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderRadius: Radius.md,
+    backgroundColor: C.success,
+    marginTop: Spacing.three,
+    shadowColor: C.success,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   stateIcon: {
     width: 60,

@@ -119,7 +119,7 @@ describe('createFoodRequest service (Task 11 backend support)', () => {
 
   it('creates a food request when all required fields are present', async () => {
     const createSpy = jest.spyOn(FoodRequest, 'create').mockResolvedValue({ id: 'req1' });
-    const preferredAt = new Date(Date.now() + 3_600_000);
+    const preferredAt = new Date(Date.now() + 6 * 3_600_000);
 
     const result = await createFoodRequest({
       recipientId: 'recipient1',
@@ -162,7 +162,7 @@ describe('createFoodRequest service (Task 11 backend support)', () => {
         quantity: '5 kg',
         location: 'Colombo 05',
         contactNumber,
-        preferredAt: new Date(Date.now() + 3_600_000),
+        preferredAt: new Date(Date.now() + 6 * 3_600_000),
       }),
     ).rejects.toMatchObject({ statusCode: 400 });
     expect(createSpy).not.toHaveBeenCalled();
@@ -419,6 +419,25 @@ describe('getRequestProgress (sprint item 3)', () => {
     expect(progress).toMatchObject({ percent: 100, stepsCompleted: 4, outcome: 'complete' });
     expect(progress.expiresInMs).toBeNull();
     expect(timeline.every((entry) => entry.state === 'done')).toBe(true);
+  });
+
+  it('reports the moment each stage actually happened', async () => {
+    mockFound(
+      stubRequest({
+        status: 'FULFILLED',
+        acceptedAt: new Date('2026-09-23T09:30:00.000Z'),
+        dispatchedAt: new Date('2026-09-23T11:15:00.000Z'),
+        fulfilledAt: new Date('2026-09-23T12:45:00.000Z'),
+      }),
+    );
+    const { timeline } = await getRequestProgress('recipient1', 'req1');
+
+    expect(timeline.map((entry) => entry.at)).toEqual([
+      new Date('2026-09-23T09:00:00.000Z'),
+      new Date('2026-09-23T09:30:00.000Z'),
+      new Date('2026-09-23T11:15:00.000Z'),
+      new Date('2026-09-23T12:45:00.000Z'),
+    ]);
   });
 
   it.each(['EXPIRED', 'CANCELLED'])('adds a stopped entry for %s', async (status) => {
@@ -680,6 +699,18 @@ describe('createFoodRequest preferredAt (sprint item 4)', () => {
     ).rejects.toMatchObject({ statusCode: 400, message: 'Choose a time in the future' });
   });
 
+  it('rejects a time inside the five hour emergency window', async () => {
+    jest.spyOn(FoodRequest, 'create');
+
+    await expect(
+      createFoodRequest({ ...base, preferredAt: new Date(Date.now() + 2 * 3_600_000) }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message:
+        'A standard request is for food needed at least 5 hours ahead — post an emergency request for anything sooner',
+    });
+  });
+
   it('rejects a time more than two days ahead', async () => {
     jest.spyOn(FoodRequest, 'create');
 
@@ -705,5 +736,239 @@ describe('createFoodRequest preferredAt (sprint item 4)', () => {
     expect(written.urgency).toBe('URGENT');
     expect(written.preferredAt).toBeUndefined();
     expect(written.expiresAt).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 4 (backend) — pushing a claimed request through the stages
+// ---------------------------------------------------------------------------
+const { updateFoodRequestStatus } = require('../../src/services/dushani-updateRequestStatusService');
+
+describe('updateFoodRequestStatus (sprint item 4)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  it('stamps each stage on the model as null until it happens', () => {
+    const pending = new FoodRequest({
+      recipient: 'recipient1',
+      foodType: 'Rice',
+      quantity: '5 kg',
+      location: 'Colombo 05',
+    });
+    expect(pending.dispatchedAt).toBeNull();
+    expect(pending.fulfilledAt).toBeNull();
+  });
+
+  it('lets the claiming donor put the delivery on the way', async () => {
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValue(doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future }));
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'DISPATCHED', acceptedBy: 'donor1' }));
+
+    const result = await updateFoodRequestStatus({
+      actorId: 'donor1',
+      role: 'DONOR',
+      requestId: 'req1',
+      status: 'DISPATCHED',
+    });
+
+    const [query, update] = write.mock.calls[0];
+    expect(query).toMatchObject({ _id: 'req1', status: { $in: ['MATCHED'] } });
+    expect(update.$set.status).toBe('DISPATCHED');
+    expect(update.$set.dispatchedAt).toBeInstanceOf(Date);
+    expect(result).toMatchObject({ id: 'req1', status: 'DISPATCHED', stageLabel: 'on the way' });
+  });
+
+  it('lets a volunteer dispatch and deliver without claiming the request', async () => {
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValue(doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future }));
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'FULFILLED', acceptedBy: 'donor1' }));
+
+    const result = await updateFoodRequestStatus({
+      actorId: 'volunteer1',
+      role: 'VOLUNTEER',
+      requestId: 'req1',
+      status: 'FULFILLED',
+    });
+
+    expect(write).toHaveBeenCalled();
+    expect(result.status).toBe('FULFILLED');
+  });
+
+  it('lets the recipient confirm the food arrived', async () => {
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValue(doc({ status: 'DISPATCHED', recipient: 'recipient1', expiresAt: future }));
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'FULFILLED', recipient: 'recipient1' }));
+
+    await updateFoodRequestStatus({
+      actorId: 'recipient1',
+      role: 'RECIPIENT',
+      requestId: 'req1',
+      status: 'FULFILLED',
+    });
+
+    const [, update] = write.mock.calls[0];
+    expect(update.$set.fulfilledAt).toBeInstanceOf(Date);
+  });
+
+  it('refuses a donor who never claimed the request', async () => {
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValue(doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future }));
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'other-donor',
+        role: 'DONOR',
+        requestId: 'req1',
+        status: 'DISPATCHED',
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('refuses a recipient who tries to move the delivery themselves', async () => {
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValue(doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future }));
+
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'recipient1',
+        role: 'RECIPIENT',
+        requestId: 'req1',
+        status: 'DISPATCHED',
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('refuses an NGO', async () => {
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValue(doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future }));
+
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'ngo1',
+        role: 'NGO',
+        requestId: 'req1',
+        status: 'DISPATCHED',
+      }),
+    ).rejects.toMatchObject({ statusCode: 403 });
+  });
+
+  it('only accepts the two stages this endpoint owns', async () => {
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        status: 'MATCHED',
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        status: 'EXPIRED',
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('never moves forward from a waiting request', async () => {
+    const waiting = doc({ status: 'PENDING', acceptedBy: null, expiresAt: future });
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValueOnce(waiting)
+      .mockResolvedValueOnce(waiting);
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate').mockResolvedValue(null);
+
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'volunteer1',
+        role: 'VOLUNTEER',
+        requestId: 'req1',
+        status: 'DISPATCHED',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request has moved on — refresh to see its latest status',
+    });
+    // The status filter is what stops the write, not a read-then-save.
+    expect(write.mock.calls[0][0].status.$in).toEqual(['MATCHED']);
+  });
+
+  it('says so when the stage was already reached', async () => {
+    jest
+      .spyOn(FoodRequest, 'findById')
+      .mockResolvedValueOnce(doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future }))
+      .mockResolvedValueOnce(doc({ status: 'FULFILLED', acceptedBy: 'donor1' }));
+    jest.spyOn(FoodRequest, 'findOneAndUpdate').mockResolvedValue(null);
+
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        status: 'FULFILLED',
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request is already marked as delivered',
+    });
+  });
+
+  it('409s an expired request', async () => {
+    jest.spyOn(FoodRequest, 'findById').mockResolvedValue(
+      doc({
+        status: 'PENDING',
+        acceptedBy: 'donor1',
+        expiresAt: new Date('2020-01-01T00:00:00.000Z'),
+      }),
+    );
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        status: 'DISPATCHED',
+      }),
+    ).rejects.toMatchObject({ statusCode: 409, message: 'This request has expired' });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('404s a request that does not exist', async () => {
+    jest.spyOn(FoodRequest, 'findById').mockResolvedValue(null);
+
+    await expect(
+      updateFoodRequestStatus({
+        actorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        status: 'DISPATCHED',
+      }),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it('400s without an actor or request id', async () => {
+    await expect(
+      updateFoodRequestStatus({ actorId: null, role: 'DONOR', requestId: 'req1', status: 'DISPATCHED' }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+    await expect(
+      updateFoodRequestStatus({ actorId: 'donor1', role: 'DONOR', requestId: null, status: 'DISPATCHED' }),
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 });

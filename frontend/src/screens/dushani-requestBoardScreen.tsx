@@ -16,15 +16,17 @@ import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import { getRole } from '../utils/kaveesha-authStorage';
 import type { RootStackParamList } from '../navigation/types';
-import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import {
   acceptFoodRequest,
   getOpenFoodRequests,
+  updateFoodRequestStatus,
   type AcceptedFoodRequest,
+  type FoodRequestAdvance,
   type OpenFoodRequest,
 } from '../services/dushani-foodRequestApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RequestBoard'>;
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 // User-management palette (same constants as the Create Request screen).
 const C = {
@@ -43,13 +45,20 @@ const C = {
   successSoft: '#E2F2E5',
 };
 
-function timeLeft(expiresAt?: string | null): string | null {
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+function remaining(expiresAt?: string | null): number | null {
   if (!expiresAt) return null;
-  const diffMs = new Date(expiresAt).getTime() - Date.now();
-  if (diffMs <= 0) return null;
-  const hours = Math.floor(diffMs / 3_600_000);
-  const minutes = Math.round((diffMs % 3_600_000) / 60_000);
-  if (hours <= 0) return `${minutes} min left`;
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  return diff > 0 ? diff : null;
+}
+
+function timeLeft(expiresAt?: string | null): string | null {
+  const diff = remaining(expiresAt);
+  if (diff === null) return null;
+  const hours = Math.floor(diff / 3_600_000);
+  const minutes = Math.round((diff % 3_600_000) / 60_000);
+  if (hours <= 0) return `${Math.max(minutes, 1)} min left`;
   return `${hours}h ${minutes}m left`;
 }
 
@@ -76,9 +85,36 @@ function Backdrop() {
   );
 }
 
+function StatTile({
+  icon,
+  value,
+  label,
+  tone,
+}: {
+  icon: IconName;
+  value: string | number;
+  label: string;
+  tone: 'teal' | 'error' | 'navy';
+}) {
+  const T = useAppTypography();
+  const color = tone === 'error' ? C.error : tone === 'navy' ? C.navy : C.teal;
+  const background =
+    tone === 'error' ? C.errorSoft : tone === 'navy' ? C.offWhite : C.tealSoft;
+
+  return (
+    <View style={[styles.statTile, { backgroundColor: background }]}>
+      <Ionicons name={icon} size={16} color={color} style={{ marginBottom: 4 }} />
+      <Text style={{ ...T.h3, fontSize: 20, color }}>{value}</Text>
+      <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted, marginTop: 2 }}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function RequestBoardScreen({ navigation }: Props) {
   const T = useAppTypography();
-  const displayName = useDisplayName('Request Board');
+  const displayName = useDisplayName('Community');
 
   const [requests, setRequests] = useState<OpenFoodRequest[]>([]);
   const [isDonor, setIsDonor] = useState(false);
@@ -87,6 +123,8 @@ export default function RequestBoardScreen({ navigation }: Props) {
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [acceptError, setAcceptError] = useState<string | null>(null);
   const [claimed, setClaimed] = useState<AcceptedFoodRequest | null>(null);
+  const [stageBusy, setStageBusy] = useState(false);
+  const [stageError, setStageError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,6 +160,7 @@ export default function RequestBoardScreen({ navigation }: Props) {
 
   const handleAccept = async (item: OpenFoodRequest) => {
     setAcceptError(null);
+    setStageError(null);
     setAcceptingId(item.id);
     try {
       const result = await acceptFoodRequest(item.id);
@@ -140,12 +179,34 @@ export default function RequestBoardScreen({ navigation }: Props) {
     }
   };
 
-  const emergencyCount = requests.filter(
-    (item) => item.urgency === 'URGENT',
+  // The donor who claimed a request keeps the recipient's timeline moving.
+  const advanceClaimed = async (status: FoodRequestAdvance) => {
+    if (!claimed) return;
+    setStageError(null);
+    setStageBusy(true);
+    try {
+      const result = await updateFoodRequestStatus(claimed.id, status);
+      setClaimed({ ...claimed, status: result.status });
+      loadBoard(false);
+    } catch (err) {
+      setStageError(
+        err instanceof Error
+          ? err.message
+          : 'Could not update this request. Please try again.',
+      );
+    } finally {
+      setStageBusy(false);
+    }
+  };
+
+  const urgent = requests.filter((item) => item.urgency === 'URGENT');
+  const standard = requests.filter((item) => item.urgency !== 'URGENT');
+  const closingSoon = requests.filter(
+    (item) => (remaining(item.expiresAt) ?? Infinity) <= ONE_HOUR_MS,
   ).length;
 
   const renderState = (
-    icon: React.ComponentProps<typeof Ionicons>['name'],
+    icon: IconName,
     title: string,
     body: string,
     action?: { label: string; onPress: () => void },
@@ -183,6 +244,7 @@ export default function RequestBoardScreen({ navigation }: Props) {
   const renderItem = (item: OpenFoodRequest) => {
     const isUrgent = item.urgency === 'URGENT';
     const left = timeLeft(item.expiresAt);
+    const closing = (remaining(item.expiresAt) ?? Infinity) <= ONE_HOUR_MS;
 
     return (
       <View
@@ -190,15 +252,31 @@ export default function RequestBoardScreen({ navigation }: Props) {
         style={[styles.requestItem, isUrgent && styles.requestItemUrgent]}
       >
         <View style={styles.itemHead}>
+          <View style={styles.itemIcon}>
+            <Ionicons
+              name={isUrgent ? 'flash' : 'restaurant-outline'}
+              size={18}
+              color={isUrgent ? C.error : C.teal}
+            />
+          </View>
           <View style={styles.itemHeadText}>
-            <Text style={{ ...T.h3, color: C.navy, fontSize: 17 }} numberOfLines={1}>
+            <Text style={{ ...T.h3, color: C.navy, fontSize: 17 }} numberOfLines={2}>
               {item.foodType}
             </Text>
             <Text style={{ ...T.bodySmall, color: C.textMuted, marginTop: 2 }}>
               {item.quantity}
             </Text>
           </View>
-          <EmergencyStatusBadge urgency={item.urgency} />
+          <View
+            style={[
+              styles.tierPill,
+              { backgroundColor: isUrgent ? C.error : C.teal },
+            ]}
+          >
+            <Text style={{ ...T.labelStrong, fontSize: 10, color: C.white }}>
+              {isUrgent ? 'URGENT' : 'STANDARD'}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.metaRow}>
@@ -225,9 +303,29 @@ export default function RequestBoardScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.itemFoot}>
-          <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted }}>
-            {left ?? 'Closing'}
-          </Text>
+          <View
+            style={[
+              styles.clockPill,
+              closing && { backgroundColor: C.errorSoft, borderColor: C.error },
+            ]}
+          >
+            <Ionicons
+              name="time-outline"
+              size={12}
+              color={closing ? C.error : C.textMuted}
+              style={{ marginRight: 4 }}
+            />
+            <Text
+              style={{
+                ...T.caption,
+                fontSize: 11,
+                color: closing ? C.error : C.textMuted,
+              }}
+            >
+              {left ?? 'Closing'}
+            </Text>
+          </View>
+
           {isDonor ? (
             <TouchableOpacity
               onPress={() => handleAccept(item)}
@@ -246,7 +344,7 @@ export default function RequestBoardScreen({ navigation }: Props) {
                 <>
                   <Ionicons name="hand-left" size={15} color={C.white} style={{ marginRight: Spacing.two }} />
                   <Text style={{ ...T.labelStrong, fontSize: 13, color: C.white }}>
-                    Accept
+                    Accept request
                   </Text>
                 </>
               )}
@@ -260,6 +358,47 @@ export default function RequestBoardScreen({ navigation }: Props) {
             </View>
           )}
         </View>
+      </View>
+    );
+  };
+
+  const renderTier = (
+    tierRequests: OpenFoodRequest[],
+    tier: 'URGENT' | 'STANDARD',
+  ) => {
+    if (tierRequests.length === 0) return null;
+    const urgentTier = tier === 'URGENT';
+
+    return (
+      <View>
+        <View
+          style={[
+            styles.tierHead,
+            urgentTier && { backgroundColor: C.errorSoft, borderColor: C.error },
+          ]}
+        >
+          <Ionicons
+            name={urgentTier ? 'warning' : 'restaurant-outline'}
+            size={14}
+            color={urgentTier ? C.error : C.teal}
+            style={{ marginRight: Spacing.two }}
+          />
+          <Text
+            style={{
+              ...T.labelStrong,
+              fontSize: 11,
+              color: urgentTier ? C.error : C.teal,
+              letterSpacing: 0.6,
+              flex: 1,
+            }}
+          >
+            {urgentTier ? 'NEEDS A DONOR NOW' : 'SCHEDULED REQUESTS'}
+          </Text>
+          <Text style={{ ...T.caption, fontSize: 11, color: urgentTier ? C.error : C.teal }}>
+            {tierRequests.length}
+          </Text>
+        </View>
+        {tierRequests.map((item) => renderItem(item))}
       </View>
     );
   };
@@ -325,13 +464,26 @@ export default function RequestBoardScreen({ navigation }: Props) {
               </View>
             </View>
 
-            {!loading && !error && emergencyCount > 0 && (
-              <View style={styles.emergencyCount}>
-                <Ionicons name="flash" size={13} color={C.error} style={{ marginRight: 4 }} />
-                <Text style={{ ...T.labelStrong, fontSize: 12, color: C.error }}>
-                  {emergencyCount} {emergencyCount === 1 ? 'emergency' : 'emergencies'}{' '}
-                  waiting
-                </Text>
+            {!loading && !error && (
+              <View style={styles.statRow}>
+                <StatTile
+                  icon="receipt-outline"
+                  value={requests.length}
+                  label="Open requests"
+                  tone="teal"
+                />
+                <StatTile
+                  icon="flash-outline"
+                  value={urgent.length}
+                  label="Urgent"
+                  tone="error"
+                />
+                <StatTile
+                  icon="time-outline"
+                  value={closingSoon}
+                  label="Closing within an hour"
+                  tone="navy"
+                />
               </View>
             )}
 
@@ -340,36 +492,80 @@ export default function RequestBoardScreen({ navigation }: Props) {
                 <View style={styles.claimedHead}>
                   <Ionicons
                     name="checkmark-circle"
-                    size={18}
+                    size={20}
                     color={C.success}
                     style={{ marginRight: Spacing.two }}
                   />
-                  <Text style={{ ...T.labelStrong, fontSize: 13, color: C.success, flex: 1 }}>
+                  <Text style={{ ...T.labelStrong, fontSize: 14, color: C.success, flex: 1 }} numberOfLines={1}>
                     You accepted “{claimed.foodType}”
                   </Text>
-                  <TouchableOpacity onPress={() => setClaimed(null)}>
-                    <Ionicons name="close" size={16} color={C.textMuted} />
+                  <TouchableOpacity
+                    onPress={() => {
+                      setClaimed(null);
+                      setStageError(null);
+                    }}
+                    accessibilityLabel="Dismiss this accepted request"
+                  >
+                    <Ionicons name="close" size={17} color={C.textMuted} />
                   </TouchableOpacity>
                 </View>
+
                 <Text style={{ ...T.bodySmall, color: C.navy, marginTop: Spacing.two }}>
                   {claimed.quantity} · {claimed.location}
                 </Text>
                 <Text style={{ ...T.bodySmall, color: C.navy, marginTop: 2 }}>
                   {formatWhen(claimed.preferredAt)}
                 </Text>
-                {!!claimed.details && (
-                  <Text
-                    style={{ ...T.bodySmall, color: C.textMuted, marginTop: 2 }}
-                  >
-                    Note: {claimed.details}
-                  </Text>
-                )}
                 <View style={styles.phoneRow}>
                   <Ionicons name="call" size={15} color={C.teal} style={{ marginRight: Spacing.two }} />
-                  <Text style={{ ...T.labelStrong, fontSize: 14, color: C.teal }}>
+                  <Text style={{ ...T.labelStrong, fontSize: 15, color: C.teal }}>
                     {claimed.contactNumber}
                   </Text>
                 </View>
+
+                {claimed.status === 'FULFILLED' ? (
+                  <Text style={{ ...T.bodySmall, color: C.success, marginTop: Spacing.three }}>
+                    Marked as delivered — thank you.
+                  </Text>
+                ) : (
+                  <TouchableOpacity
+                    onPress={() =>
+                      advanceClaimed(claimed.status === 'MATCHED' ? 'DISPATCHED' : 'FULFILLED')
+                    }
+                    disabled={stageBusy}
+                    activeOpacity={0.88}
+                    style={[styles.stageButton, stageBusy && { opacity: 0.7 }]}
+                    accessibilityLabel={
+                      claimed.status === 'MATCHED'
+                        ? 'Mark this delivery as on the way'
+                        : 'Mark this delivery as completed'
+                    }
+                  >
+                    {stageBusy ? (
+                      <ActivityIndicator size="small" color={C.white} />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name={claimed.status === 'MATCHED' ? 'car-outline' : 'checkmark-done-outline'}
+                          size={16}
+                          color={C.white}
+                          style={{ marginRight: Spacing.two }}
+                        />
+                        <Text style={{ ...T.buttonSmall, color: C.white }}>
+                          {claimed.status === 'MATCHED'
+                            ? 'I am on the way'
+                            : 'Food delivered'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+
+                {stageError && (
+                  <Text style={{ ...T.bodySmall, color: C.error, marginTop: Spacing.two }}>
+                    {stageError}
+                  </Text>
+                )}
               </View>
             )}
 
@@ -404,7 +600,10 @@ export default function RequestBoardScreen({ navigation }: Props) {
                     'No recipient is waiting right now. New requests appear here the moment they are posted.',
                   )
                 ) : (
-                  requests.map((item) => renderItem(item))
+                  <View>
+                    {renderTier(urgent, 'URGENT')}
+                    {renderTier(standard, 'STANDARD')}
+                  </View>
                 )}
               </View>
             )}
@@ -492,7 +691,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: Radius.pill,
-    backgroundColor: C.tealSoft,
+    backgroundColor: C.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -529,17 +728,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: Spacing.four,
   },
-  emergencyCount: {
+  statRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: C.errorSoft,
-    borderWidth: 1,
-    borderColor: C.error,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.three,
-    minHeight: 28,
+    gap: Spacing.three,
     marginBottom: Spacing.four,
+  },
+  statTile: {
+    flex: 1,
+    minWidth: 96,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    alignItems: 'center',
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.two,
   },
   claimedBox: {
     backgroundColor: C.successSoft,
@@ -558,6 +760,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.three,
   },
+  stageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 46,
+    borderRadius: Radius.md,
+    backgroundColor: C.teal,
+    marginTop: Spacing.four,
+  },
   acceptError: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -567,6 +778,18 @@ const styles = StyleSheet.create({
     borderColor: C.error,
     padding: Spacing.three,
     marginBottom: Spacing.four,
+  },
+  tierHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.tealSoft,
+    backgroundColor: C.tealSoft,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    marginTop: Spacing.two,
+    marginBottom: Spacing.three,
   },
   requestItem: {
     backgroundColor: C.offWhite,
@@ -586,9 +809,25 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: Spacing.three,
   },
+  itemIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.pill,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.three,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+  },
   itemHeadText: {
     flex: 1,
     marginRight: Spacing.three,
+  },
+  tierPill: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 4,
   },
   metaRow: {
     flexDirection: 'row',
@@ -606,6 +845,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: C.cardBorder,
   },
+  clockPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    backgroundColor: C.white,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 4,
+  },
   donorOnlyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -615,7 +864,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 40,
+    minHeight: 42,
     paddingHorizontal: Spacing.four,
     borderRadius: Radius.pill,
     backgroundColor: C.teal,

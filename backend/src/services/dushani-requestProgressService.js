@@ -9,16 +9,19 @@ const STAGES = [
     key: 'MATCHED',
     label: 'Accepted by a donor',
     description: 'A donor claimed your request and is preparing the food.',
+    timeField: 'acceptedAt',
   },
   {
     key: 'DISPATCHED',
     label: 'Delivery on the way',
     description: 'The food has left the donor and is coming to you.',
+    timeField: 'dispatchedAt',
   },
   {
     key: 'FULFILLED',
     label: 'Food delivered',
     description: 'The donation reached you.',
+    timeField: 'fulfilledAt',
   },
 ];
 
@@ -56,10 +59,14 @@ function buildTimeline(request, status) {
       else if (index === stageIndex) state = status === 'FULFILLED' ? 'done' : 'current';
 
       return {
-        ...stage,
-        // updatedAt is the only timestamp the document carries, so it is
-        // reported for the stage the request actually reached.
-        at: index === stageIndex ? request.updatedAt : null,
+        key: stage.key,
+        label: stage.label,
+        description: stage.description,
+        // Each stage carries its own stamp once it has happened; a request
+        // that reached this stage before those fields existed falls back to
+        // updatedAt, which is the only moment recorded for it.
+        at: request[stage.timeField] ??
+          (index === stageIndex ? request.updatedAt : null),
         state,
       };
     }),

@@ -136,9 +136,12 @@ const SRI_LANKAN_PHONE_PREFIXES = [
 ];
 
 // The recipient says when they want the food: only today and tomorrow can be
-// picked, and a standard request stays open until that moment.
+// picked, and a standard request stays open until that moment. Anything needed
+// inside five hours goes through the emergency track instead, so those slots
+// are not offered here at all.
 const DAY_LABELS = ['Today', 'Tomorrow'];
 const TIME_SLOTS = ['07:00', '09:00', '12:00', '15:00', '18:00', '20:00'];
+const MIN_LEAD_MS = 5 * 60 * 60 * 1000;
 
 function dayKey(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -150,14 +153,17 @@ function dayOptions() {
   return [0, 1].map((offset) => {
     const date = new Date();
     date.setHours(date.getHours() + 24 * offset, 0, 0, 0);
+    const key = dayKey(date);
     return {
-      key: dayKey(date),
+      key,
       label: DAY_LABELS[offset],
       sub: date.toLocaleDateString(undefined, {
         weekday: 'short',
         day: 'numeric',
         month: 'short',
       }),
+      // Late in the evening even "Today" has nothing five hours ahead.
+      available: TIME_SLOTS.some((time) => slotSelectable(key, time)),
     };
   });
 }
@@ -177,8 +183,9 @@ function toPreferredIso(dateKey: string, time: string): string {
   return new Date(year, month - 1, day, hour, minute, 0, 0).toISOString();
 }
 
-function slotPassed(dateKey: string, time: string): boolean {
-  return new Date(toPreferredIso(dateKey, time)).getTime() <= Date.now();
+// A slot is offered only when it is still five or more hours away.
+function slotSelectable(dateKey: string, time: string): boolean {
+  return new Date(toPreferredIso(dateKey, time)).getTime() - Date.now() >= MIN_LEAD_MS;
 }
 
 function isValidSriLankanPhone(value: string): boolean {
@@ -344,6 +351,9 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
     // An emergency is needed straight away, so it carries no slot.
     if (!isUrgent && !wantedDay) nextErrors.when = 'Choose the day you need it';
     else if (!isUrgent && !wantedTime) nextErrors.when = 'Choose a time';
+    else if (!isUrgent && !slotSelectable(wantedDay, wantedTime))
+      nextErrors.when =
+        'That time is less than 5 hours away — pick a later slot or post an emergency request';
 
     setErrors(nextErrors);
     setInvalidIds(nextErrors.quantities ? bad : []);
@@ -359,9 +369,10 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
     if (!message) return undefined;
 
     if (section === 'when') {
+      // No day yet → the day row carries it; otherwise it is about the time
+      // (nothing chosen, or a slot that is too close to post as standard).
       const dayMissing = !wantedDay;
-      const timeMissing = !dayMissing && !wantedTime;
-      return (field === 'day' && dayMissing) || (field === 'time' && timeMissing)
+      return (field === 'day' && dayMissing) || (field === 'time' && !dayMissing)
         ? message
         : undefined;
     }
@@ -841,7 +852,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                 <SectionTitle
                   step="05"
                   title="When do you need it?"
-                  subtitle="Pick a day and time — your request stays open until then"
+                  subtitle="At least 5 hours ahead — your request stays open until then"
                 />
                 <Text
                   style={{ ...T.label, fontSize: 14, color: C.navy, marginBottom: Spacing.two }}
@@ -854,6 +865,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                     return (
                       <TouchableOpacity
                         key={option.key}
+                        disabled={!option.available}
                         onPress={() => {
                           setWantedDay(option.key);
                           setWantedTime('');
@@ -863,7 +875,10 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                         style={[
                           styles.whenChip,
                           active && styles.whenChipActive,
-                          !!errors.when && !active && { borderColor: C.error },
+                          !option.available && styles.whenChipDisabled,
+                          !!errors.when && !active && option.available && {
+                            borderColor: C.error,
+                          },
                         ]}
                       >
                         <Text
@@ -883,7 +898,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                             marginTop: 1,
                           }}
                         >
-                          {option.sub}
+                          {option.available ? option.sub : 'No slots left today'}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -900,7 +915,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                     </Text>
                     <View style={styles.whenRow}>
                       {TIME_SLOTS.map((time) => {
-                        const disabled = slotPassed(wantedDay, time);
+                        const disabled = !slotSelectable(wantedDay, time);
                         const active = wantedTime === time;
                         return (
                           <TouchableOpacity
@@ -938,6 +953,16 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                       })}
                     </View>
                     {timeError && <ErrorText message={timeError} />}
+                    <TouchableOpacity
+                      onPress={() => setUrgency('URGENT')}
+                      style={styles.soonerLink}
+                      accessibilityLabel="Post this as an emergency request instead"
+                    >
+                      <Ionicons name="flash-outline" size={14} color={C.error} />
+                      <Text style={{ ...T.bodySmall, color: C.error }}>
+                        Need it within 5 hours? Post an emergency request
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 )}
               </>
@@ -1435,6 +1460,17 @@ const styles = StyleSheet.create({
     backgroundColor: C.teal,
     borderColor: C.teal,
     borderStyle: 'solid',
+  },
+  whenChipDisabled: {
+    opacity: 0.4,
+    borderColor: C.cardBorder,
+  },
+  soonerLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    alignSelf: 'flex-start',
+    marginTop: Spacing.three,
   },
   urgencyOption: {
     flex: 1,

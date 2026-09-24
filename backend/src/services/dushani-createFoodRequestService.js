@@ -5,6 +5,8 @@ const URGENCY_LEVELS = ['URGENT', 'NORMAL'];
 // The request form only offers the next two days, so anything further out is
 // rejected rather than silently accepted.
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+// Anything needed sooner than this is an emergency, not a scheduled request.
+const MIN_LEAD_MS = 5 * 60 * 60 * 1000;
 
 function validateUrgency(urgency) {
   if (urgency !== undefined && !URGENCY_LEVELS.includes(urgency)) {
@@ -44,6 +46,9 @@ function normalizeContactNumber(contactNumber) {
  * A standard request is asked for a slot within the next two days, and the
  * recipient's chosen moment doubles as the expiry time. Emergency requests are
  * needed straight away, so they never carry one.
+ *
+ * Anything needed inside five hours belongs on the emergency track, so a
+ * standard slot has to clear that lead time.
  */
 function normalizePreferredAt(preferredAt) {
   if (!preferredAt) {
@@ -62,6 +67,13 @@ function normalizePreferredAt(preferredAt) {
   const now = Date.now();
   if (when.getTime() <= now) {
     const error = new Error('Choose a time in the future');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (when.getTime() < now + MIN_LEAD_MS) {
+    const error = new Error(
+      'A standard request is for food needed at least 5 hours ahead — post an emergency request for anything sooner',
+    );
     error.statusCode = 400;
     throw error;
   }

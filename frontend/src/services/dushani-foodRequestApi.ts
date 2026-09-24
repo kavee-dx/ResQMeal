@@ -113,6 +113,36 @@ export async function acceptFoodRequest(
   return response.data;
 }
 
+/** Stages the donor, volunteer or recipient can move a request on to. */
+export type FoodRequestAdvance = 'DISPATCHED' | 'FULFILLED';
+
+export interface FoodRequestStage {
+  id: string;
+  status: FoodRequestStatus;
+  stageLabel: string;
+  foodType: string;
+  quantity: string;
+  location: string;
+  contactNumber: string;
+  acceptedAt: string | null;
+  dispatchedAt: string | null;
+  fulfilledAt: string | null;
+}
+
+// PATCH /api/recipient/food-requests/:id/status
+// Forward only: the claiming donor or a volunteer can set DISPATCHED, and
+// donor, volunteer or the recipient themselves can set FULFILLED.
+export async function updateFoodRequestStatus(
+  requestId: string,
+  status: FoodRequestAdvance,
+): Promise<FoodRequestStage> {
+  const response = await api.patch<FoodRequestStage>(
+    `/recipient/food-requests/${requestId}/status`,
+    { status },
+  );
+  return response.data;
+}
+
 export type ProgressOutcome = 'active' | 'complete' | 'stopped';
 export type TimelineState = 'done' | 'current' | 'upcoming' | 'stopped';
 

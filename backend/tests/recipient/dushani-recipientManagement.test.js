@@ -333,8 +333,10 @@ function stubRequest(overrides) {
     status: 'PENDING',
     createdAt: new Date('2026-09-23T09:00:00.000Z'),
     updatedAt: new Date('2026-09-23T10:30:00.000Z'),
-    expiresAt: new Date('2026-09-24T09:00:00.000Z'),
-    preferredAt: new Date('2026-09-24T09:00:00.000Z'),
+    // Kept relative to the clock: this stub is the "still waiting" case, and a
+    // fixed date turns the whole suite red the moment that hour passes.
+    expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+    preferredAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
     ...overrides,
   };
 }

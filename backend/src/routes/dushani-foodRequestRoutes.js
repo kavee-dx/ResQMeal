@@ -17,6 +17,7 @@ const {
   getOpenRequestsHandler,
   acceptFoodRequestHandler,
 } = require('../controllers/dushani-requestBoardController');
+const { browseDonationsHandler } = require('../controllers/dushani-browseDonationsController');
 
 // All recipient food-request endpoints require a logged-in user; requireAuth
 // attaches the decoded JWT payload ({ id, role }) to req.user.
@@ -43,6 +44,13 @@ router.get('/open', getOpenRequestsHandler);
 // waiting, ranked against the live donations by food type, quantity, proximity
 // and urgency. An emergency request's suggestions come out on top.
 router.get('/matches', getRecipientSuggestionsHandler);
+
+// GET /api/recipient/food-requests/donations
+// Sprint item 4 — Browse Donations: everything donors have posted that is still
+// live, filtered by food type, portion count and distance, with the donations
+// that answer one of the recipient's own open requests ranked first (an urgent
+// request's matches above all). Donor contact details are never listed.
+router.get('/donations', browseDonationsHandler);
 
 // POST /api/recipient/food-requests/:id/accept
 // Only a donor can claim a request; the recipient's progress then reads

@@ -257,3 +257,86 @@ export async function getRequestMatches(
   const response = await api.get(`/recipient/food-requests/${requestId}/matches`);
   return response.data;
 }
+
+/** Which of the recipient's own open requests a donation answers, if any. */
+export interface DonationAnswer {
+  requestId: string;
+  requestFood: string;
+  urgency: FoodRequestUrgency;
+  urgent: boolean;
+  score: number;
+  percent: number;
+  reasons: string[];
+}
+
+/** One live donation from a donor, as the browse page lists it. */
+export interface BrowseDonation {
+  id: string;
+  donationCode: string | null;
+  foodType: string;
+  foodCategory: string;
+  foodGroup: string;
+  photoUrl: string | null;
+  quantity: number | null;
+  numberOfPortions: number | null;
+  storageCondition: string | null;
+  pickupAddress: string;
+  pickupDistrict: string;
+  pickupWindowStart: string | null;
+  expiryTime: string | null;
+  status: string;
+  readyWhen: string;
+  distanceLabel: string;
+  distanceTier: number;
+  inOwnDistrict: boolean;
+  donorName: string;
+  answering: DonationAnswer | null;
+}
+
+export interface DonationFilters {
+  search?: string;
+  /** One of the food groups the server returns, e.g. 'Rice'. */
+  group?: string;
+  /** Smallest number of portions worth showing. */
+  minPortions?: number | null;
+  /** 'own-district' keeps only pickups near the recipient's address. */
+  distance?: 'own-district' | 'anywhere';
+  sort?: 'suggested' | 'nearest' | 'expiring' | 'newest';
+}
+
+export interface DonationBrowse {
+  criteria: MatchCriterion[];
+  viewer: { district: string; city: string };
+  filters: DonationFilters & {
+    foodGroups: string[];
+    distances: string[];
+  };
+  stats: {
+    total: number;
+    urgent: number;
+    answering: number;
+    nearby: number;
+    expiringSoon: number;
+  };
+  donations: BrowseDonation[];
+}
+
+// GET /api/recipient/food-requests/donations
+// The donation pool donors have posted. The server does the filtering and puts
+// what answers an urgent request at the top of the list.
+export async function browseDonations(
+  filters: DonationFilters = {},
+): Promise<DonationBrowse> {
+  const params: Record<string, string> = {};
+  if (filters.search) params.search = filters.search;
+  if (filters.group) params.group = filters.group;
+  if (filters.minPortions) params.minPortions = String(filters.minPortions);
+  if (filters.distance && filters.distance !== 'anywhere') params.distance = filters.distance;
+  if (filters.sort) params.sort = filters.sort;
+
+  const response = await api.get<DonationBrowse>(
+    '/recipient/food-requests/donations',
+    { params },
+  );
+  return response.data;
+}

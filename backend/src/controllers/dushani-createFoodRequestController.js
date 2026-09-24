@@ -11,7 +11,8 @@ function getRecipientId(req) {
 
 async function createFoodRequestHandler(req, res) {
   try {
-    const { foodType, quantity, location, details, contactNumber, urgency } = req.body;
+    const { foodType, quantity, location, details, contactNumber, urgency, preferredAt } =
+      req.body;
 
     const foodRequest = await createFoodRequest({
       recipientId: getRecipientId(req),
@@ -21,6 +22,7 @@ async function createFoodRequestHandler(req, res) {
       details,
       contactNumber,
       urgency,
+      preferredAt,
     });
 
     return res.status(201).json(foodRequest);

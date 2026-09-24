@@ -125,6 +125,22 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
         <Ionicons name="list-outline" size={18} color={ACCENT} style={{ marginRight: 8 }} />
         <Text style={{ ...T.button, color: ACCENT }}>Track My Requests</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => navigation.navigate("RequestBoard")}
+        activeOpacity={0.85}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 48,
+          borderRadius: Radius.md,
+          marginTop: Spacing.two,
+        }}
+      >
+        <Ionicons name="megaphone-outline" size={18} color={theme.textMuted} style={{ marginRight: 8 }} />
+        <Text style={{ ...T.button, color: theme.textMuted }}>See All Open Requests</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }

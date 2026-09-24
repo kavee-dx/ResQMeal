@@ -13,10 +13,12 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
+import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import {
   getMyFoodRequests,
+  deleteFoodRequest,
   type FoodRequest,
   type FoodRequestStatus,
 } from '../services/dushani-foodRequestApi';
@@ -50,16 +52,38 @@ const STATUS_META: Record<
     bg: '#FFF3D6',
     text: '#8A6100',
   },
-  MATCHED: { label: 'Matched with a donor', icon: 'hand-left-outline', bg: C.tealSoft, text: C.teal },
+  MATCHED: { label: 'Accepted by a donor', icon: 'hand-left-outline', bg: C.tealSoft, text: C.teal },
+  DISPATCHED: { label: 'Delivery on the way', icon: 'car-outline', bg: C.tealSoft, text: C.teal },
   FULFILLED: { label: 'Fulfilled', icon: 'checkmark-circle', bg: C.successSoft, text: C.success },
   EXPIRED: { label: 'Expired', icon: 'close-circle-outline', bg: C.errorSoft, text: C.error },
   CANCELLED: { label: 'Cancelled', icon: 'ban-outline', bg: C.errorSoft, text: C.error },
 };
 
+const TABS: { key: string; label: string; statuses: FoodRequestStatus[] }[] = [
+  { key: 'ALL', label: 'All', statuses: ['PENDING', 'MATCHED', 'DISPATCHED', 'FULFILLED', 'EXPIRED', 'CANCELLED'] },
+  { key: 'REQUESTED', label: 'Requested', statuses: ['PENDING'] },
+  { key: 'ACCEPTED', label: 'Accepted', statuses: ['MATCHED', 'DISPATCHED'] },
+  { key: 'COLLECTED', label: 'Collected', statuses: ['FULFILLED'] },
+];
+
+// A closed request is over — nothing left to track, so it is listed as a
+// single quiet row instead of a card with a progress link.
+const isClosed = (status: FoodRequestStatus) =>
+  status === 'EXPIRED' || status === 'CANCELLED';
+
+// Inside the All tab the still-running requests come first and the closed ones
+// drop below them.
+const GROUPS: { key: string; title: string; statuses: FoodRequestStatus[] }[] = [
+  { key: 'LIVE', title: 'Live', statuses: ['PENDING', 'MATCHED', 'DISPATCHED'] },
+  { key: 'CLOSED', title: 'Expired', statuses: ['EXPIRED', 'CANCELLED'] },
+  { key: 'COLLECTED', title: 'Collected', statuses: ['FULFILLED'] },
+];
+
+// A past expiry date arrives from the server already reported as EXPIRED.
 function formatExpiry(expiresAt?: string): string | null {
   if (!expiresAt) return null;
   const diffMs = new Date(expiresAt).getTime() - Date.now();
-  if (diffMs <= 0) return 'Expiring now';
+  if (diffMs <= 0) return null;
   const hours = Math.floor(diffMs / 3_600_000);
   const minutes = Math.round((diffMs % 3_600_000) / 60_000);
   if (hours <= 0) return `Expires in ${minutes} min`;
@@ -80,15 +104,25 @@ function Backdrop() {
 
 export default function RequestStatusScreen({ navigation }: Props) {
   const T = useAppTypography();
+  const displayName = useDisplayName();
 
   const [requests, setRequests] = useState<FoodRequest[]>([]);
+  const [tab, setTab] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<{
+    id: string;
+    message: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadRequests = useCallback(async (showSpinner: boolean) => {
     if (showSpinner) setLoading(true);
     setError(null);
+    setConfirmingId(null);
+    setDeleteError(null);
     try {
       const data = await getMyFoodRequests();
       setRequests(data);
@@ -114,12 +148,52 @@ export default function RequestStatusScreen({ navigation }: Props) {
   };
 
   const emergencyCount = requests.filter((r) => r.urgency === 'URGENT').length;
+  const activeTab = TABS.find((entry) => entry.key === tab) ?? TABS[0];
+  const visible = requests.filter((item) =>
+    activeTab.statuses.includes(item.status),
+  );
+  const countFor = (statuses: FoodRequestStatus[]) =>
+    requests.filter((item) => statuses.includes(item.status)).length;
+
+  // Deletion is only offered while no donor has claimed the request; the
+  // server enforces the same rule with a 409. Alert.alert() is a no-op on the
+  // web build, so the confirmation is rendered inside the card instead.
+  const confirmDelete = (item: FoodRequest) => {
+    setDeleteError(null);
+    setConfirmingId(item._id);
+  };
+
+  const cancelDelete = () => setConfirmingId(null);
+
+  const performDelete = async (item: FoodRequest) => {
+    setConfirmingId(null);
+    setDeleteError(null);
+    setDeletingId(item._id);
+    try {
+      await deleteFoodRequest(item._id);
+      setRequests((current) => current.filter((r) => r._id !== item._id));
+    } catch (err) {
+      setDeleteError({
+        id: item._id,
+        message: err instanceof Error
+          ? err.message
+          : 'Could not delete this request. Please try again.',
+      });
+      loadRequests(false);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const renderState = (
     icon: React.ComponentProps<typeof Ionicons>['name'],
     title: string,
     body: string,
-    action?: { label: string; onPress: () => void },
+    action?: {
+      label: string;
+      icon: React.ComponentProps<typeof Ionicons>['name'];
+      onPress: () => void;
+    },
   ) => (
     <View style={styles.stateBlock}>
       <View style={styles.stateIcon}>
@@ -144,120 +218,219 @@ export default function RequestStatusScreen({ navigation }: Props) {
           activeOpacity={0.88}
           style={styles.stateButton}
         >
-          <Ionicons name="add" size={18} color={C.navy} style={{ marginRight: Spacing.two }} />
+          <Ionicons name={action.icon} size={18} color={C.navy} style={{ marginRight: Spacing.two }} />
           <Text style={{ ...T.button, color: C.navy }}>{action.label}</Text>
         </TouchableOpacity>
       )}
     </View>
   );
 
-  const renderItem = (item: FoodRequest) => {
+  // A closed request gets a single muted row: no progress, no details.
+  const renderClosedItem = (item: FoodRequest) => {
+    const meta = STATUS_META[item.status];
+    return (
+      <View key={item._id} style={styles.closedItem}>
+        <Text
+          style={{ ...T.labelStrong, fontSize: 13, color: C.textMuted, flex: 1 }}
+          numberOfLines={1}
+        >
+          {item.foodType}
+        </Text>
+        <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+          <Ionicons
+            name={meta.icon}
+            size={12}
+            color={meta.text}
+            style={{ marginRight: 4 }}
+          />
+          <Text style={{ ...T.labelStrong, fontSize: 11, color: meta.text }}>
+            {meta.label}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  const renderActiveItem = (item: FoodRequest) => {
     const meta = STATUS_META[item.status];
     const expiry = item.status === 'PENDING' ? formatExpiry(item.expiresAt) : null;
     const isUrgent = item.urgency === 'URGENT';
+    const openProgress = () =>
+      navigation.navigate('RequestProgress', { requestId: item._id });
+    const confirming = confirmingId === item._id;
 
     return (
-      <TouchableOpacity
+      <View
         key={item._id}
-        activeOpacity={0.85}
-        onPress={() => navigation.navigate('RequestProgress', { requestId: item._id })}
         style={[styles.requestItem, isUrgent && styles.requestItemUrgent]}
-        accessibilityLabel={
-          isUrgent
-            ? 'Emergency food request, view progress'
-            : 'Standard food request, view progress'
-        }
       >
-        <View style={styles.itemHead}>
-          <View style={styles.itemHeadText}>
-            <Text style={{ ...T.h3, color: C.navy, fontSize: 17 }} numberOfLines={1}>
-              {item.foodType}
-            </Text>
-            <Text
-              style={{
-                ...T.bodySmall,
-                color: C.textMuted,
-                marginTop: 2,
-              }}
-              numberOfLines={1}
-            >
-              {item.quantity}
-            </Text>
-          </View>
-          <EmergencyStatusBadge urgency={item.urgency} />
-        </View>
-
-        {isUrgent && (
-          <View style={styles.urgentStrip}>
-            <Text style={{ ...T.labelStrong, fontSize: 11, color: C.error, flex: 1 }}>
-              {expiry ?? 'Emergency request'}
-            </Text>
-            <Ionicons
-              name="notifications"
-              size={15}
-              color={C.error}
-              accessibilityLabel="Donors are alerted about this request"
-            />
-          </View>
-        )}
-
-        <View style={styles.metaRow}>
-          <Ionicons name="location-outline" size={14} color={C.textMuted} />
-          <Text style={{ ...T.bodySmall, color: C.textMuted, flex: 1 }} numberOfLines={1}>
-            {item.location}
-          </Text>
-        </View>
-        <View style={styles.metaRow}>
-          <Ionicons name="call-outline" size={14} color={C.textMuted} />
-          <Text style={{ ...T.bodySmall, color: C.textMuted, flex: 1 }} numberOfLines={1}>
-            {item.contactNumber || 'No phone number'}
-          </Text>
-        </View>
-
-        <View style={styles.itemFoot}>
-          <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
-            <Ionicons
-              name={meta.icon}
-              size={13}
-              color={meta.text}
-              style={{ marginRight: 5 }}
-            />
-            <Text style={{ ...T.labelStrong, fontSize: 12, color: meta.text }}>
-              {meta.label}
-            </Text>
-          </View>
-          <View style={styles.itemFootRight}>
-            <Text style={{ ...T.caption, fontSize: 10, color: C.textMuted }} numberOfLines={1}>
-              {new Date(item.createdAt).toLocaleString()}
-            </Text>
-            {expiry ? (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={openProgress}
+          accessibilityLabel={
+            isUrgent
+              ? 'Emergency food request, view progress'
+              : 'Standard food request, view progress'
+          }
+        >
+          <View style={styles.itemHead}>
+            <View style={styles.itemHeadText}>
+              <Text style={{ ...T.h3, color: C.navy, fontSize: 17 }} numberOfLines={1}>
+                {item.foodType}
+              </Text>
               <Text
                 style={{
-                  ...T.caption,
-                  fontSize: 10,
-                  color: isUrgent ? C.error : C.textMuted,
+                  ...T.bodySmall,
+                  color: C.textMuted,
                   marginTop: 2,
                 }}
+                numberOfLines={1}
               >
-                {expiry}
+                {item.quantity}
               </Text>
-            ) : null}
+            </View>
+            <EmergencyStatusBadge urgency={item.urgency} />
           </View>
+
+          {isUrgent && (
+            <View style={styles.urgentStrip}>
+              <Text style={{ ...T.labelStrong, fontSize: 11, color: C.error, flex: 1 }}>
+                {expiry ?? 'Emergency request'}
+              </Text>
+              <Ionicons
+                name="notifications"
+                size={15}
+                color={C.error}
+                accessibilityLabel="Donors are alerted about this request"
+              />
+            </View>
+          )}
+
+          <View style={styles.metaRow}>
+            <Ionicons name="location-outline" size={14} color={C.textMuted} />
+            <Text style={{ ...T.bodySmall, color: C.textMuted, flex: 1 }} numberOfLines={1}>
+              {item.location}
+            </Text>
+          </View>
+          <View style={styles.metaRow}>
+            <Ionicons name="call-outline" size={14} color={C.textMuted} />
+            <Text style={{ ...T.bodySmall, color: C.textMuted, flex: 1 }} numberOfLines={1}>
+              {item.contactNumber || 'No phone number'}
+            </Text>
+          </View>
+
+          <View style={styles.itemFoot}>
+            <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+              <Ionicons
+                name={meta.icon}
+                size={13}
+                color={meta.text}
+                style={{ marginRight: 5 }}
+              />
+              <Text style={{ ...T.labelStrong, fontSize: 12, color: meta.text }}>
+                {meta.label}
+              </Text>
+            </View>
+            <View style={styles.itemFootRight}>
+              <Text style={{ ...T.caption, fontSize: 10, color: C.textMuted }} numberOfLines={1}>
+                {new Date(item.createdAt).toLocaleString()}
+              </Text>
+              {expiry ? (
+                <Text
+                  style={{
+                    ...T.caption,
+                    fontSize: 10,
+                    color: isUrgent ? C.error : C.textMuted,
+                    marginTop: 2,
+                  }}
+                >
+                  {expiry}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        <View style={styles.itemActions}>
+          {item.status === 'PENDING' ? (
+            confirming ? (
+              <View style={styles.confirmRow}>
+                <Text style={{ ...T.bodySmall, fontSize: 11, color: C.error, flex: 1 }}>
+                  Remove this request?
+                </Text>
+                <TouchableOpacity
+                  onPress={cancelDelete}
+                  disabled={deletingId !== null}
+                  style={styles.keepButton}
+                  accessibilityLabel="Keep this request"
+                >
+                  <Text style={{ ...T.labelStrong, fontSize: 12, color: C.teal }}>
+                    Keep
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => performDelete(item)}
+                  disabled={deletingId !== null}
+                  style={styles.deleteButton}
+                  accessibilityLabel="Confirm delete"
+                >
+                  {deletingId === item._id ? (
+                    <ActivityIndicator size="small" color={C.error} />
+                  ) : (
+                    <Text style={{ ...T.labelStrong, fontSize: 12, color: C.error }}>
+                      Delete
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => confirmDelete(item)}
+                disabled={deletingId !== null}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                style={styles.deleteButton}
+                accessibilityLabel="Delete this request"
+              >
+                <Ionicons name="trash-outline" size={14} color={C.error} />
+                <Text style={{ ...T.labelStrong, fontSize: 12, color: C.error }}>
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            )
+          ) : (
+            <Text style={{ ...T.bodySmall, fontSize: 11, color: C.textMuted }}>
+              Locked — a donor is handling this
+            </Text>
+          )}
+
+          <TouchableOpacity
+            onPress={openProgress}
+            activeOpacity={0.75}
+            style={styles.viewProgressButton}
+            accessibilityLabel="View progress"
+          >
+            <Text style={{ ...T.labelStrong, fontSize: 12, color: isUrgent ? C.error : C.teal }}>
+              View progress
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={15}
+              color={isUrgent ? C.error : C.teal}
+            />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.viewProgressRow}>
-          <Text style={{ ...T.labelStrong, fontSize: 12, color: isUrgent ? C.error : C.teal }}>
-            View progress
+        {deleteError?.id === item._id ? (
+          <Text style={{ ...T.bodySmall, fontSize: 11, color: C.error, marginTop: Spacing.two }}>
+            {deleteError.message}
           </Text>
-          <Ionicons
-            name="chevron-forward"
-            size={15}
-            color={isUrgent ? C.error : C.teal}
-          />
-        </View>
-      </TouchableOpacity>
+        ) : null}
+      </View>
     );
   };
+
+  const renderItem = (item: FoodRequest) =>
+    isClosed(item.status) ? renderClosedItem(item) : renderActiveItem(item);
 
   return (
     <View style={styles.screen}>
@@ -284,7 +457,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
             <Ionicons name="arrow-back" size={22} color={C.navy} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={{ ...T.caption, color: C.amber }}>Recipient</Text>
+            <Text style={{ ...T.caption, color: C.amber }}>{displayName}</Text>
             <Text style={{ ...T.h2, color: C.white, fontSize: 26 }}>My Requests</Text>
           </View>
           <TouchableOpacity
@@ -332,6 +505,48 @@ export default function RequestStatusScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
 
+            {!loading && !error && (
+              <View style={styles.tabs}>
+                {TABS.map((entry) => {
+                  const active = entry.key === tab;
+                  const count = countFor(entry.statuses);
+                  return (
+                    <TouchableOpacity
+                      key={entry.key}
+                      onPress={() => setTab(entry.key)}
+                      activeOpacity={0.85}
+                      style={[styles.tab, active && styles.tabActive]}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: active }}
+                    >
+                      <Text
+                        style={{
+                          ...T.labelStrong,
+                          fontSize: 12,
+                          color: active ? C.white : C.navy,
+                        }}
+                      >
+                        {entry.label}
+                      </Text>
+                      <View
+                        style={[styles.tabCount, active && styles.tabCountActive]}
+                      >
+                        <Text
+                          style={{
+                            ...T.caption,
+                            fontSize: 10,
+                            color: active ? C.navy : C.textMuted,
+                          }}
+                        >
+                          {count}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
             {loading ? (
               <View style={styles.centered}>
                 <ActivityIndicator size="large" color={C.teal} />
@@ -339,6 +554,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
             ) : error ? (
               renderState('cloud-offline-outline', 'Could not load requests', error, {
                 label: 'Try again',
+                icon: 'refresh',
                 onPress: () => loadRequests(true),
               })
             ) : requests.length === 0 ? (
@@ -348,13 +564,75 @@ export default function RequestStatusScreen({ navigation }: Props) {
                 'When you post a food request it appears here so you can follow it through to delivery.',
                 {
                   label: 'Make a Food Request',
+                  icon: 'add',
                   onPress: () => navigation.navigate('FoodRequest'),
                 },
               )
-            ) : (
+            ) : visible.length === 0 ? (
+              renderState(
+                'filter-outline',
+                `Nothing in ${activeTab.label.toLowerCase()}`,
+                'Requests move through these stages as donors accept and deliver them.',
+              )
+            ) : activeTab.key === 'ALL' ? (
               <View>
-                {requests.map((item) => renderItem(item))}
+                {GROUPS.map((group) => {
+                  const items = visible.filter((item) =>
+                    group.statuses.includes(item.status),
+                  );
+                  if (items.length === 0) return null;
+
+                  // The running requests need no heading — they are the list.
+                  // Only the closed ones are called out.
+                  if (group.key === 'LIVE') {
+                    return <View key={group.key}>{items.map(renderItem)}</View>;
+                  }
+
+                  const expired = group.key === 'CLOSED';
+                  return (
+                    <View key={group.key}>
+                      <View
+                        style={[
+                          styles.sectionHead,
+                          expired && styles.sectionHeadExpired,
+                        ]}
+                      >
+                        {expired && (
+                          <Ionicons
+                            name="close-circle-outline"
+                            size={14}
+                            color={C.error}
+                            style={{ marginRight: Spacing.two }}
+                          />
+                        )}
+                        <Text
+                          style={{
+                            ...T.labelStrong,
+                            fontSize: 11,
+                            color: expired ? C.error : C.textMuted,
+                            letterSpacing: 0.6,
+                          }}
+                        >
+                          {group.title.toUpperCase()}
+                        </Text>
+                        <View style={styles.sectionLine} />
+                        <Text
+                          style={{
+                            ...T.caption,
+                            fontSize: 11,
+                            color: expired ? C.error : C.textMuted,
+                          }}
+                        >
+                          {items.length}
+                        </Text>
+                      </View>
+                      {items.map((item) => renderItem(item))}
+                    </View>
+                  );
+                })}
               </View>
+            ) : (
+              <View>{visible.map((item) => renderItem(item))}</View>
             )}
           </View>
 
@@ -504,6 +782,19 @@ const styles = StyleSheet.create({
     borderLeftColor: C.error,
     backgroundColor: C.errorSoft,
   },
+  closedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: C.cardBorder,
+    borderRadius: Radius.md,
+    backgroundColor: C.white,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    marginBottom: Spacing.two,
+  },
   itemHead: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -541,15 +832,109 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     flexShrink: 1,
   },
-  viewProgressRow: {
+  itemActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: Spacing.one,
+    justifyContent: 'space-between',
+    gap: Spacing.three,
     marginTop: Spacing.three,
     paddingTop: Spacing.three,
     borderTopWidth: 1,
     borderTopColor: C.cardBorder,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    minHeight: 28,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.error,
+    backgroundColor: C.white,
+  },
+  keepButton: {
+    minHeight: 28,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+    marginBottom: Spacing.three,
+  },
+  sectionHeadExpired: {
+    backgroundColor: C.errorSoft,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderWidth: 1,
+    borderColor: C.error,
+  },
+  sectionLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: C.cardBorder,
+  },
+  tabs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    marginBottom: Spacing.four,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexGrow: 1,
+    flexBasis: '20%',
+    minWidth: 96,
+    justifyContent: 'center',
+    minHeight: 42,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: C.cardBorder,
+    backgroundColor: C.offWhite,
+    paddingHorizontal: Spacing.two,
+    gap: Spacing.two,
+  },
+  tabActive: {
+    backgroundColor: C.teal,
+    borderColor: C.teal,
+  },
+  tabCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: Radius.pill,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.two,
+  },
+  tabCountActive: {
+    backgroundColor: C.amber,
+    borderColor: C.amber,
+  },
+  viewProgressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    minHeight: 28,
+    paddingHorizontal: Spacing.two,
   },
   statusPill: {
     flexDirection: 'row',

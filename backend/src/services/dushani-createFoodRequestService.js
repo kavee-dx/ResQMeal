@@ -2,6 +2,10 @@ const FoodRequest = require('../models/dushani-foodRequestModel');
 
 const URGENCY_LEVELS = ['URGENT', 'NORMAL'];
 
+// The request form only offers the next two days, so anything further out is
+// rejected rather than silently accepted.
+const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+
 function validateUrgency(urgency) {
   if (urgency !== undefined && !URGENCY_LEVELS.includes(urgency)) {
     const error = new Error('urgency must be either URGENT or NORMAL');
@@ -36,7 +40,50 @@ function normalizeContactNumber(contactNumber) {
   return digits;
 }
 
-async function createFoodRequest({ recipientId, foodType, quantity, location, details, contactNumber, urgency }) {
+/**
+ * A standard request is asked for a slot within the next two days, and the
+ * recipient's chosen moment doubles as the expiry time. Emergency requests are
+ * needed straight away, so they never carry one.
+ */
+function normalizePreferredAt(preferredAt) {
+  if (!preferredAt) {
+    const error = new Error('preferredAt is required — choose when you need the food');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const when = new Date(preferredAt);
+  if (Number.isNaN(when.getTime())) {
+    const error = new Error('preferredAt must be a valid date and time');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const now = Date.now();
+  if (when.getTime() <= now) {
+    const error = new Error('Choose a time in the future');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (when.getTime() > now + TWO_DAYS_MS) {
+    const error = new Error('You can only ask for food within the next two days');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return when;
+}
+
+async function createFoodRequest({
+  recipientId,
+  foodType,
+  quantity,
+  location,
+  details,
+  contactNumber,
+  urgency,
+  preferredAt,
+}) {
   if (!foodType || !quantity || !location) {
     const error = new Error('foodType, quantity and location are required');
     error.statusCode = 400;
@@ -45,6 +92,9 @@ async function createFoodRequest({ recipientId, foodType, quantity, location, de
 
   validateUrgency(urgency);
 
+  const level = urgency || 'NORMAL';
+  const wantedFor = level === 'URGENT' ? null : normalizePreferredAt(preferredAt);
+
   const foodRequest = await FoodRequest.create({
     recipient: recipientId,
     foodType,
@@ -52,7 +102,8 @@ async function createFoodRequest({ recipientId, foodType, quantity, location, de
     location,
     details,
     contactNumber: normalizeContactNumber(contactNumber),
-    urgency: urgency || 'NORMAL',
+    urgency: level,
+    ...(wantedFor ? { preferredAt: wantedFor, expiresAt: wantedFor } : {}),
   });
 
   return foodRequest;

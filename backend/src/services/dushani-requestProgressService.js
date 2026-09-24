@@ -1,17 +1,19 @@
 const FoodRequest = require('../models/dushani-foodRequestModel');
 
-// Sprint task — Food Request Progress Tracking: the three stages a request
-// moves through. EXPIRED / CANCELLED end the track early (see buildTimeline).
+// Sprint task — Food Request Progress Tracking: posting a request already puts
+// it in front of donors, so the track is "Request posted" followed by the three
+// things that can happen after it. EXPIRED / CANCELLED end the track early
+// (see buildTimeline).
 const STAGES = [
   {
-    key: 'PENDING',
-    label: 'Looking for a donor',
-    description: 'Nearby donors can see your request.',
+    key: 'MATCHED',
+    label: 'Accepted by a donor',
+    description: 'A donor claimed your request and is preparing the food.',
   },
   {
-    key: 'MATCHED',
-    label: 'Matched with a donor',
-    description: 'A donor claimed your request and is preparing the food.',
+    key: 'DISPATCHED',
+    label: 'Delivery on the way',
+    description: 'The food has left the donor and is coming to you.',
   },
   {
     key: 'FULFILLED',
@@ -19,6 +21,8 @@ const STAGES = [
     description: 'The donation reached you.',
   },
 ];
+
+const WAITING_LABEL = 'Waiting for a donor';
 
 const TERMINAL_LABELS = {
   EXPIRED: { label: 'Request expired', description: 'No donor claimed it in time.' },
@@ -35,9 +39,8 @@ function effectiveStatus(request, now) {
 
 function buildTimeline(request, status) {
   const stopped = status === 'EXPIRED' || status === 'CANCELLED';
-  // A stopped request did reach the "looking for a donor" stage, it just
-  // never got past it.
-  const stageIndex = stopped ? 0 : STAGES.findIndex((stage) => stage.key === status);
+  // A waiting, expired or cancelled request never reached a donor stage.
+  const stageIndex = stopped ? -1 : STAGES.findIndex((stage) => stage.key === status);
 
   const timeline = [
     {
@@ -49,19 +52,18 @@ function buildTimeline(request, status) {
     },
     ...STAGES.map((stage, index) => {
       let state = 'upcoming';
-      if (stageIndex >= 0) {
-        if (index < stageIndex) state = 'done';
-        else if (index === stageIndex)
-          state = stopped || status === 'FULFILLED' ? 'done' : 'current';
-      }
-      return { ...stage, at: null, state };
+      if (index < stageIndex) state = 'done';
+      else if (index === stageIndex) state = status === 'FULFILLED' ? 'done' : 'current';
+
+      return {
+        ...stage,
+        // updatedAt is the only timestamp the document carries, so it is
+        // reported for the stage the request actually reached.
+        at: index === stageIndex ? request.updatedAt : null,
+        state,
+      };
     }),
   ];
-
-  // updatedAt is the only timestamp the document carries for a later stage, so
-  // it is reported for the stage the request actually reached.
-  if (stageIndex > 0) timeline[1 + stageIndex].at = request.updatedAt;
-  if (stageIndex === 0) timeline[1].at = request.createdAt;
 
   if (stopped) {
     timeline.push({
@@ -77,19 +79,24 @@ function buildTimeline(request, status) {
 
 function buildProgress(status, now, request) {
   const stageIndex = STAGES.findIndex((stage) => stage.key === status);
-  const stopped = stageIndex < 0;
-  // A request that expired or was cancelled never moved past "looking for a
-  // donor", so it counts as one step of three.
-  const steps = stopped ? 1 : stageIndex + 1;
+  const stopped = status === 'EXPIRED' || status === 'CANCELLED';
+  // "Request posted" counts as the first step, so a fresh request is already
+  // a quarter of the way through the track.
+  const stepsTotal = STAGES.length + 1;
+  const stepsCompleted = Math.max(stageIndex, -1) + 2;
 
   return {
     status,
-    stage: stopped ? status : STAGES[stageIndex].key,
-    stageLabel: stopped ? TERMINAL_LABELS[status].label : STAGES[stageIndex].label,
-    stageTotal: STAGES.length,
-    stepsCompleted: stopped ? 0 : stageIndex,
-    stepsTotal: STAGES.length,
-    percent: Math.round((steps / STAGES.length) * 100),
+    stage: stageIndex < 0 ? status : STAGES[stageIndex].key,
+    stageLabel: stopped
+      ? TERMINAL_LABELS[status].label
+      : stageIndex < 0
+        ? WAITING_LABEL
+        : STAGES[stageIndex].label,
+    stageTotal: stepsTotal,
+    stepsCompleted,
+    stepsTotal,
+    percent: Math.round((stepsCompleted / stepsTotal) * 100),
     outcome: status === 'FULFILLED' ? 'complete' : stopped ? 'stopped' : 'active',
     expiresAt: request.expiresAt ?? null,
     // A delivered request no longer races the clock.
@@ -132,10 +139,11 @@ async function getRequestProgress(recipientId, requestId) {
       createdAt: request.createdAt,
       updatedAt: request.updatedAt,
       expiresAt: request.expiresAt,
+      preferredAt: request.preferredAt ?? null,
     },
     progress: buildProgress(status, now, request),
     timeline: buildTimeline(request, status),
   };
 }
 
-module.exports = { getRequestProgress, STAGES };
+module.exports = { getRequestProgress, effectiveStatus, STAGES };

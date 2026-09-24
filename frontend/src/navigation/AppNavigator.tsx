@@ -2,7 +2,7 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import { RootStackParamList, Role, getHomeRouteForRole } from "./types";
+import { RootStackParamList, Role } from "./types";
 
 import SplashScreen from "../screens/kaveesha-SplashScreen";
 import LoginScreen from "../screens/kaveesha-LoginScreen";
@@ -30,6 +30,10 @@ import AvailableFoodScreen from "../screens/dushani-availableFoodScreen";
 import FoodRequestScreen from "../screens/dushani-foodRequestScreen";
 import RequestStatusScreen from "../screens/dushani-requestStatusScreen";
 import VolunteerAvailabilityScreen from "../screens/dilshara-volunteerAvailabilityScreen"; // NEW
+import FoodRescueRequestsScreen from "../screens/kaveesha-FoodRescueRequestsScreen";
+import NGOCommunitiesScreen from "../screens/kaveesha-NGOCommunitiesScreen";
+import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
+import RequestBoardScreen from "../screens/dushani-requestBoardScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -46,10 +50,7 @@ type Props = {
 export default function AppNavigator({ initialAuth }: Props) {
   const hasSession = Boolean(initialAuth.token && initialAuth.role);
 
-  const initialRouteName =
-    hasSession && initialAuth.role
-      ? getHomeRouteForRole(initialAuth.role)
-      : "Splash";
+  const initialRouteName = "Splash";
 
   const homeInitialParams = hasSession
     ? { fullName: initialAuth.fullName ?? "" }
@@ -61,20 +62,47 @@ export default function AppNavigator({ initialAuth }: Props) {
         initialRouteName={initialRouteName}
         screenOptions={{ headerShown: false }}
       >
+        {/* Startup / Authentication */}
         <Stack.Screen name="Splash" component={SplashScreen} />
+
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-        <Stack.Screen name="VerifyResetOtp" component={VerifyResetOtpScreen} />
-        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+
+        <Stack.Screen
+          name="ForgotPassword"
+          component={ForgotPasswordScreen}
+        />
+
+        <Stack.Screen
+          name="VerifyResetOtp"
+          component={VerifyResetOtpScreen}
+        />
+
+        <Stack.Screen
+          name="ResetPassword"
+          component={ResetPasswordScreen}
+        />
+
         <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="VerifyAccount" component={VerifyAccountScreen} />
+
+        <Stack.Screen
+          name="VerifyAccount"
+          component={VerifyAccountScreen}
+        />
+
         <Stack.Screen name="Profile" component={ProfileScreen} />
-        <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+
+        <Stack.Screen
+          name="DeleteAccount"
+          component={DeleteAccountScreen}
+        />
+
         <Stack.Screen
           name="NotificationSettings"
           component={NotificationSettingsScreen}
         />
+
         <Stack.Screen
           name="PrivacySettings"
           component={PrivacySettingsScreen}
@@ -86,51 +114,90 @@ export default function AppNavigator({ initialAuth }: Props) {
           component={VolunteerAvailabilityScreen}
         />
 
+        {/* Main Dashboards */}
         <Stack.Screen
           name="DonorHome"
           component={DonorHomeScreen}
-          initialParams={
-            initialRouteName === "DonorHome" ? homeInitialParams : undefined
-          }
+          initialParams={homeInitialParams}
         />
 
         <Stack.Screen
           name="RecipientHome"
           component={RecipientHomeScreen}
-          initialParams={
-            initialRouteName === "RecipientHome" ? homeInitialParams : undefined
-          }
+          initialParams={homeInitialParams}
         />
 
         <Stack.Screen
           name="NgoHome"
           component={NgoHomeScreen}
-          initialParams={
-            initialRouteName === "NgoHome" ? homeInitialParams : undefined
-          }
+          initialParams={homeInitialParams}
         />
 
         <Stack.Screen
           name="VolunteerHome"
           component={VolunteerHomeScreen}
-          initialParams={
-            initialRouteName === "VolunteerHome" ? homeInitialParams : undefined
-          }
+          initialParams={homeInitialParams}
         />
 
-        <Stack.Screen name="CreateDonation" component={CreateDonationScreen} />
+        {/* Food Rescue */}
+        <Stack.Screen
+          name="FoodRescueRequests"
+          component={FoodRescueRequestsScreen}
+        />
 
-        <Stack.Screen name="MyDonations" component={MyDonationsScreen} />
+        <Stack.Screen
+          name="NGOCommunities"
+          component={NGOCommunitiesScreen}
+        />
 
-        <Stack.Screen name="DonationDetail" component={DonationDetailScreen} />
+        {/* Donor */}
+        <Stack.Screen
+          name="CreateDonation"
+          component={CreateDonationScreen}
+        />
 
+        <Stack.Screen
+          name="MyDonations"
+          component={MyDonationsScreen}
+        />
+
+        <Stack.Screen
+          name="DonationDetail"
+          component={DonationDetailScreen}
+        />
+
+        {/* Recipient */}
+        <Stack.Screen
+          name="AvailableFood"
+          component={AvailableFoodScreen}
+        />
         <Stack.Screen name="AvailableFood" component={AvailableFoodScreen} />
         <Stack.Screen name="FoodRequest" component={FoodRequestScreen} />
         <Stack.Screen name="RequestStatus" component={RequestStatusScreen} />
+        <Stack.Screen name="RequestProgress" component={RequestProgressScreen} />
+        <Stack.Screen name="RequestBoard" component={RequestBoardScreen} />
 
-        <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
+        <Stack.Screen
+          name="FoodRequest"
+          component={FoodRequestScreen}
+        />
 
-        <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
+        <Stack.Screen
+          name="RequestStatus"
+          component={RequestStatusScreen}
+        />
+
+        {/* Admin */}
+        <Stack.Screen
+          name="AdminLogin"
+          component={AdminLoginScreen}
+        />
+
+        <Stack.Screen
+          name="AdminDashboard"
+          component={AdminDashboardScreen}
+        />
+
         <Stack.Screen
           name="RegistrationPending"
           component={RegistrationPendingScreen}

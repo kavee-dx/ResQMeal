@@ -31,6 +31,8 @@ import FoodRequestScreen from "../screens/dushani-foodRequestScreen";
 import RequestStatusScreen from "../screens/dushani-requestStatusScreen";
 import FoodRescueRequestsScreen from "../screens/kaveesha-FoodRescueRequestsScreen";
 import NGOCommunitiesScreen from "../screens/kaveesha-NGOCommunitiesScreen";
+import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
+import RequestBoardScreen from "../screens/dushani-requestBoardScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -162,6 +164,11 @@ export default function AppNavigator({ initialAuth }: Props) {
           name="AvailableFood"
           component={AvailableFoodScreen}
         />
+        <Stack.Screen name="AvailableFood" component={AvailableFoodScreen} />
+        <Stack.Screen name="FoodRequest" component={FoodRequestScreen} />
+        <Stack.Screen name="RequestStatus" component={RequestStatusScreen} />
+        <Stack.Screen name="RequestProgress" component={RequestProgressScreen} />
+        <Stack.Screen name="RequestBoard" component={RequestBoardScreen} />
 
         <Stack.Screen
           name="FoodRequest"

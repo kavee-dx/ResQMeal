@@ -48,8 +48,37 @@ const FoodRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['PENDING', 'MATCHED', 'FULFILLED', 'EXPIRED', 'CANCELLED'],
+      enum: ['PENDING', 'MATCHED', 'DISPATCHED', 'FULFILLED', 'EXPIRED', 'CANCELLED'],
       default: 'PENDING',
+    },
+    // The donor who claimed the request. Empty while it is still open, so the
+    // contact number stays private until someone commits to delivering.
+    acceptedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    acceptedAt: {
+      type: Date,
+      default: null,
+    },
+    // When the food left the donor and when it was handed over, so each stage
+    // of the progress timeline can report its own moment instead of reusing
+    // the document's single updatedAt.
+    dispatchedAt: {
+      type: Date,
+      default: null,
+    },
+    fulfilledAt: {
+      type: Date,
+      default: null,
+    },
+    // When the recipient actually wants the food, chosen in the request form.
+    // A standard request stays open until this moment (see expiresAt); emergency
+    // requests are needed straight away so this stays null.
+    preferredAt: {
+      type: Date,
+      default: null,
     },
     expiresAt: {
       type: Date,

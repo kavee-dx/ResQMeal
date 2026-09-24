@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
+import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import {
   createEmergencyFoodRequest,
@@ -135,6 +135,59 @@ const SRI_LANKAN_PHONE_PREFIXES = [
   '058', '061', '062', '063', '064', '065', '066', '067', '068', '069',
 ];
 
+// The recipient says when they want the food: only today and tomorrow can be
+// picked, and a standard request stays open until that moment. Anything needed
+// inside five hours goes through the emergency track instead, so those slots
+// are not offered here at all.
+const DAY_LABELS = ['Today', 'Tomorrow'];
+const TIME_SLOTS = ['07:00', '09:00', '12:00', '15:00', '18:00', '20:00'];
+const MIN_LEAD_MS = 5 * 60 * 60 * 1000;
+
+function dayKey(date: Date): string {
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function dayOptions() {
+  return [0, 1].map((offset) => {
+    const date = new Date();
+    date.setHours(date.getHours() + 24 * offset, 0, 0, 0);
+    const key = dayKey(date);
+    return {
+      key,
+      label: DAY_LABELS[offset],
+      sub: date.toLocaleDateString(undefined, {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+      }),
+      // Late in the evening even "Today" has nothing five hours ahead.
+      available: TIME_SLOTS.some((time) => slotSelectable(key, time)),
+    };
+  });
+}
+
+function slotLabel(time: string): string {
+  const [hour, minute] = time.split(':').map(Number);
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${`${minute}`.padStart(2, '0')} ${suffix}`;
+}
+
+// localTime on purpose — the instant has to be the wall-clock reading the
+// recipient picked, not the same clock shifted into UTC.
+function toPreferredIso(dateKey: string, time: string): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, minute, 0, 0).toISOString();
+}
+
+// A slot is offered only when it is still five or more hours away.
+function slotSelectable(dateKey: string, time: string): boolean {
+  return new Date(toPreferredIso(dateKey, time)).getTime() - Date.now() >= MIN_LEAD_MS;
+}
+
 function isValidSriLankanPhone(value: string): boolean {
   const digits = value.replace(/\D/g, '');
   if (!/^\d{10}$/.test(digits)) return false;
@@ -158,6 +211,7 @@ function Backdrop() {
 
 export default function FoodRequestScreen({ navigation, route }: Props) {
   const T = useAppTypography();
+  const displayName = useDisplayName();
   const idRef = useRef(1);
 
   const [selected, setSelected] = useState<CategoryKey[]>([]);
@@ -169,15 +223,19 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
   const [landmark, setLandmark] = useState('');
   const [phone, setPhone] = useState('');
   const [details, setDetails] = useState('');
+  const [wantedDay, setWantedDay] = useState('');
+  const [wantedTime, setWantedTime] = useState('');
   const [urgency, setUrgency] = useState<FoodRequestUrgency>(
     route.params?.urgency ?? 'NORMAL',
   );
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [errors, setErrors] = useState<{
     foodTypes?: string;
     quantities?: string;
     address?: string;
     phone?: string;
+    when?: string;
   }>({});
 
   const isUrgent = urgency === 'URGENT';
@@ -290,16 +348,35 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
     else if (!isValidSriLankanPhone(phone))
       nextErrors.phone = 'Enter a valid 10-digit local phone number.';
 
+    // An emergency is needed straight away, so it carries no slot.
+    if (!isUrgent && !wantedDay) nextErrors.when = 'Choose the day you need it';
+    else if (!isUrgent && !wantedTime) nextErrors.when = 'Choose a time';
+    else if (!isUrgent && !slotSelectable(wantedDay, wantedTime))
+      nextErrors.when =
+        'That time is less than 5 hours away — pick a later slot or post an emergency request';
+
     setErrors(nextErrors);
     setInvalidIds(nextErrors.quantities ? bad : []);
     return Object.keys(nextErrors).length === 0;
   };
 
-  // Show the single address message under the field that actually failed.
-  const addressErrorFor = (
-    field: 'street' | 'city' | 'postal',
+  // Show one message per section under the field that actually failed.
+  const errorFor = (
+    section: 'address' | 'when',
+    field: 'street' | 'city' | 'postal' | 'day' | 'time',
   ): string | undefined => {
-    if (!errors.address) return undefined;
+    const message = errors[section];
+    if (!message) return undefined;
+
+    if (section === 'when') {
+      // No day yet → the day row carries it; otherwise it is about the time
+      // (nothing chosen, or a slot that is too close to post as standard).
+      const dayMissing = !wantedDay;
+      return (field === 'day' && dayMissing) || (field === 'time' && !dayMissing)
+        ? message
+        : undefined;
+    }
+
     const streetMissing = !street.trim();
     const cityMissing = !streetMissing && !city.trim();
     const postalBad =
@@ -308,8 +385,11 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
       (field === 'street' && streetMissing) ||
       (field === 'city' && cityMissing) ||
       (field === 'postal' && postalBad);
-    return match ? errors.address : undefined;
+    return match ? message : undefined;
   };
+
+  const dayError = errorFor('when', 'day');
+  const timeError = errorFor('when', 'time');
 
   const cleanName = (item: Item) =>
     item.group === 'Rice' ? 'Cooked Rice' : item.name.trim();
@@ -334,6 +414,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
   };
 
   const handleSubmit = async () => {
+    setSubmitError(null);
     if (!validate()) return;
 
     setSubmitting(true);
@@ -348,13 +429,16 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
       if (isUrgent) {
         await createEmergencyFoodRequest(basePayload);
       } else {
-        await createFoodRequest({ ...basePayload, urgency: 'NORMAL' });
+        await createFoodRequest({
+          ...basePayload,
+          urgency: 'NORMAL',
+          preferredAt: toPreferredIso(wantedDay, wantedTime),
+        });
       }
       // Posted — go straight to the recipient's request dashboard.
       navigation.replace('RequestStatus');
     } catch (err) {
-      Alert.alert(
-        'Something went wrong',
+      setSubmitError(
         err instanceof Error
           ? err.message
           : 'Failed to submit your request. Please try again.',
@@ -383,7 +467,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
             <Ionicons name="arrow-back" size={22} color={C.navy} />
           </TouchableOpacity>
           <View>
-            <Text style={{ ...T.caption, color: C.amber }}>Recipient</Text>
+            <Text style={{ ...T.caption, color: C.amber }}>{displayName}</Text>
             <Text style={{ ...T.h2, color: C.white, fontSize: 26 }}>
               Create Request
             </Text>
@@ -634,7 +718,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                 setStreet(text);
                 setErrors((c) => ({ ...c, address: undefined }));
               }}
-              error={addressErrorFor('street')}
+              error={errorFor('address', 'street')}
               placeholder="e.g. No. 24, Galle Road"
               icon="home-outline"
             />
@@ -647,20 +731,20 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                     setCity(text);
                     setErrors((c) => ({ ...c, address: undefined }));
                   }}
-                  error={addressErrorFor('city')}
+                  error={errorFor('address', 'city')}
                   placeholder="e.g. Colombo"
                   icon="business-outline"
                 />
               </View>
               <View style={styles.postalCol}>
                 <Field
-                  label="Postal Code"
+                  label="Postal Code (optional)"
                   value={postal}
                   onChangeText={(text) => {
                     setPostal(text);
                     setErrors((c) => ({ ...c, address: undefined }));
                   }}
-                  error={addressErrorFor('postal')}
+                  error={errorFor('address', 'postal')}
                   placeholder="e.g. 00300"
                   keyboardType="numeric"
                 />
@@ -741,7 +825,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                     <Text
                       style={{ ...T.bodySmall, color: C.textMuted, marginTop: 2 }}
                     >
-                      {urgent ? 'Within 5 hours' : 'Up to 24 hours'}
+                      {urgent ? 'Within 5 hours' : 'Choose your own time'}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -763,8 +847,129 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
               </View>
             )}
 
+            {!isUrgent && (
+              <>
+                <SectionTitle
+                  step="05"
+                  title="When do you need it?"
+                  subtitle="At least 5 hours ahead — your request stays open until then"
+                />
+                <Text
+                  style={{ ...T.label, fontSize: 14, color: C.navy, marginBottom: Spacing.two }}
+                >
+                  Day
+                </Text>
+                <View style={styles.whenRow}>
+                  {dayOptions().map((option) => {
+                    const active = wantedDay === option.key;
+                    return (
+                      <TouchableOpacity
+                        key={option.key}
+                        disabled={!option.available}
+                        onPress={() => {
+                          setWantedDay(option.key);
+                          setWantedTime('');
+                          setErrors((c) => ({ ...c, when: undefined }));
+                        }}
+                        activeOpacity={0.85}
+                        style={[
+                          styles.whenChip,
+                          active && styles.whenChipActive,
+                          !option.available && styles.whenChipDisabled,
+                          !!errors.when && !active && option.available && {
+                            borderColor: C.error,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            ...T.labelStrong,
+                            fontSize: 14,
+                            color: active ? C.white : C.navy,
+                          }}
+                        >
+                          {option.label}
+                        </Text>
+                        <Text
+                          style={{
+                            ...T.bodySmall,
+                            fontSize: 12,
+                            color: active ? C.white : C.textMuted,
+                            marginTop: 1,
+                          }}
+                        >
+                          {option.available ? option.sub : 'No slots left today'}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {dayError && <ErrorText message={dayError} />}
+
+                {!!wantedDay && (
+                  <View style={{ marginTop: Spacing.four }}>
+                    <Text
+                      style={{ ...T.label, fontSize: 14, color: C.navy, marginBottom: Spacing.two }}
+                    >
+                      Time
+                    </Text>
+                    <View style={styles.whenRow}>
+                      {TIME_SLOTS.map((time) => {
+                        const disabled = !slotSelectable(wantedDay, time);
+                        const active = wantedTime === time;
+                        return (
+                          <TouchableOpacity
+                            key={time}
+                            disabled={disabled}
+                            onPress={() => {
+                              setWantedTime(time);
+                              setErrors((c) => ({ ...c, when: undefined }));
+                            }}
+                            activeOpacity={0.85}
+                            style={[
+                              styles.whenChip,
+                              styles.whenChipTime,
+                              active && styles.whenChipActive,
+                              disabled && { opacity: 0.45 },
+                            ]}
+                          >
+                            <Ionicons
+                              name="time-outline"
+                              size={16}
+                              color={active ? C.white : C.teal}
+                              style={{ marginRight: Spacing.two }}
+                            />
+                            <Text
+                              style={{
+                                ...T.labelStrong,
+                                fontSize: 14,
+                                color: active ? C.white : C.navy,
+                              }}
+                            >
+                              {slotLabel(time)}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {timeError && <ErrorText message={timeError} />}
+                    <TouchableOpacity
+                      onPress={() => setUrgency('URGENT')}
+                      style={styles.soonerLink}
+                      accessibilityLabel="Post this as an emergency request instead"
+                    >
+                      <Ionicons name="flash-outline" size={14} color={C.error} />
+                      <Text style={{ ...T.bodySmall, color: C.error }}>
+                        Need it within 5 hours? Post an emergency request
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </>
+            )}
+
             <SectionTitle
-              step="05"
+              step={isUrgent ? '05' : '06'}
               title="Anything else?"
               subtitle="Everything here is optional"
             />
@@ -778,6 +983,20 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
             />
 
             <View style={styles.divider} />
+
+            {!!submitError && (
+              <View style={styles.submitError}>
+                <Ionicons
+                  name="alert-circle"
+                  size={17}
+                  color={C.error}
+                  style={{ marginRight: Spacing.two + 2 }}
+                />
+                <Text style={{ ...T.bodySmall, color: C.error, flex: 1 }}>
+                  {submitError}
+                </Text>
+              </View>
+            )}
 
             <TouchableOpacity
               onPress={handleSubmit}
@@ -1215,6 +1434,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.four,
   },
+  whenRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+  },
+  whenChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexGrow: 1,
+    flexBasis: '28%',
+    minWidth: 120,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: C.teal,
+    backgroundColor: C.offWhite,
+  },
+  whenChipTime: {
+    flexDirection: 'row',
+  },
+  whenChipActive: {
+    backgroundColor: C.teal,
+    borderColor: C.teal,
+    borderStyle: 'solid',
+  },
+  whenChipDisabled: {
+    opacity: 0.4,
+    borderColor: C.cardBorder,
+  },
+  soonerLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    alignSelf: 'flex-start',
+    marginTop: Spacing.three,
+  },
   urgencyOption: {
     flex: 1,
     alignItems: 'center',
@@ -1266,6 +1523,16 @@ const styles = StyleSheet.create({
     backgroundColor: C.cardBorder,
     marginTop: Spacing.five,
     marginBottom: Spacing.four,
+  },
+  submitError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.errorSoft,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: C.error,
+    padding: Spacing.three,
+    marginBottom: Spacing.three,
   },
   submitButton: {
     flexDirection: 'row',

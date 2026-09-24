@@ -1,71 +1,143 @@
 // frontend/src/types/kaveesha-donation.types.ts
+
 // Owner: Kaveesha
 
 export type DonationStatus =
-  | 'PENDING'
-  | 'MATCHED'
-  | 'IN_TRANSIT'
-  | 'COMPLETED'
-  | 'PUBLISHED';
+  | 'pending'
+  | 'active'
+  | 'expiring'
+  | 'completed'
+  | 'cancelled'
+  | 'expired';
 
-export type DonationUrgency = 'NORMAL' | 'MEDIUM' | 'HIGH';
+export type DonationPriority =
+  | 'low'
+  | 'medium'
+  | 'high';
 
-export type DonationTypeOption = 'NORMAL' | 'URGENT';
+export type DonationUrgency =
+  | 'NORMAL'
+  | 'MEDIUM'
+  | 'HIGH';
 
-export type InputMethod = 'MANUAL' | 'VOICE';
+export type DonationTypeOption =
+  | 'NORMAL'
+  | 'URGENT';
+
+export type InputMethod =
+  | 'MANUAL'
+  | 'VOICE';
+
+export type QuantityUnit =
+  | 'kg'
+  | 'g'
+  | 'L'
+  | 'mL'
+  | 'items'
+  | 'boxes'
+  | 'trays'
+  | 'packs'
+  | 'other';
 
 export interface Donation {
   id: string;
-  foodName: string;
-  category: string;
-  quantity: string;
-  portions: number;
-  expiresInHours: number;
-  urgency: DonationUrgency;
+  _id?: string;
+
+  donor?: string;
+
+  donationCode?: string;
+
+  donationType?: DonationTypeOption;
+
+  // Backend fields
+  foodType: string;
+  foodCategory: string;
+
+  quantity: number;
+  quantityUnit?: QuantityUnit;
+
+  numberOfPortions: number;
+
+  preparationTime: string;
+  expiryTime: string;
+
+  availabilityStart?: string;
+  availabilityEnd?: string;
+
+  storageCondition?: string;
+
+  allergenInfo?: string;
+
+  packagingCondition?: string;
+
+  additionalDetails?: string;
+
+  photoUrl?: string | null;
+
+  pickupAddress?: string;
+  pickupDistrict?: string;
+
+  pickupWindowStart?: string | null;
+  pickupWindowEnd?: string | null;
+
+  aiResult?: string;
+  aiReason?: string;
+
+  safety?: {
+    storage: string | null;
+    temperature: string | null;
+    handling: string | null;
+    packaging: string | null;
+    allergens: string | null;
+  };
+
+  priority?: DonationPriority;
+
   status: DonationStatus;
-  imageUrl?: string;
-  pickupLocation: string;
+
+  createdAt?: string;
+  updatedAt?: string;
+
+  // Existing UI compatibility fields
+
+  foodName: string;
+category: string;
+portions: number;
+pickupLocation: string;
+urgency: DonationUrgency;
+expiresInHours: number;
 }
 
 export interface CreateDonationFormState {
   donationType: DonationTypeOption;
+
   inputMethod: InputMethod;
+
   foodType: string;
+
   category: string;
+
   quantity: string;
+
+  quantityUnit: QuantityUnit;
+
   portions: string;
+
   preparationTime: string;
+
   expiryTime: string;
+
   storageCondition: string;
+
   pickupLocation: string;
+
+  pickupDistrict: string;
+
   additionalDetails: string;
+
   photoUri: string | null;
-}
 
-// --- Discovery sections shown below "Your Donations" ---
+  photoBase64?: string | null;
 
-export interface NgoCampaign {
-  id: string;
-  title: string;
-  orgName: string;
-  location: string;
-  goalText: string;
-}
-
-export interface RecipientPreview {
-  id: string;
-  name: string;
-  type: string; // e.g. 'Charity', 'Family', 'School'
-  distanceKm: number;
-  needsText: string;
-}
-
-export interface CommunityPost {
-  id: string;
-  foodName: string;
-  donorName: string;
-  urgency: DonationUrgency;
-  quantity: string;
-  location: string;
-  expiresInHours: number;
+  photoMimeType?: string | null;
 }

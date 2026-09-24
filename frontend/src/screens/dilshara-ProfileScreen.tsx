@@ -136,6 +136,25 @@ export default function ProfileScreen({ navigation }: Props) {
 
       {menuOpen && !isEditing && (
         <View style={styles.menuDropdown}>
+          {profile.role === "VOLUNTEER" && (
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                navigation.navigate("VolunteerAvailability");
+              }}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={18}
+                color={Colors.light.text}
+              />
+              <ThemedText type="default" style={styles.menuItemText}>
+                Delivery Availability
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+
           <TouchableOpacity
             style={styles.menuItem}
             onPress={() => {

@@ -15,6 +15,7 @@ const getDonationsRoute = require("./routes/kaveesha-getDonations.route");
 const updateDonationRoute = require("./routes/kaveesha-updateDonation.route");
 const deleteDonationRoute = require("./routes/kaveesha-deleteDonation.route");
 const foodRequestRoutes = require("./routes/dushani-foodRequestRoutes");
+const volunteerAvailabilityRoutes = require("./routes/dilshara-volunteerAvailabilityRoutes");
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use("/api/donor/donations", deleteDonationRoute);
 app.use("/api/donor/donations", createDonationRoute);
 app.use("/api/donor/donations", getDonationsRoute);
 app.use("/api/recipient/food-requests", foodRequestRoutes);
+app.use("/api/volunteer-profile", volunteerAvailabilityRoutes);
 app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
 app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
 app.get("/api/test", (req, res) => {

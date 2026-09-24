@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { getAvailability, updateAvailability } from '@/services/dilshara-availabilityService';
 
 type Day = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
@@ -42,21 +43,26 @@ export default function VolunteerAvailabilityScreen() {
     availableTo: '22:00',
   });
 
-  const [currentDeliveryStatus, setCurrentDeliveryStatus] =
-    useState<CurrentDeliveryStatus>('IDLE');
+  // Still local/static for now — this will come from the assignment system
+  // once that exists (see dilshara-allocationEligibility.service.js notes).
+  const [currentDeliveryStatus] = useState<CurrentDeliveryStatus>('IDLE');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // TODO(RESQ-132/133): replace with GET /api/volunteer/availability once
-  // the data model + API exist, so the screen restores saved state instead
-  // of resetting to defaults every time it opens.
+  // RESQ-132/133: loads the volunteer's saved availability from the backend
+  // so the screen restores real state instead of resetting to defaults
+  // every time it opens.
   useEffect(() => {
     const loadAvailability = async () => {
       try {
-        // const response = await api.get('/volunteer-profile/availability');
-        // setForm(response.data.availability);
-        // setCurrentDeliveryStatus(response.data.currentDeliveryStatus);
+        const data = await getAvailability();
+        setForm({
+          availabilityStatus: data.availabilityStatus,
+          availableDays: data.availableDays as Day[],
+          availableFrom: data.availableFrom,
+          availableTo: data.availableTo,
+        });
       } catch (err) {
         Alert.alert('Error', 'Could not load your saved availability.');
       } finally {
@@ -100,6 +106,7 @@ export default function VolunteerAvailabilityScreen() {
     return null;
   };
 
+  // RESQ-133: saves the volunteer's availability to the backend.
   const handleSave = async () => {
     const error = validate();
     if (error) {
@@ -116,10 +123,7 @@ export default function VolunteerAvailabilityScreen() {
 
     setSaving(true);
     try {
-      // TODO(RESQ-133): replace with the real Availability Update API call
-      // once it exists, e.g.:
-      // await api.patch('/volunteer-profile/availability', payload);
-      console.log('Availability payload (stub):', payload);
+      await updateAvailability(payload);
       Alert.alert('Saved', 'Your availability has been updated.');
     } catch (err) {
       Alert.alert('Error', 'Could not save your availability. Please try again.');

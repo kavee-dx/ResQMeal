@@ -13,6 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
+import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import {
@@ -87,6 +88,7 @@ function Backdrop() {
 
 export default function RequestProgressScreen({ navigation, route }: Props) {
   const T = useAppTypography();
+  const displayName = useDisplayName();
   const requestId = route.params?.requestId;
 
   const [data, setData] = useState<FoodRequestProgress | null>(null);
@@ -121,11 +123,7 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
   const meta = data ? OUTCOME_META[data.progress.outcome] : OUTCOME_META.active;
   const request = data?.request;
   const progress = data?.progress;
-  const stepNumber = progress
-    ? progress.outcome === 'complete'
-      ? progress.stepsTotal
-      : progress.stepsCompleted + 1
-    : 0;
+  const stepNumber = progress?.stepsCompleted ?? 0;
 
   return (
     <View style={styles.screen}>
@@ -152,7 +150,7 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
             <Ionicons name="arrow-back" size={22} color={C.navy} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={{ ...T.caption, color: C.amber }}>Recipient</Text>
+            <Text style={{ ...T.caption, color: C.amber }}>{displayName}</Text>
             <Text style={{ ...T.h2, color: C.white, fontSize: 26 }}>
               Request Progress
             </Text>
@@ -269,6 +267,13 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
                   <View style={styles.divider} />
 
                   <DetailRow icon="location-outline" label="Delivery address" value={request.location} />
+                  {request.preferredAt ? (
+                    <DetailRow
+                      icon="calendar-outline"
+                      label="Needed by"
+                      value={formatStamp(request.preferredAt) ?? '—'}
+                    />
+                  ) : null}
                   <DetailRow
                     icon="call-outline"
                     label="Contact number"

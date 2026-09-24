@@ -13,7 +13,7 @@
 const express = require('express');
 const router = express.Router();
 
-const Donation = require('../models/kaveesha-Donation.model');
+const Donation = require('../models/kaveesha-Donation');
 const { requireAuth } = require('../middleware/kaveesha-authMiddleware');
 
 router.delete('/:id', requireAuth, async (req, res) => {

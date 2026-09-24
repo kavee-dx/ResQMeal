@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
-const Donation = require('../models/kaveesha-Donation.model');
+const Donation = require('../models/kaveesha-Donation');
 const { requireAuth } = require('../middleware/kaveesha-authMiddleware');
 
 // GET /api/donor/donations?status=active
 router.get('/', requireAuth, async (req, res) => {
   try {
     const { status } = req.query;
-    const filter = { donor: req.user._id };
+    const filter = { donor: req.user.id };
     if (status && status !== 'all') {
       filter.status = status;
     }
@@ -33,9 +33,9 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/:id', requireAuth, async (req, res) => {
   try {
     const donation = await Donation.findOne({
-      _id: req.params.id,
-      donor: req.user._id,
-    });
+  _id: req.params.id,
+  donor: req.user.id,
+});
 
     if (!donation) {
       return res.status(404).json({

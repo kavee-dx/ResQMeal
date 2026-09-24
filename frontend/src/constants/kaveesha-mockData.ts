@@ -13,6 +13,7 @@ import {
 export const MOCK_IMPACT = {
   mealsRescued: 128,
   activeDonations: 3,
+  peopleHelped: 46,
 };
 
 export const MOCK_CATEGORIES: { id: string; label: string; icon: string }[] = [

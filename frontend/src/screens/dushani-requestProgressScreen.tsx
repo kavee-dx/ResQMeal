@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
+import { useIsWide } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import {
@@ -89,6 +90,7 @@ function Backdrop() {
 
 export default function RequestProgressScreen({ navigation, route }: Props) {
   const T = useAppTypography();
+  const wide = useIsWide();
   const displayName = useDisplayName();
   const requestId = route.params?.requestId;
 
@@ -179,7 +181,7 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        <View style={styles.page}>
+        <View style={[styles.page, wide && styles.pageWide]}>
           <View style={styles.card}>
             {loading ? (
               <View style={styles.centered}>
@@ -223,7 +225,8 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
             ) : (
               data &&
               request && (
-                <>
+                <View style={wide ? styles.columns : undefined}>
+                  <View style={wide ? styles.column : undefined}>
                   <View style={styles.summaryHead}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ ...T.h3, color: C.navy, fontSize: 20 }}>
@@ -329,7 +332,10 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
                     </View>
                   )}
 
-                  <View style={styles.divider} />
+                  </View>
+
+                  <View style={wide ? styles.sideColumn : undefined}>
+                  {!wide && <View style={styles.divider} />}
 
                   <DetailRow icon="location-outline" label="Delivery address" value={request.location} />
                   {request.preferredAt ? (
@@ -365,7 +371,8 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
                     />
                     <Text style={{ ...T.button, color: C.teal }}>Back to my requests</Text>
                   </TouchableOpacity>
-                </>
+                  </View>
+                </View>
               )
             )}
           </View>
@@ -509,6 +516,29 @@ const styles = StyleSheet.create({
     maxWidth: 720,
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
+  },
+  // Near full width on a big screen, with the timeline and the request details
+  // reading as two panels instead of one long strip.
+  pageWide: {
+    maxWidth: 1160,
+    paddingHorizontal: Spacing.five,
+  },
+  columns: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.five,
+  },
+  column: {
+    flex: 1,
+    flexBasis: 0,
+  },
+  sideColumn: {
+    flex: 0,
+    flexBasis: '38%',
+    minWidth: 300,
+    paddingLeft: Spacing.five,
+    borderLeftWidth: 1,
+    borderLeftColor: C.cardBorder,
   },
   topBar: {
     flexDirection: 'row',

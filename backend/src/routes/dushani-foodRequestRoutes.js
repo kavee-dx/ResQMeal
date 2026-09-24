@@ -10,6 +10,10 @@ const { getRequestProgressHandler } = require('../controllers/dushani-requestPro
 const { deleteFoodRequestHandler } = require('../controllers/dushani-deleteFoodRequestController');
 const { updateFoodRequestStatusHandler } = require('../controllers/dushani-updateRequestStatusController');
 const {
+  getRequestMatchesHandler,
+  getRecipientSuggestionsHandler,
+} = require('../controllers/dushani-matchRequestController');
+const {
   getOpenRequestsHandler,
   acceptFoodRequestHandler,
 } = require('../controllers/dushani-requestBoardController');
@@ -34,6 +38,12 @@ router.get('/mine', getMyRequestsHandler);
 // recipients still need. Contact details are withheld until a donor commits.
 router.get('/open', getOpenRequestsHandler);
 
+// GET /api/recipient/food-requests/matches
+// Sprint item 4 — Donation–Request Matching: every request the caller still has
+// waiting, ranked against the live donations by food type, quantity, proximity
+// and urgency. An emergency request's suggestions come out on top.
+router.get('/matches', getRecipientSuggestionsHandler);
+
 // POST /api/recipient/food-requests/:id/accept
 // Only a donor can claim a request; the recipient's progress then reads
 // "Accepted by a donor".
@@ -44,6 +54,10 @@ router.post('/:id/accept', acceptFoodRequestHandler);
 // marks the delivery on the way, and donor, volunteer or recipient marks it
 // delivered. Forward-only.
 router.patch('/:id/status', updateFoodRequestStatusHandler);
+
+// GET /api/recipient/food-requests/:id/matches
+// One of the caller's own requests with the donations scored against it.
+router.get('/:id/matches', getRequestMatchesHandler);
 
 // GET /api/recipient/food-requests/:id/progress
 // Sprint task — Food Request Progress Tracking: one request plus its stage

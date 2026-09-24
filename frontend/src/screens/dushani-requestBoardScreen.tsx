@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
+import { useIsWide } from '../hooks/dushani-useWideLayout';
 import { getRole } from '../utils/kaveesha-authStorage';
 import type { RootStackParamList } from '../navigation/types';
 import {
@@ -114,6 +115,7 @@ function StatTile({
 
 export default function RequestBoardScreen({ navigation }: Props) {
   const T = useAppTypography();
+  const wide = useIsWide();
   const displayName = useDisplayName('Community');
 
   const [requests, setRequests] = useState<OpenFoodRequest[]>([]);
@@ -249,7 +251,7 @@ export default function RequestBoardScreen({ navigation }: Props) {
     return (
       <View
         key={item.id}
-        style={[styles.requestItem, isUrgent && styles.requestItemUrgent]}
+        style={[styles.requestItem, isUrgent && styles.requestItemUrgent, wide && styles.gridItem]}
       >
         <View style={styles.itemHead}>
           <View style={styles.itemIcon}>
@@ -398,7 +400,7 @@ export default function RequestBoardScreen({ navigation }: Props) {
             {tierRequests.length}
           </Text>
         </View>
-        {tierRequests.map((item) => renderItem(item))}
+        <View style={wide ? styles.tierGrid : undefined}>{tierRequests.map((item) => renderItem(item))}</View>
       </View>
     );
   };
@@ -446,7 +448,7 @@ export default function RequestBoardScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.page}>
+        <View style={[styles.page, wide && styles.pageWide]}>
           <View style={styles.card}>
             <View style={styles.cardIntro}>
               <View style={styles.heroIcon}>
@@ -666,6 +668,23 @@ const styles = StyleSheet.create({
     maxWidth: 720,
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
+  },
+  // The board is a wall of cards, so on a wide screen it drops the narrow
+  // column and runs two larger cards side by side.
+  pageWide: {
+    maxWidth: 1160,
+    paddingHorizontal: Spacing.five,
+  },
+  tierGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.four,
+  },
+  gridItem: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    minWidth: 330,
+    marginBottom: 0,
   },
   topBar: {
     flexDirection: 'row',

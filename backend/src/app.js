@@ -17,7 +17,7 @@ const updateDonationRoute = require("./routes/kaveesha-updateDonation.route");
 const deleteDonationRoute = require("./routes/kaveesha-deleteDonation.route");
 const foodRequestRoutes = require("./routes/dushani-foodRequestRoutes");
 const { expireOverdueDonations } = require("./services/kaveesha-donationExpiryService");
-const volunteerAvailabilityRoutes = require("./routes/dilshara-volunteerAvailabilityRoutes");
+const volunteerAvailabilityRoutes = require("./routes/dilshara-volunteerAvailability.routes");
 const assignmentRoutes = require("./routes/dilshara-assignmentRoutes");
 
 const app = express();
@@ -51,7 +51,7 @@ app.use("/api/assignments", assignmentRoutes);
 app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
 app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
 app.use('/api/monitoring/map', require('./routes/amasha-mapRoutes'));
-app.use("/api/ngo/trends", require("./routes/amashaTrendRoutes"));
+app.use("/api/ngo/trends", require("./routes/amasha-TrendRoutes"));
 app.get("/api/test", (req, res) => {
   res.json({
     message: "Frontend connected to backend successfully",

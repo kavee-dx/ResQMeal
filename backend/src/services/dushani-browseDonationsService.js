@@ -1,5 +1,5 @@
 const FoodRequest = require('../models/dushani-foodRequestModel');
-const Donation = require('../models/kaveesha-Donation.model');
+const Donation = require('../models/kaveesha-Donation');
 const User = require('../models/dushani-User');
 const DonorProfile = require('../models/dushani-DonorProfile');
 const { effectiveStatus } = require('./dushani-requestProgressService');

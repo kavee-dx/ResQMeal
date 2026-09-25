@@ -1,35 +1,44 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet, useColorScheme } from "react-native";
 import { Colors, Radius, Spacing, Typography, Shadows } from "@/constants/theme";
-import { Donation } from "@/types/amasha-donation";
-import { EmergencyRequest } from "@/types/amasha-request";
-import {
-  getDonationsTrend,
-  getFulfilledTrend,
-  getFulfillmentRate,
-  getAvgTimeToFulfillmentHours,
-} from "@/utils/amasha-trendMetrics";
 import TrendLineChart from "./amasha-TrendLineChart";
 import api from "@/services/api";
+
+interface TrendPoint {
+  date: string;
+  count: number;
+}
+
+interface TrendSummary {
+  fulfillmentRate: number;
+  avgTimeToFulfillmentHours: number | null;
+}
+
+function dayLabel(dateStr: string): string {
+  return new Date(dateStr).toLocaleDateString(undefined, { weekday: "short" });
+}
 
 export default function FoodRescueTrendsSection() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
 
-  const [donations, setDonations] = useState<Donation[]>([]);
-  const [requests, setRequests] = useState<EmergencyRequest[]>([]);
+  const [donationsTrend, setDonationsTrend] = useState<TrendPoint[]>([]);
+  const [fulfilledTrend, setFulfilledTrend] = useState<TrendPoint[]>([]);
+  const [summary, setSummary] = useState<TrendSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   async function load() {
     try {
       setError(false);
-      const [donationsRes, requestsRes] = await Promise.all([
-        api.get("/ngo/donations"),
-        api.get("/ngo/emergency-requests"),
+      const [donationsRes, fulfilledRes, summaryRes] = await Promise.all([
+        api.get("/ngo/trends/donations?days=7"),
+        api.get("/ngo/trends/fulfilled?days=7"),
+        api.get("/ngo/trends/summary"),
       ]);
-      setDonations(donationsRes.data);
-      setRequests(requestsRes.data);
+      setDonationsTrend(donationsRes.data);
+      setFulfilledTrend(fulfilledRes.data);
+      setSummary(summaryRes.data);
     } catch (err) {
       console.error("Failed to load food rescue trend data", err);
       setError(true);
@@ -50,7 +59,7 @@ export default function FoodRescueTrendsSection() {
     );
   }
 
-  if (error) {
+  if (error || !summary) {
     return (
       <View style={styles.centered}>
         <Text style={[Typography.body, { color: colors.textSecondary, marginBottom: Spacing.two }]}>
@@ -63,10 +72,10 @@ export default function FoodRescueTrendsSection() {
     );
   }
 
-  const donationsTrend = getDonationsTrend(donations, 7);
-  const fulfilledTrend = getFulfilledTrend(requests, 7);
-  const fulfillmentRate = getFulfillmentRate(requests);
-  const avgHours = getAvgTimeToFulfillmentHours(requests);
+  // TrendLineChart expects { label, count }[] — the backend returns { date, count }[],
+  // so labels are derived here rather than duplicating day-formatting logic server-side.
+  const donationsChartData = donationsTrend.map((p) => ({ label: dayLabel(p.date), count: p.count }));
+  const fulfilledChartData = fulfilledTrend.map((p) => ({ label: dayLabel(p.date), count: p.count }));
 
   return (
     <View style={styles.section}>
@@ -78,26 +87,26 @@ export default function FoodRescueTrendsSection() {
         <Text style={[Typography.labelStrong, { color: colors.text, marginBottom: Spacing.two }]}>
           Donations — Last 7 Days
         </Text>
-        <TrendLineChart data={donationsTrend} color={colors.success} />
+        <TrendLineChart data={donationsChartData} color={colors.success} />
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, Shadows.card]}>
         <Text style={[Typography.labelStrong, { color: colors.text, marginBottom: Spacing.two }]}>
           Requests Fulfilled — Last 7 Days
         </Text>
-        <TrendLineChart data={fulfilledTrend} color={colors.info} />
+        <TrendLineChart data={fulfilledChartData} color={colors.info} />
       </View>
 
       <View style={styles.statRow}>
         <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }, Shadows.card]}>
-          <Text style={[Typography.h2, { color: colors.text }]}>{fulfillmentRate}%</Text>
+          <Text style={[Typography.h2, { color: colors.text }]}>{summary.fulfillmentRate}%</Text>
           <Text style={[Typography.bodySmall, { color: colors.textSecondary, marginTop: Spacing.half }]}>
             Fulfillment Rate
           </Text>
         </View>
         <View style={[styles.statCard, { backgroundColor: colors.surface, borderColor: colors.border }, Shadows.card]}>
           <Text style={[Typography.h2, { color: colors.text }]}>
-            {avgHours !== null ? `${avgHours}h` : "—"}
+            {summary.avgTimeToFulfillmentHours !== null ? `${summary.avgTimeToFulfillmentHours}h` : "—"}
           </Text>
           <Text style={[Typography.bodySmall, { color: colors.textSecondary, marginTop: Spacing.half }]}>
             Avg. Time to Fulfillment

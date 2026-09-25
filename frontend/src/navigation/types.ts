@@ -43,8 +43,11 @@ export type RootStackParamList = {
   NotificationSettings: undefined;
   PrivacySettings: undefined;
 
-  // NEW — volunteer availability screen
+  // volunteer availability screen
   VolunteerAvailability: undefined;
+
+  // NEW — volunteer assignment status screen
+  AssignmentStatus: undefined;
 
   AdminLogin: undefined;
   AdminDashboard: undefined;
@@ -87,6 +90,7 @@ const ROLE_MENUS: Record<Role, MenuItem[]> = {
   VOLUNTEER: [
     { key: "home", label: "Home", screen: "VolunteerHome" },
     { key: "availability", label: "Availability", screen: "VolunteerAvailability" },
+    { key: "assignment", label: "My Assignment", screen: "AssignmentStatus" },
   ],
 };
 

@@ -34,6 +34,7 @@ import FoodRescueRequestsScreen from "../screens/kaveesha-FoodRescueRequestsScre
 import NGOCommunitiesScreen from "../screens/kaveesha-NGOCommunitiesScreen";
 import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
 import RequestBoardScreen from "../screens/dushani-requestBoardScreen";
+import AssignmentStatusScreen from "../screens/dilshara-AssignmentStatusScreen"; // NEW
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -112,6 +113,12 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen
           name="VolunteerAvailability"
           component={VolunteerAvailabilityScreen}
+        />
+
+        {/* NEW — volunteer assignment status screen */}
+        <Stack.Screen
+          name="AssignmentStatus"
+          component={AssignmentStatusScreen}
         />
 
         {/* Main Dashboards */}

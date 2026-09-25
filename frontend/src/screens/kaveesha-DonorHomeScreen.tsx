@@ -12,7 +12,8 @@
 // All colours, spacing, radius, typography and shadows come from
 // constants/theme.ts (light + dark, follows the device / browser setting).
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -54,7 +55,6 @@ import type { ThemeColor } from '../constants/theme';
 import {
   MOCK_CATEGORIES,
   MOCK_COMMUNITY_POSTS,
-  MOCK_DONATIONS,
   MOCK_IMPACT,
   MOCK_NGO_CAMPAIGNS,
   MOCK_RECIPIENTS,
@@ -64,6 +64,8 @@ import type {
   Donation,
   DonationUrgency,
 } from '../types/kaveesha-donation.types';
+
+import { getDonations } from '../services/kaveesha-donationApi';
 
 /* ========================================================= */
 /* TYPES + CONSTANTS                                          */
@@ -1798,27 +1800,50 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const sectionY = useRef<Partial<Record<SectionKey, number>>>({});
 
-  const [search, setSearch] = useState('');
-  const [postFilter, setPostFilter] = useState<'HIGH' | 'NORMAL'>('HIGH');
-  const [boxWidth, setBoxWidth] = useState(0);
-  const [activeTab, setActiveTab] = useState<SidebarKey>('Home');
-  const [menuOpen, setMenuOpen] = useState(false);
+const [search, setSearch] = useState('');
+const [postFilter, setPostFilter] = useState<'HIGH' | 'NORMAL'>('HIGH');
+const [boxWidth, setBoxWidth] = useState(0);
+const [activeTab, setActiveTab] = useState<SidebarKey>('Home');
+const [menuOpen, setMenuOpen] = useState(false);
+
+const [donations, setDonations] = useState<Donation[]>([]);
+const [donationsLoading, setDonationsLoading] = useState(true);
+
+const loadDonations = useCallback(async () => {
+  try {
+    setDonationsLoading(true);
+
+    const data = await getDonations('all');
+
+    setDonations(data);
+  } catch (error) {
+    console.error('[DonorHome] Failed to load donations:', error);
+    setDonations([]);
+  } finally {
+    setDonationsLoading(false);
+  }
+}, []);
+
+useFocusEffect(
+  useCallback(() => {
+    loadDonations();
+  }, [loadDonations]),
+);
 
   /* ---------- derived data ---------- */
 
   const query = search.trim().toLowerCase();
 
-  const filteredDonations = useMemo(
-    () =>
-      MOCK_DONATIONS.filter(
-        (d) =>
-          !query ||
-          d.foodName.toLowerCase().includes(query) ||
-          d.category.toLowerCase().includes(query),
-      ),
-    [query],
-  );
-
+const filteredDonations = useMemo(
+  () =>
+    donations.filter(
+      (d) =>
+        !query ||
+        d.foodName.toLowerCase().includes(query) ||
+        d.category.toLowerCase().includes(query),
+    ),
+  [donations, query],
+);
   const filteredPosts = useMemo(
     () =>
       MOCK_COMMUNITY_POSTS.filter(
@@ -2395,9 +2420,14 @@ if (tab === 'NGOCommunities') {
                 onViewAll={() => navigation.navigate('MyDonations')}
               />
 
-              {renderCards(
-                filteredDonations,
-                (donation, width) => {
+             {donationsLoading ? (
+  <View style={s.empty}>
+    <Text style={s.emptyText}>Loading your donations...</Text>
+  </View>
+) : (
+  renderCards(
+    filteredDonations,
+    (donation, width) => {
                   const badge = urgencyBadge[donation.urgency];
 
                   return (
@@ -2422,7 +2452,7 @@ if (tab === 'NGOCommunities') {
                   );
                 },
                 'No donations match your search.',
-              )}
+              ))}
             </View>
 
             {/* NGO campaigns */}

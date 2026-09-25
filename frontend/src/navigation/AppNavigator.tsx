@@ -174,25 +174,16 @@ export default function AppNavigator({ initialAuth }: Props) {
         />
 
         {/* Recipient */}
-        <Stack.Screen
-          name="AvailableFood"
-          component={AvailableFoodScreen}
-        />
+
         <Stack.Screen name="AvailableFood" component={AvailableFoodScreen} />
         <Stack.Screen name="FoodRequest" component={FoodRequestScreen} />
         <Stack.Screen name="RequestStatus" component={RequestStatusScreen} />
         <Stack.Screen name="RequestProgress" component={RequestProgressScreen} />
         <Stack.Screen name="RequestBoard" component={RequestBoardScreen} />
 
-        <Stack.Screen
-          name="FoodRequest"
-          component={FoodRequestScreen}
-        />
+        
 
-        <Stack.Screen
-          name="RequestStatus"
-          component={RequestStatusScreen}
-        />
+        
 
         {/* Admin */}
         <Stack.Screen

@@ -5,6 +5,7 @@ import DonationStatusSection from "@/components/communityMonitoring/amasha-Donat
 import RequestStatusSection from "@/components/communityMonitoring/amasha-RequestStatusSection";
 import { Colors, Spacing } from "@/constants/theme";
 import api from "@/services/api";
+import FoodRescueTrendsSection from "@/components/communityMonitoring/amasha-FoodRescueTrendsSection";
 
 interface CommunityStats {
   activeCampaigns: number;
@@ -43,6 +44,7 @@ export default function NgoDashboardScreen() {
       <CommunityStatsSection stats={stats} loading={loading} />
       <RequestStatusSection />
       <DonationStatusSection />
+      <FoodRescueTrendsSection />
     </ScrollView>
   );
 }

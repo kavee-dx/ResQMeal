@@ -14,22 +14,27 @@ export default function AmashaMonitoringMapScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDonations = useCallback(async () => {
+  const loadMapPoints = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/monitoring/map/donations');
-      setLocations(res.data.points ?? []);
+      const [donationsRes, requestsRes] = await Promise.all([
+        api.get('/monitoring/map/donations'),
+        api.get('/monitoring/map/requests'),
+      ]);
+      const donationPoints: RescueLocation[] = donationsRes.data.points ?? [];
+      const requestPoints: RescueLocation[] = requestsRes.data.points ?? [];
+      setLocations([...donationPoints, ...requestPoints]);
     } catch (err) {
-      setError('Could not load donation locations. Pull to refresh or try again.');
+      setError('Could not load map locations. Pull to refresh or try again.');
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadDonations();
-  }, [loadDonations]);
+    loadMapPoints();
+  }, [loadMapPoints]);
 
   if (loading) {
     return (

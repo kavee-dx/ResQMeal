@@ -79,7 +79,32 @@ exports.updateAssignmentStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: "Could not update status." });
   }
 };
+// RESQ-203
+exports.getAssignmentProgressForDonation = async (req, res) => {
+  try {
+    const { donationId } = req.params;
+    const assignment = await Assignment.findOne({ donationId }).sort({ createdAt: -1 });
 
+    if (!assignment) {
+      return res.status(200).json({ success: true, progress: null });
+    }
+
+    return res.status(200).json({
+      success: true,
+      progress: {
+        status: assignment.status,
+        assignedAt: assignment.assignedAt,
+        acceptedAt: assignment.acceptedAt,
+        pickedUpAt: assignment.pickedUpAt,
+        inTransitAt: assignment.inTransitAt,
+        deliveredAt: assignment.deliveredAt,
+      },
+    });
+  } catch (err) {
+    console.error("getAssignmentProgressForDonation error:", err);
+    return res.status(500).json({ success: false, message: "Could not load progress." });
+  }
+};
 // TEMPORARY — lets you demo the Assignment flow before the donor
 // request + AI matching flow exists. Remove once that's wired up.
 exports.createTestAssignment = async (req, res) => {

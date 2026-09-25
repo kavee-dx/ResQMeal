@@ -50,6 +50,7 @@ app.use("/api/volunteer-profile", volunteerAvailabilityRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
 app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
+app.use('/api/monitoring/map', require('./routes/amasha-mapRoutes'));
 app.get("/api/test", (req, res) => {
   res.json({
     message: "Frontend connected to backend successfully",

@@ -1,59 +1,148 @@
-// frontend/src/styles/kaveesha-theme.ts
-// Shared design tokens for the ResQMeal donor-facing screens.
-// Owner: Kaveesha
-
 export const colors = {
-  primary: '#1B5E3F',
-  primaryDark: '#123D29',
-  primaryLight: '#3E8E5C',
-  accent: '#A8D5BA',
-  accentSoft: '#E8F3EA',
-  background: '#F7F6F1',
+  // --------------------------------------------------
+  // Primary - Navy
+  // --------------------------------------------------
+  primary: '#023047',
+  primaryDark: '#011C2E',
+  primaryLight: '#D6E4EA',
+
+  // --------------------------------------------------
+  // Secondary / Accent - Orange
+  // --------------------------------------------------
+  accent: '#FB8500',
+  accentSoft: '#FFE8D1',
+
+  // --------------------------------------------------
+  // Main surfaces
+  // --------------------------------------------------
+  background: '#F6F8FA',
   surface: '#FFFFFF',
-  urgent: '#C0392B',
-  urgentSoft: '#FBE7E4',
-  medium: '#D98E04',
-  mediumSoft: '#FDF1DC',
-  info: '#0E7C86',
-  infoSoft: '#E1F1F2',
-  textPrimary: '#1B1B1B',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#ECEAE2',
+
+  // --------------------------------------------------
+  // Status colors
+  // --------------------------------------------------
+  success: '#3FA34D',
+  successSoft: '#E2F2E5',
+
+  urgent: '#D64545',
+  urgentSoft: '#F9E3E3',
+
+  medium: '#FFB703',
+  mediumSoft: '#FFF3D6',
+
+  info: '#126782',
+  infoSoft: '#E1EEF2',
+
+  // --------------------------------------------------
+  // Text
+  // --------------------------------------------------
+  textPrimary: '#023047',
+  textSecondary: '#4D6470',
+  textMuted: '#8A9AA3',
+
+  // --------------------------------------------------
+  // Borders
+  // --------------------------------------------------
+  border: '#D7E3E7',
+  borderLight: '#E6EEF1',
+
+  // --------------------------------------------------
+  // Common
+  // --------------------------------------------------
   white: '#FFFFFF',
-};
+} as const;
 
-// Requires: npx expo install expo-font @expo-google-fonts/poppins @expo-google-fonts/playfair-display
-// See kaveesha-README.md for the App.tsx font-loading snippet.
+// --------------------------------------------------
+// Typography
+// --------------------------------------------------
+
 export const fonts = {
-  heading: 'PlayfairDisplay_700Bold',
-  headingItalic: 'PlayfairDisplay_600SemiBold_Italic',
-  body: 'Poppins_400Regular',
-  bodyMedium: 'Poppins_500Medium',
-  bodySemiBold: 'Poppins_600SemiBold',
-  bodyBold: 'Poppins_700Bold',
-};
+  heading: 'System',
+  headingItalic: 'System',
 
-// Named typography styles — spread these directly into a <Text style={...}>
-// instead of hand-picking fontFamily/fontSize each time, so hierarchy stays
-// consistent across every screen.
+  body: 'System',
+  bodyMedium: 'System',
+  bodySemiBold: 'System',
+  bodyBold: 'System',
+} as const;
+
 export const typography = {
   kicker: {
-    fontFamily: fonts.bodySemiBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 11,
-    letterSpacing: 1.4,
+    lineHeight: 16,
+    fontWeight: '700' as const,
+    letterSpacing: 0.7,
     textTransform: 'uppercase' as const,
   },
-  h1: { fontFamily: fonts.heading, fontSize: 28, letterSpacing: 0.2 },
-  h2: { fontFamily: fonts.heading, fontSize: 20, letterSpacing: 0.2 },
-  h3: { fontFamily: fonts.heading, fontSize: 16, letterSpacing: 0.2 },
-  bodyLg: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21 },
-  body: { fontFamily: fonts.body, fontSize: 13, lineHeight: 19 },
-  bodySmall: { fontFamily: fonts.body, fontSize: 11.5, lineHeight: 16 },
-  label: { fontFamily: fonts.bodyMedium, fontSize: 12.5 },
-  cardTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
-  button: { fontFamily: fonts.bodySemiBold, fontSize: 15, letterSpacing: 0.2 },
-};
+
+  h1: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 30,
+    lineHeight: 38,
+    fontWeight: '700' as const,
+  },
+
+  h2: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 24,
+    lineHeight: 32,
+    fontWeight: '700' as const,
+  },
+
+  h3: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 19,
+    lineHeight: 27,
+    fontWeight: '600' as const,
+  },
+
+  bodyLg: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400' as const,
+  },
+
+  body: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    lineHeight: 23,
+    fontWeight: '400' as const,
+  },
+
+  bodySmall: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: '400' as const,
+  },
+
+  label: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600' as const,
+  },
+
+  cardTitle: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600' as const,
+  },
+
+  button: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '700' as const,
+  },
+} as const;
+
+// --------------------------------------------------
+// Border Radius
+// --------------------------------------------------
 
 export const radius = {
   sm: 8,
@@ -61,7 +150,11 @@ export const radius = {
   lg: 20,
   xl: 28,
   pill: 999,
-};
+} as const;
+
+// --------------------------------------------------
+// Spacing
+// --------------------------------------------------
 
 export const spacing = {
   xs: 4,
@@ -69,21 +162,43 @@ export const spacing = {
   md: 16,
   lg: 24,
   xl: 32,
-};
+} as const;
+
+// --------------------------------------------------
+// Shadows
+// --------------------------------------------------
 
 export const shadow = {
   card: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
+    shadowColor: '#023047',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 4,
   },
+
   soft: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#023047',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
-};
+
+  button: {
+    shadowColor: '#FB8500',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+} as const;

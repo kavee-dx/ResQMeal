@@ -41,13 +41,13 @@
           "microphonePermission": "Allow ResQMeal to access your microphone so you can fill in donation details by voice."
         }
       ],
-
       [
         "expo-location",
         {
           "locationWhenInUsePermission": "ResQMeal uses your location to show nearby food rescue activity and support pickup or delivery."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "reactCompiler": true

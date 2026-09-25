@@ -1,4 +1,4 @@
-const Donation = require('../models/kaveesha-Donation.model');
+const Donation = require('../models/kaveesha-Donation');
 const districtCoordinates = require('../data/amasha-sriLankaDistricts');
 
 const CANDIDATE_STATUSES = ['active', 'expiring', 'pending'];

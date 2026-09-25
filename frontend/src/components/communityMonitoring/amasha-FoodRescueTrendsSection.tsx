@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet, useColorScheme } from "react-native";
 import { Colors, Radius, Spacing, Typography, Shadows } from "@/constants/theme";
-import TrendLineChart from "./amasha-TrendLineChart";
+import { TrendPoint, TrendSeries } from "@/types/amasha-chart";
+import MultiSeriesTrendChart from "./amasha-MultiSeriesTrendChart";
+import TrendBarChart from "./amasha-TrendBarChart";
 import api from "@/services/api";
 
-interface TrendPoint {
+interface RawTrendPoint {
   date: string;
   count: number;
 }
@@ -16,6 +18,10 @@ interface TrendSummary {
 
 function dayLabel(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, { weekday: "short" });
+}
+
+function toChartPoints(raw: RawTrendPoint[]): TrendPoint[] {
+  return raw.map((p) => ({ label: dayLabel(p.date), count: p.count }));
 }
 
 export default function FoodRescueTrendsSection() {
@@ -36,8 +42,8 @@ export default function FoodRescueTrendsSection() {
         api.get("/ngo/trends/fulfilled?days=7"),
         api.get("/ngo/trends/summary"),
       ]);
-      setDonationsTrend(donationsRes.data);
-      setFulfilledTrend(fulfilledRes.data);
+      setDonationsTrend(toChartPoints(donationsRes.data));
+      setFulfilledTrend(toChartPoints(fulfilledRes.data));
       setSummary(summaryRes.data);
     } catch (err) {
       console.error("Failed to load food rescue trend data", err);
@@ -72,10 +78,10 @@ export default function FoodRescueTrendsSection() {
     );
   }
 
-  // TrendLineChart expects { label, count }[] — the backend returns { date, count }[],
-  // so labels are derived here rather than duplicating day-formatting logic server-side.
-  const donationsChartData = donationsTrend.map((p) => ({ label: dayLabel(p.date), count: p.count }));
-  const fulfilledChartData = fulfilledTrend.map((p) => ({ label: dayLabel(p.date), count: p.count }));
+  const combinedSeries: TrendSeries[] = [
+    { name: "Donations", color: colors.success, data: donationsTrend },
+    { name: "Fulfilled", color: colors.info, data: fulfilledTrend },
+  ];
 
   return (
     <View style={styles.section}>
@@ -85,16 +91,16 @@ export default function FoodRescueTrendsSection() {
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, Shadows.card]}>
         <Text style={[Typography.labelStrong, { color: colors.text, marginBottom: Spacing.two }]}>
-          Donations — Last 7 Days
+          Donations vs. Fulfilled — Last 7 Days
         </Text>
-        <TrendLineChart data={donationsChartData} color={colors.success} />
+        <MultiSeriesTrendChart series={combinedSeries} />
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, Shadows.card]}>
         <Text style={[Typography.labelStrong, { color: colors.text, marginBottom: Spacing.two }]}>
-          Requests Fulfilled — Last 7 Days
+          Donations by Day (This Week)
         </Text>
-        <TrendLineChart data={fulfilledChartData} color={colors.info} />
+        <TrendBarChart data={donationsTrend} color={colors.success} />
       </View>
 
       <View style={styles.statRow}>
@@ -120,21 +126,7 @@ export default function FoodRescueTrendsSection() {
 const styles = StyleSheet.create({
   section: { paddingHorizontal: Spacing.three, paddingTop: Spacing.four },
   centered: { alignItems: "center", justifyContent: "center", paddingVertical: Spacing.six },
-  card: {
-    padding: Spacing.three,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    marginBottom: Spacing.three,
-  },
-  statRow: {
-    flexDirection: "row",
-    gap: Spacing.two,
-  },
-  statCard: {
-    flex: 1,
-    padding: Spacing.three,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    alignItems: "center",
-  },
+  card: { padding: Spacing.three, borderRadius: Radius.lg, borderWidth: 1, marginBottom: Spacing.three },
+  statRow: { flexDirection: "row", gap: Spacing.two },
+  statCard: { flex: 1, padding: Spacing.three, borderRadius: Radius.lg, borderWidth: 1, alignItems: "center" },
 });

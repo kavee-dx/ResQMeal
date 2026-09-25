@@ -11,4 +11,5 @@ export interface EmergencyRequest {
   location?: string;
   requestedAt: string;
   expiresAt: string;
+  fulfilledAt?: string;
 }

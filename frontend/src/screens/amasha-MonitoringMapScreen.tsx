@@ -5,6 +5,7 @@ import { useColorScheme } from 'react-native';
 import api from '@/services/api';
 import { RescueLocation } from '@/types/amasha-map';
 import AmashaBaseMap from '@/components/communityMonitoring/amasha-BaseMap';
+import AmashaLocationDetailsSheet from '@/components/communityMonitoring/amasha-LocationDetailsSheet';
 
 export default function AmashaMonitoringMapScreen() {
   const scheme = useColorScheme() ?? 'light';
@@ -13,6 +14,7 @@ export default function AmashaMonitoringMapScreen() {
   const [locations, setLocations] = useState<RescueLocation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<RescueLocation | null>(null);
 
   const loadMapPoints = useCallback(async () => {
     setLoading(true);
@@ -54,7 +56,11 @@ export default function AmashaMonitoringMapScreen() {
 
   return (
     <View style={styles.container}>
-      <AmashaBaseMap locations={locations} />
+      <AmashaBaseMap locations={locations} onMarkerPress={setSelectedLocation} />
+      <AmashaLocationDetailsSheet
+        location={selectedLocation}
+        onClose={() => setSelectedLocation(null)}
+      />
     </View>
   );
 }

@@ -1,242 +1,48 @@
-import {
+// frontend/src/screens/kaveesha-donationValidation.ts
+// Owner: Kaveesha
+
+import type {
   DonationFormValues,
   DonationFormErrors,
 } from '@/types/kaveesha-donation.types';
 
-const VALID_STORAGE_CONDITIONS = [
-  'Refrigerated',
-  'Frozen',
-  'Room Temperature',
-  'Other',
-];
+/**
+ * Validate YYYY-MM-DD format and make sure it is a real calendar date.
+ */
+function isValidDate(value: string): boolean {
+  const trimmed = value.trim();
 
-export function validateDonationForm(
-  values: DonationFormValues
-): DonationFormErrors {
-  const errors: DonationFormErrors = {};
-
-  // =========================================================
-  // Food Information
-  // =========================================================
-
-  if (!values.foodType?.trim()) {
-    errors.foodType = 'Food type is required';
-  } else if (values.foodType.trim().length < 2) {
-    errors.foodType = 'Food type must contain at least 2 characters';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return false;
   }
 
-  if (!values.foodCategory?.trim()) {
-    errors.foodCategory = 'Food category is required';
-  }
+  const [year, month, day] = trimmed
+    .split('-')
+    .map(Number);
 
-  // =========================================================
-  // Quantity
-  // =========================================================
+  const date = new Date(year, month - 1, day);
 
-  if (!values.quantity?.trim()) {
-    errors.quantity = 'Quantity is required';
-  } else {
-    const quantity = Number(values.quantity);
-
-    if (!Number.isFinite(quantity)) {
-      errors.quantity = 'Quantity must be a valid number';
-    } else if (quantity <= 0) {
-      errors.quantity = 'Quantity must be greater than 0';
-    }
-  }
-
-  // =========================================================
-  // Number of Portions
-  // =========================================================
-
-  if (!values.numberOfPortions?.trim()) {
-    errors.numberOfPortions = 'Number of portions is required';
-  } else {
-    const portions = Number(values.numberOfPortions);
-
-    if (!Number.isFinite(portions)) {
-      errors.numberOfPortions =
-        'Number of portions must be a valid number';
-    } else if (portions <= 0) {
-      errors.numberOfPortions =
-        'Number of portions must be greater than 0';
-    } else if (!Number.isInteger(portions)) {
-      errors.numberOfPortions =
-        'Number of portions must be a whole number';
-    }
-  }
-
-  // =========================================================
-  // Preparation Time
-  // =========================================================
-
-  if (!values.preparationTime?.trim()) {
-    errors.preparationTime = 'Preparation time is required';
-  } else {
-    const preparationDate = new Date(values.preparationTime);
-
-    if (Number.isNaN(preparationDate.getTime())) {
-      errors.preparationTime =
-        'Please enter a valid preparation date and time';
-    }
-  }
-
-  // =========================================================
-  // Expiry Time
-  // =========================================================
-
-  if (!values.expiryTime?.trim()) {
-    errors.expiryTime = 'Expiry time is required';
-  } else {
-    const expiryDate = new Date(values.expiryTime);
-
-    if (Number.isNaN(expiryDate.getTime())) {
-      errors.expiryTime =
-        'Please enter a valid expiry date and time';
-    }
-
-    if (values.preparationTime?.trim()) {
-      const preparationDate = new Date(values.preparationTime);
-
-      if (
-        !Number.isNaN(preparationDate.getTime()) &&
-        !Number.isNaN(expiryDate.getTime()) &&
-        expiryDate <= preparationDate
-      ) {
-        errors.expiryTime =
-          'Expiry time must be after preparation time';
-      }
-    }
-  }
-
-  // =========================================================
-  // Storage Condition
-  // =========================================================
-
-  if (!values.storageCondition?.trim()) {
-    errors.storageCondition = 'Storage condition is required';
-  } else if (
-    !VALID_STORAGE_CONDITIONS.includes(values.storageCondition)
-  ) {
-    errors.storageCondition =
-      'Please select a valid storage condition';
-  }
-
-  // =========================================================
-  // Allergen Information
-  // =========================================================
-
-  if (!values.allergenInfo?.trim()) {
-    errors.allergenInfo =
-      'Please provide allergen information or enter "None"';
-  } else if (values.allergenInfo.trim().length > 200) {
-    errors.allergenInfo =
-      'Allergen information cannot exceed 200 characters';
-  }
-
-  // =========================================================
-  // Packaging Condition
-  // =========================================================
-
-  if (!values.packagingCondition?.trim()) {
-    errors.packagingCondition =
-      'Packaging condition is required';
-  } else if (values.packagingCondition.trim().length < 3) {
-    errors.packagingCondition =
-      'Please provide a valid packaging condition';
-  }
-
-  // =========================================================
-  // Pickup Address
-  // =========================================================
-
-  if (!values.pickupAddress?.trim()) {
-    errors.pickupAddress = 'Pickup address is required';
-  } else if (values.pickupAddress.trim().length < 5) {
-    errors.pickupAddress =
-      'Please provide a more complete pickup address';
-  }
-
-  // =========================================================
-  // Pickup District
-  // =========================================================
-
-  if (!values.pickupDistrict?.trim()) {
-    errors.pickupDistrict = 'Pickup district is required';
-  } else if (values.pickupDistrict.trim().length < 2) {
-    errors.pickupDistrict = 'Please enter a valid district';
-  }
-
-  // =========================================================
-  // Pickup Window Start
-  // =========================================================
-
-  if (!values.pickupWindowStart?.trim()) {
-    errors.pickupWindowStart =
-      'Pickup start time is required';
-  }
-
-  // =========================================================
-  // Pickup Window End
-  // =========================================================
-
-  if (!values.pickupWindowEnd?.trim()) {
-    errors.pickupWindowEnd =
-      'Pickup end time is required';
-  }
-
-  // =========================================================
-  // Pickup Time Validation
-  // =========================================================
-
-  if (
-    values.pickupWindowStart?.trim() &&
-    values.pickupWindowEnd?.trim()
-  ) {
-    const startTime = parseTime(values.pickupWindowStart);
-    const endTime = parseTime(values.pickupWindowEnd);
-
-    if (startTime === null) {
-      errors.pickupWindowStart =
-        'Please enter a valid time, e.g. 5:30 PM';
-    }
-
-    if (endTime === null) {
-      errors.pickupWindowEnd =
-        'Please enter a valid time, e.g. 6:00 PM';
-    }
-
-    if (
-      startTime !== null &&
-      endTime !== null &&
-      endTime <= startTime
-    ) {
-      errors.pickupWindowEnd =
-        'Pickup end time must be after start time';
-    }
-  }
-
-  return errors;
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
 }
 
-// =========================================================
-// Helper: Convert pickup time to minutes
-// =========================================================
-
+/**
+ * Convert a time such as:
+ *
+ * 5:30 PM
+ * 10:00 AM
+ * 17:30
+ *
+ * into minutes after midnight.
+ */
 function parseTime(time: string): number | null {
   const value = time.trim().toUpperCase();
 
-  /*
-   * Supported:
-   *
-   * 5:30 PM
-   * 05:30 PM
-   * 17:30
-   * 5:30
-   */
-
   const match = value.match(
-    /^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/
+    /^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/,
   );
 
   if (!match) {
@@ -247,12 +53,10 @@ function parseTime(time: string): number | null {
   const minutes = Number(match[2]);
   const period = match[3];
 
-  // Validate minutes
   if (minutes < 0 || minutes > 59) {
     return null;
   }
 
-  // 12-hour format
   if (period) {
     if (hours < 1 || hours > 12) {
       return null;
@@ -267,10 +71,7 @@ function parseTime(time: string): number | null {
         hours += 12;
       }
     }
-  }
-
-  // 24-hour format
-  else {
+  } else {
     if (hours < 0 || hours > 23) {
       return null;
     }
@@ -279,12 +80,297 @@ function parseTime(time: string): number | null {
   return hours * 60 + minutes;
 }
 
-// =========================================================
-// Check whether form has no validation errors
-// =========================================================
+/**
+ * Combine a date and time into a local timestamp.
+ *
+ * Used only for comparison during validation.
+ */
+function parseDateTime(
+  dateValue: string,
+  timeValue: string,
+): number | null {
+  if (!isValidDate(dateValue)) {
+    return null;
+  }
+
+  const minutes = parseTime(timeValue);
+
+  if (minutes === null) {
+    return null;
+  }
+
+  const [year, month, day] = dateValue
+    .split('-')
+    .map(Number);
+
+  const date = new Date(
+    year,
+    month - 1,
+    day,
+    0,
+    0,
+    0,
+    0,
+  );
+
+  date.setMinutes(minutes);
+
+  return date.getTime();
+}
+
+export function validateDonationForm(
+  values: DonationFormValues,
+): DonationFormErrors {
+  const errors: DonationFormErrors = {};
+
+  /*
+   * ---------------------------------------------------------
+   * Donation type
+   * ---------------------------------------------------------
+   */
+
+  if (
+    values.donationType !== 'NORMAL' &&
+    values.donationType !== 'URGENT'
+  ) {
+    errors.donationType = 'Please select a donation type';
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Food information
+   * ---------------------------------------------------------
+   */
+
+  if (!values.foodType?.trim()) {
+    errors.foodType = 'Food type is required';
+  } else if (values.foodType.trim().length < 2) {
+    errors.foodType =
+      'Food type must contain at least 2 characters';
+  } else if (values.foodType.trim().length > 100) {
+    errors.foodType =
+      'Food type cannot exceed 100 characters';
+  }
+
+  if (!values.category?.trim()) {
+    errors.category = 'Food category is required';
+  }
+
+  if (!values.quantity?.trim()) {
+    errors.quantity = 'Quantity is required';
+  } else {
+    const quantity = Number(values.quantity);
+
+    if (!Number.isFinite(quantity)) {
+      errors.quantity =
+        'Quantity must be a valid number';
+    } else if (quantity <= 0) {
+      errors.quantity =
+        'Quantity must be greater than 0';
+    }
+  }
+
+  if (!values.portions?.trim()) {
+    errors.portions =
+      'Number of portions is required';
+  } else {
+    const portions = Number(values.portions);
+
+    if (!Number.isFinite(portions)) {
+      errors.portions =
+        'Number of portions must be a valid number';
+    } else if (portions <= 0) {
+      errors.portions =
+        'Number of portions must be greater than 0';
+    } else if (!Number.isInteger(portions)) {
+      errors.portions =
+        'Number of portions must be a whole number';
+    }
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Preparation
+   * ---------------------------------------------------------
+   */
+
+  if (!values.preparationDate?.trim()) {
+    errors.preparationDate =
+      'Preparation date is required';
+  } else if (!isValidDate(values.preparationDate)) {
+    errors.preparationDate =
+      'Use the format YYYY-MM-DD';
+  }
+
+  if (!values.preparationTime?.trim()) {
+    errors.preparationTime =
+      'Preparation time is required';
+  } else if (
+    parseTime(values.preparationTime) === null
+  ) {
+    errors.preparationTime =
+      'Enter a valid time, e.g. 10:00 AM';
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Expiry
+   * ---------------------------------------------------------
+   */
+
+  if (!values.expiryDate?.trim()) {
+    errors.expiryDate =
+      'Expiry date is required';
+  } else if (!isValidDate(values.expiryDate)) {
+    errors.expiryDate =
+      'Use the format YYYY-MM-DD';
+  }
+
+  if (!values.expiryTime?.trim()) {
+    errors.expiryTime =
+      'Expiry time is required';
+  } else if (
+    parseTime(values.expiryTime) === null
+  ) {
+    errors.expiryTime =
+      'Enter a valid time, e.g. 8:00 PM';
+  }
+
+  const preparationTimestamp =
+    parseDateTime(
+      values.preparationDate,
+      values.preparationTime,
+    );
+
+  const expiryTimestamp =
+    parseDateTime(
+      values.expiryDate,
+      values.expiryTime,
+    );
+
+  if (
+    preparationTimestamp !== null &&
+    expiryTimestamp !== null &&
+    expiryTimestamp <= preparationTimestamp
+  ) {
+    errors.expiryDate =
+      'Expiry must be after preparation date and time';
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Pickup information
+   * ---------------------------------------------------------
+   */
+
+  if (!values.pickupLocation?.trim()) {
+    errors.pickupLocation =
+      'Pickup address is required';
+  } else if (
+    values.pickupLocation.trim().length < 5
+  ) {
+    errors.pickupLocation =
+      'Please provide a more complete pickup address';
+  }
+
+  if (!values.pickupDistrict?.trim()) {
+    errors.pickupDistrict =
+      'Pickup district is required';
+  } else if (
+    values.pickupDistrict.trim().length < 2
+  ) {
+    errors.pickupDistrict =
+      'Please enter a valid district';
+  }
+
+  /*
+   * Pickup start
+   */
+
+  if (!values.pickupAvailableFromDate?.trim()) {
+    errors.pickupAvailableFromDate =
+      'Pickup start date is required';
+  } else if (
+    !isValidDate(values.pickupAvailableFromDate)
+  ) {
+    errors.pickupAvailableFromDate =
+      'Use the format YYYY-MM-DD';
+  }
+
+  if (!values.pickupAvailableFromTime?.trim()) {
+    errors.pickupAvailableFromTime =
+      'Pickup start time is required';
+  } else if (
+    parseTime(values.pickupAvailableFromTime) === null
+  ) {
+    errors.pickupAvailableFromTime =
+      'Enter a valid time, e.g. 5:00 PM';
+  }
+
+  /*
+   * Pickup end
+   */
+
+  if (!values.pickupAvailableUntilDate?.trim()) {
+    errors.pickupAvailableUntilDate =
+      'Pickup end date is required';
+  } else if (
+    !isValidDate(values.pickupAvailableUntilDate)
+  ) {
+    errors.pickupAvailableUntilDate =
+      'Use the format YYYY-MM-DD';
+  }
+
+  if (!values.pickupAvailableUntilTime?.trim()) {
+    errors.pickupAvailableUntilTime =
+      'Pickup end time is required';
+  } else if (
+    parseTime(values.pickupAvailableUntilTime) === null
+  ) {
+    errors.pickupAvailableUntilTime =
+      'Enter a valid time, e.g. 8:00 PM';
+  }
+
+  const pickupStartTimestamp =
+    parseDateTime(
+      values.pickupAvailableFromDate,
+      values.pickupAvailableFromTime,
+    );
+
+  const pickupEndTimestamp =
+    parseDateTime(
+      values.pickupAvailableUntilDate,
+      values.pickupAvailableUntilTime,
+    );
+
+  if (
+    pickupStartTimestamp !== null &&
+    pickupEndTimestamp !== null &&
+    pickupEndTimestamp <= pickupStartTimestamp
+  ) {
+    errors.pickupAvailableUntilDate =
+      'Pickup end must be after pickup start';
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Additional details
+   * ---------------------------------------------------------
+   */
+
+  if (
+    values.additionalDetails &&
+    values.additionalDetails.trim().length > 500
+  ) {
+    errors.additionalDetails =
+      'Additional details cannot exceed 500 characters';
+  }
+
+  return errors;
+}
 
 export function isFormValid(
-  errors: DonationFormErrors
+  errors: DonationFormErrors,
 ): boolean {
   return Object.keys(errors).length === 0;
 }

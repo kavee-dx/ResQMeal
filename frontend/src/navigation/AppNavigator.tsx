@@ -25,6 +25,7 @@ import RegistrationPendingScreen from "../screens/amasha-RegistrationPendingScre
 import CreateDonationScreen from "@/navigation/kaveesha-CreateDonationNavigator";
 import MyDonationsScreen from "@/screens/kaveesha-MyDonationsScreen";
 import DonationDetailScreen from "@/screens/kaveesha-DonationDetailScreen";
+import EditDonationScreen from "@/screens/kaveesha-EditDonationScreen";
 import OnboardingScreen from "../screens/kaveesha-OnboardingScreen";
 import AvailableFoodScreen from "../screens/dushani-availableFoodScreen";
 import FoodRequestScreen from "../screens/dushani-foodRequestScreen";
@@ -159,19 +160,24 @@ export default function AppNavigator({ initialAuth }: Props) {
 
         {/* Donor */}
         <Stack.Screen
-          name="CreateDonation"
-          component={CreateDonationScreen}
-        />
+  name="CreateDonation"
+  component={CreateDonationScreen}
+/>
 
-        <Stack.Screen
-          name="MyDonations"
-          component={MyDonationsScreen}
-        />
+<Stack.Screen
+  name="MyDonations"
+  component={MyDonationsScreen}
+/>
 
-        <Stack.Screen
-          name="DonationDetail"
-          component={DonationDetailScreen}
-        />
+<Stack.Screen
+  name="DonationDetail"
+  component={DonationDetailScreen}
+/>
+
+<Stack.Screen
+  name="EditDonation"
+  component={EditDonationScreen}
+/>
 
         {/* Recipient */}
 

@@ -57,13 +57,24 @@ export interface CreateDonationState {
 
   portions: string;
 
+  // Food timing
+  preparationDate: string;
   preparationTime: string;
+
+  expiryDate: string;
   expiryTime: string;
 
   storageCondition: StorageCondition;
 
   pickupLocation: string;
   pickupDistrict: string;
+
+  // Pickup availability
+  pickupAvailableFromDate: string;
+  pickupAvailableFromTime: string;
+
+  pickupAvailableUntilDate: string;
+  pickupAvailableUntilTime: string;
 
   additionalDetails: string;
 
@@ -78,6 +89,10 @@ export interface CreateDonationState {
 }
 
 const INITIAL_STATE: CreateDonationState = {
+  /*
+   * This value is automatically recalculated from
+   * the expiry date/time inside DetailsScreen.
+   */
   donationType: 'NORMAL',
 
   foodType: '',
@@ -88,13 +103,22 @@ const INITIAL_STATE: CreateDonationState = {
 
   portions: '',
 
+  preparationDate: '',
   preparationTime: '',
+
+  expiryDate: '',
   expiryTime: '',
 
   storageCondition: 'Room Temperature',
 
   pickupLocation: '',
   pickupDistrict: '',
+
+  pickupAvailableFromDate: '',
+  pickupAvailableFromTime: '',
+
+  pickupAvailableUntilDate: '',
+  pickupAvailableUntilTime: '',
 
   additionalDetails: '',
 
@@ -131,7 +155,9 @@ interface CreateDonationContextValue {
 }
 
 const CreateDonationContext =
-  createContext<CreateDonationContextValue | undefined>(undefined);
+  createContext<CreateDonationContextValue | undefined>(
+    undefined,
+  );
 
 export function CreateDonationProvider({
   children,

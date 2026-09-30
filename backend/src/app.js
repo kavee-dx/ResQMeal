@@ -60,9 +60,12 @@ app.get("/api/test", (req, res) => {
 
 cron.schedule("*/15 * * * *", async () => {
   try {
-    const count = await expireOverdueDonations();
-    if (count > 0) {
-      console.log(`Expired ${count} donation(s).`);
+    const result = await expireOverdueDonations();
+
+    if (result.success && result.modifiedCount > 0) {
+      console.log(
+        `Expired ${result.modifiedCount} donation(s).`
+      );
     }
   } catch (err) {
     console.error("Donation expiry job failed:", err);
@@ -71,10 +74,10 @@ cron.schedule("*/15 * * * *", async () => {
 
 // Run an expiry check immediately when the backend starts.
 expireOverdueDonations()
-  .then((count) => {
-    if (count > 0) {
+  .then((result) => {
+    if (result.success && result.modifiedCount > 0) {
       console.log(
-        `Initial expiry check: expired ${count} donation(s).`
+        `Initial expiry check: expired ${result.modifiedCount} donation(s).`
       );
     }
   })

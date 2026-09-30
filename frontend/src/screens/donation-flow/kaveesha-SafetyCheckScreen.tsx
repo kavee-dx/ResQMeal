@@ -47,6 +47,17 @@ interface Question {
   options: string[];
 }
 
+interface SafetyConcern {
+  label: string;
+  message: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}
+
+interface UncertainItem {
+  label: string;
+  message: string;
+}
+
 const QUESTIONS: Question[] = [
   {
     key: 'storage',
@@ -101,17 +112,79 @@ export default function SafetyCheckScreen({ navigation }: Props) {
 
   const [showResult, setShowResult] = useState(false);
 
+  /*
+   * Every safety question must be answered before
+   * the donor can perform the safety check.
+   */
   const allAnswered = QUESTIONS.every(
     (question) => state.safety[question.key] !== null,
   );
 
-  const hasBlockingConcern = useMemo(
-    () =>
-      state.safety.storage === 'NO' ||
-      state.safety.handling === 'NO' ||
-      state.safety.packaging === 'NO',
-    [state.safety],
-  );
+  /*
+   * These three answers are treated as blocking concerns.
+   *
+   * Temperature = NOT_SURE and Allergens = NOT_SURE
+   * are not automatically treated as blocking concerns.
+   * They are shown as uncertain information instead.
+   */
+  const safetyConcerns = useMemo<SafetyConcern[]>(() => {
+    const concerns: SafetyConcern[] = [];
+
+    if (state.safety.storage === 'NO') {
+      concerns.push({
+        label: 'Storage',
+        message: 'Food was not stored appropriately.',
+        icon: 'archive-outline',
+      });
+    }
+
+    if (state.safety.handling === 'NO') {
+      concerns.push({
+        label: 'Handling',
+        message: 'Hygienic food handling was not confirmed.',
+        icon: 'hand-left-outline',
+      });
+    }
+
+    if (state.safety.packaging === 'NO') {
+      concerns.push({
+        label: 'Packaging',
+        message:
+          'The food container was reported as not clean or intact.',
+        icon: 'cube-outline',
+      });
+    }
+
+    return concerns;
+  }, [state.safety]);
+
+  const hasBlockingConcern = safetyConcerns.length > 0;
+
+  /*
+   * Information that is uncertain but does not automatically
+   * block the donation.
+   */
+  const uncertainItems = useMemo<UncertainItem[]>(() => {
+    const items: UncertainItem[] = [];
+
+    if (state.safety.temperature === 'NOT_SURE') {
+      items.push({
+        label: 'Temperature',
+        message:
+          'Temperature control could not be confirmed.',
+      });
+    }
+
+    if (state.safety.allergens === 'NOT_SURE') {
+      items.push({
+        label: 'Allergens',
+        message:
+          'Allergen information could not be confirmed.',
+      });
+    }
+
+    return items;
+  }, [state.safety]);
 
   const answeredCount = QUESTIONS.filter(
     (question) => state.safety[question.key] !== null,
@@ -119,15 +192,21 @@ export default function SafetyCheckScreen({ navigation }: Props) {
 
   const aiResult = state.aiResult;
 
+  /*
+   * AI is only decision support.
+   * It is deliberately displayed separately from the
+   * questionnaire result.
+   */
   const aiStatus = useMemo(() => {
     switch (aiResult) {
       case 'GOOD':
         return {
           icon: 'checkmark-circle-outline' as const,
-          title: 'AI visual screening completed',
+          title: 'AI screening completed',
+          shortLabel: 'GOOD',
           message:
             'No obvious visual concern was identified from the submitted photo.',
-          background: colors.accentSoft,
+          background: colors.successSoft,
           iconColor: colors.success,
         };
 
@@ -135,6 +214,7 @@ export default function SafetyCheckScreen({ navigation }: Props) {
         return {
           icon: 'alert-circle-outline' as const,
           title: 'Manual review recommended',
+          shortLabel: 'REVIEW',
           message:
             'The photo contains something that may need closer attention.',
           background: colors.accentSoft,
@@ -145,6 +225,7 @@ export default function SafetyCheckScreen({ navigation }: Props) {
         return {
           icon: 'close-circle-outline' as const,
           title: 'Visual concern identified',
+          shortLabel: 'CONCERN',
           message:
             'The photo contains a visible indicator that should be considered before continuing.',
           background: colors.urgentSoft,
@@ -154,9 +235,10 @@ export default function SafetyCheckScreen({ navigation }: Props) {
       default:
         return {
           icon: 'information-circle-outline' as const,
-          title: 'AI screening was not performed',
+          title: 'AI screening not performed',
+          shortLabel: 'NOT PERFORMED',
           message:
-            'AI visual screening is optional. Continue using the information you can personally verify.',
+            'AI visual screening was optional. Continue using the information you can personally verify.',
           background: colors.primaryLight,
           iconColor: colors.info,
         };
@@ -168,6 +250,13 @@ export default function SafetyCheckScreen({ navigation }: Props) {
     option: string,
   ) {
     updateSafety(question.key, option as any);
+
+    /*
+     * If the donor changes an answer after seeing a result,
+     * the previous result is no longer valid.
+     *
+     * They must perform the safety check again.
+     */
     setShowResult(false);
   }
 
@@ -181,7 +270,8 @@ export default function SafetyCheckScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {/* Header */}
+      {/* ========================= HEADER ========================= */}
+
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.iconCircleButton}
@@ -218,12 +308,13 @@ export default function SafetyCheckScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Intro */}
+        {/* ========================= INTRO ========================= */}
+
         <View style={styles.introCard}>
           <View style={styles.introIcon}>
             <Ionicons
               name="shield-checkmark-outline"
-              size={24}
+              size={25}
               color={colors.primary}
             />
           </View>
@@ -234,14 +325,16 @@ export default function SafetyCheckScreen({ navigation }: Props) {
             </Text>
 
             <Text style={styles.introText}>
-              Answer these quick questions based on what you know
-              about the food. This checklist provides decision
-              support and does not confirm that food is safe to eat.
+              Answer these quick questions based on what you
+              know about the food. This checklist provides
+              decision support and does not confirm that food
+              is safe to eat.
             </Text>
           </View>
         </View>
 
-        {/* AI Status */}
+        {/* ========================= AI STATUS ========================= */}
+
         <View
           style={[
             styles.aiStatusCard,
@@ -253,7 +346,7 @@ export default function SafetyCheckScreen({ navigation }: Props) {
           <View style={styles.aiStatusIcon}>
             <Ionicons
               name={aiStatus.icon}
-              size={20}
+              size={21}
               color={aiStatus.iconColor}
             />
           </View>
@@ -290,9 +383,10 @@ export default function SafetyCheckScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* Section Header */}
+        {/* ========================= SECTION HEADER ========================= */}
+
         <View style={styles.sectionHeader}>
-          <View>
+          <View style={styles.sectionHeaderLeft}>
             <Text style={styles.sectionEyebrow}>
               FINAL CHECK
             </Text>
@@ -302,7 +396,21 @@ export default function SafetyCheckScreen({ navigation }: Props) {
             </Text>
           </View>
 
-          <View style={styles.progressBadge}>
+          <View
+            style={[
+              styles.progressBadge,
+              answeredCount === QUESTIONS.length &&
+                styles.progressBadgeComplete,
+            ]}
+          >
+            {answeredCount === QUESTIONS.length ? (
+              <Ionicons
+                name="checkmark"
+                size={13}
+                color={colors.white}
+              />
+            ) : null}
+
             <Text style={styles.progressBadgeText}>
               {answeredCount}/{QUESTIONS.length}
             </Text>
@@ -310,11 +418,12 @@ export default function SafetyCheckScreen({ navigation }: Props) {
         </View>
 
         <Text style={styles.sectionDescription}>
-          Please answer every question before continuing to the
-          final review.
+          Please answer every question before performing the
+          final safety check.
         </Text>
 
-        {/* Questions */}
+        {/* ========================= QUESTIONS ========================= */}
+
         {QUESTIONS.map((question, index) => {
           const selectedValue = state.safety[question.key];
 
@@ -328,10 +437,24 @@ export default function SafetyCheckScreen({ navigation }: Props) {
               ]}
             >
               <View style={styles.questionTopRow}>
-                <View style={styles.questionNumber}>
-                  <Text style={styles.questionNumberText}>
-                    {index + 1}
-                  </Text>
+                <View
+                  style={[
+                    styles.questionNumber,
+                    selectedValue !== null &&
+                      styles.questionNumberAnswered,
+                  ]}
+                >
+                  {selectedValue !== null ? (
+                    <Ionicons
+                      name="checkmark"
+                      size={14}
+                      color={colors.white}
+                    />
+                  ) : (
+                    <Text style={styles.questionNumberText}>
+                      {index + 1}
+                    </Text>
+                  )}
                 </View>
 
                 <View style={styles.questionIconWrap}>
@@ -420,7 +543,8 @@ export default function SafetyCheckScreen({ navigation }: Props) {
           );
         })}
 
-        {/* Not Sure Information */}
+        {/* ========================= NOT SURE INFO ========================= */}
+
         <View style={styles.infoCard}>
           <View style={styles.infoIcon}>
             <Ionicons
@@ -436,14 +560,15 @@ export default function SafetyCheckScreen({ navigation }: Props) {
             </Text>
 
             <Text style={styles.infoText}>
-              Choose “Not sure” when you genuinely cannot verify
-              the information. This helps avoid making assumptions
-              about the food.
+              Choose “Not sure” when you genuinely cannot
+              verify the information. This helps avoid making
+              assumptions about the food.
             </Text>
           </View>
         </View>
 
-        {/* Result */}
+        {/* ========================= RESULT ========================= */}
+
         {showResult ? (
           <View
             style={[
@@ -453,65 +578,318 @@ export default function SafetyCheckScreen({ navigation }: Props) {
                 : styles.resultCardSuccess,
             ]}
           >
-            <View
-              style={[
-                styles.resultIcon,
-                hasBlockingConcern
-                  ? styles.resultIconDanger
-                  : styles.resultIconSuccess,
-              ]}
-            >
-              <Ionicons
-                name={
-                  hasBlockingConcern
-                    ? 'close-circle'
-                    : 'checkmark-circle'
-                }
-                size={24}
-                color={
-                  hasBlockingConcern
-                    ? colors.urgent
-                    : colors.success
-                }
-              />
-            </View>
+            {/* Result Header */}
 
-            <View style={styles.resultContent}>
-              <Text
+            <View style={styles.resultHeader}>
+              <View
                 style={[
-                  styles.resultTitle,
-                  {
-                    color: hasBlockingConcern
-                      ? colors.urgent
-                      : colors.success,
-                  },
+                  styles.resultIcon,
+                  hasBlockingConcern
+                    ? styles.resultIconDanger
+                    : styles.resultIconSuccess,
                 ]}
               >
-                {hasBlockingConcern
-                  ? 'Donation cannot continue'
-                  : 'Safety information complete'}
-              </Text>
+                <Ionicons
+                  name={
+                    hasBlockingConcern
+                      ? 'close-circle'
+                      : 'checkmark-circle'
+                  }
+                  size={26}
+                  color={
+                    hasBlockingConcern
+                      ? colors.urgent
+                      : colors.success
+                  }
+                />
+              </View>
 
-              <Text style={styles.resultMessage}>
-                {hasBlockingConcern
-                  ? 'A concern was identified in the storage, handling, or packaging information. Please do not continue with this donation.'
-                  : 'All required safety information has been provided. This does not guarantee that the food is safe to eat.'}
-              </Text>
+              <View style={styles.resultHeaderContent}>
+                <Text
+                  style={[
+                    styles.resultEyebrow,
+                    {
+                      color: hasBlockingConcern
+                        ? colors.urgent
+                        : colors.success,
+                    },
+                  ]}
+                >
+                  SAFETY ASSESSMENT
+                </Text>
 
-              {!hasBlockingConcern ? (
+                <Text
+                  style={[
+                    styles.resultTitle,
+                    {
+                      color: hasBlockingConcern
+                        ? colors.urgent
+                        : colors.success,
+                    },
+                  ]}
+                >
+                  {hasBlockingConcern
+                    ? 'SAFETY CONCERN'
+                    : 'SAFETY CHECK PASSED'}
+                </Text>
+              </View>
+            </View>
+
+            {/* ==================== BLOCKING CONCERN ==================== */}
+
+            {hasBlockingConcern ? (
+              <>
+                <View style={styles.warningMessageBox}>
+                  <View style={styles.warningIconCircle}>
+                    <Ionicons
+                      name="warning-outline"
+                      size={20}
+                      color={colors.urgent}
+                    />
+                  </View>
+
+                  <View style={styles.warningMessageContent}>
+                    <Text style={styles.warningMessageTitle}>
+                      This food should not be donated.
+                    </Text>
+
+                    <Text style={styles.warningMessageText}>
+                      A potential food-safety concern was
+                      reported in the required checklist.
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Reported Concerns */}
+
+                <View style={styles.concernsSection}>
+                  <Text style={styles.concernsSectionTitle}>
+                    REPORTED CONCERNS
+                  </Text>
+
+                  {safetyConcerns.map((concern) => (
+                    <View
+                      key={concern.label}
+                      style={styles.concernItem}
+                    >
+                      <View style={styles.concernIcon}>
+                        <Ionicons
+                          name="close"
+                          size={14}
+                          color={colors.urgent}
+                        />
+                      </View>
+
+                      <View style={styles.concernContent}>
+                        <View style={styles.concernLabelRow}>
+                          <Ionicons
+                            name={concern.icon}
+                            size={15}
+                            color={colors.urgent}
+                          />
+
+                          <Text style={styles.concernLabel}>
+                            {concern.label}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.concernMessage}>
+                          {concern.message}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* Final Warning */}
+
+                <View style={styles.finalWarning}>
+                  <Ionicons
+                    name="ban-outline"
+                    size={19}
+                    color={colors.urgent}
+                  />
+
+                  <Text style={styles.finalWarningText}>
+                    This donation cannot continue through
+                    ResQMeal.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                {/* ==================== PASSED ==================== */}
+
+                <View style={styles.passedMessageBox}>
+                  <View style={styles.passedIconCircle}>
+                    <Ionicons
+                      name="checkmark"
+                      size={18}
+                      color={colors.success}
+                    />
+                  </View>
+
+                  <View style={styles.passedMessageContent}>
+                    <Text style={styles.passedMessageTitle}>
+                      Required information completed
+                    </Text>
+
+                    <Text style={styles.passedMessageText}>
+                      No blocking concern was reported in the
+                      required safety checklist.
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Uncertain Information */}
+
+                {uncertainItems.length > 0 ? (
+                  <View style={styles.uncertainSection}>
+                    <View style={styles.uncertainHeader}>
+                      <Ionicons
+                        name="alert-circle-outline"
+                        size={17}
+                        color={colors.accent}
+                      />
+
+                      <Text style={styles.uncertainTitle}>
+                        INFORMATION UNCERTAIN
+                      </Text>
+                    </View>
+
+                    {uncertainItems.map((item) => (
+                      <View
+                        key={item.label}
+                        style={styles.uncertainItem}
+                      >
+                        <View style={styles.uncertainBullet}>
+                          <View />
+                        </View>
+
+                        <View style={styles.uncertainContent}>
+                          <Text style={styles.uncertainLabel}>
+                            {item.label}
+                          </Text>
+
+                          <Text style={styles.uncertainMessage}>
+                            {item.message}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+
                 <View style={styles.resultDisclaimer}>
                   <Ionicons
                     name="information-circle-outline"
-                    size={15}
+                    size={16}
                     color={colors.textSecondary}
                   />
 
                   <Text style={styles.resultDisclaimerText}>
-                    Recipients should still use their own judgement
-                    when accepting donated food.
+                    This checklist does not guarantee that the
+                    food is safe to eat. Recipients should still
+                    use their own judgement when accepting
+                    donated food.
                   </Text>
                 </View>
-              ) : null}
+              </>
+            )}
+
+            {/* ==================== AI RESULT ==================== */}
+
+            <View style={styles.aiResultSection}>
+              <View style={styles.aiResultHeader}>
+                <View style={styles.aiResultIcon}>
+                  <Ionicons
+                    name="sparkles-outline"
+                    size={17}
+                    color={colors.primary}
+                  />
+                </View>
+
+                <View style={styles.aiResultHeaderText}>
+                  <Text style={styles.aiResultTitle}>
+                    AI VISUAL SCREENING
+                  </Text>
+
+                  <Text style={styles.aiResultSubtitle}>
+                    Optional decision support
+                  </Text>
+                </View>
+              </View>
+
+              {aiResult === 'PENDING' ? (
+                <View style={styles.aiResultRow}>
+                  <View style={styles.aiResultStatusIcon}>
+                    <Ionicons
+                      name="remove-circle-outline"
+                      size={19}
+                      color={colors.textMuted}
+                    />
+                  </View>
+
+                  <View style={styles.aiResultContent}>
+                    <Text style={styles.aiResultMainText}>
+                      Not performed
+                    </Text>
+
+                    <Text style={styles.aiResultDescription}>
+                      AI visual screening was optional and was
+                      not performed for this donation.
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.aiResultRow,
+                    {
+                      backgroundColor: aiStatus.background,
+                    },
+                  ]}
+                >
+                  <View style={styles.aiResultStatusIcon}>
+                    <Ionicons
+                      name={aiStatus.icon}
+                      size={19}
+                      color={aiStatus.iconColor}
+                    />
+                  </View>
+
+                  <View style={styles.aiResultContent}>
+                    <Text
+                      style={[
+                        styles.aiResultMainText,
+                        {
+                          color: aiStatus.iconColor,
+                        },
+                      ]}
+                    >
+                      {aiStatus.shortLabel}
+                    </Text>
+
+                    <Text style={styles.aiResultDescription}>
+                      {aiStatus.message}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.aiDisclaimer}>
+                <Ionicons
+                  name="information-circle-outline"
+                  size={14}
+                  color={colors.textMuted}
+                />
+
+                <Text style={styles.aiDisclaimerText}>
+                  AI visual screening is food-safety decision
+                  support only. A photo cannot confirm whether
+                  food is actually safe or unsafe.
+                </Text>
+              </View>
             </View>
           </View>
         ) : null}
@@ -519,7 +897,8 @@ export default function SafetyCheckScreen({ navigation }: Props) {
         <View style={styles.bottomSpace} />
       </ScrollView>
 
-      {/* Footer */}
+      {/* ========================= FOOTER ========================= */}
+
       <View style={styles.footer}>
         {!showResult ? (
           <TouchableOpacity
@@ -532,15 +911,15 @@ export default function SafetyCheckScreen({ navigation }: Props) {
             onPress={handleCheckSafety}
             activeOpacity={0.85}
           >
-            <Text style={styles.continueText}>
-              Check Safety Information
-            </Text>
-
             <Ionicons
               name="shield-checkmark-outline"
               size={19}
               color={colors.white}
             />
+
+            <Text style={styles.continueText}>
+              Check Safety Information
+            </Text>
           </TouchableOpacity>
         ) : hasBlockingConcern ? (
           <TouchableOpacity
@@ -551,7 +930,7 @@ export default function SafetyCheckScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Ionicons
-              name="close-outline"
+              name="close-circle-outline"
               size={19}
               color={colors.urgent}
             />
@@ -589,6 +968,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+
+  /* ========================= HEADER ========================= */
 
   header: {
     flexDirection: 'row',
@@ -631,10 +1012,14 @@ const styles = StyleSheet.create({
     width: 40,
   },
 
+  /* ========================= SCROLL ========================= */
+
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
   },
+
+  /* ========================= INTRO ========================= */
 
   introCard: {
     flexDirection: 'row',
@@ -648,9 +1033,9 @@ const styles = StyleSheet.create({
   },
 
   introIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -672,6 +1057,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 20,
   },
+
+  /* ========================= AI TOP CARD ========================= */
 
   aiStatusCard: {
     flexDirection: 'row',
@@ -734,11 +1121,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
+  /* ========================= SECTION ========================= */
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     marginBottom: 5,
+  },
+
+  sectionHeaderLeft: {
+    flex: 1,
+    paddingRight: spacing.sm,
   },
 
   sectionEyebrow: {
@@ -755,10 +1149,17 @@ const styles = StyleSheet.create({
   },
 
   progressBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.primary,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: radius.pill,
+  },
+
+  progressBadgeComplete: {
+    backgroundColor: colors.success,
   },
 
   progressBadgeText: {
@@ -773,6 +1174,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     lineHeight: 19,
   },
+
+  /* ========================= QUESTIONS ========================= */
 
   questionCard: {
     backgroundColor: colors.surface,
@@ -801,6 +1204,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 7,
+  },
+
+  questionNumberAnswered: {
+    backgroundColor: colors.success,
   },
 
   questionNumberText: {
@@ -907,6 +1314,8 @@ const styles = StyleSheet.create({
     color: colors.white,
   },
 
+  /* ========================= INFO ========================= */
+
   infoCard: {
     flexDirection: 'row',
     backgroundColor: colors.primaryLight,
@@ -941,13 +1350,14 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
+  /* ========================= RESULT CARD ========================= */
+
   resultCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
     borderRadius: radius.xl,
     padding: spacing.md,
     marginTop: spacing.md,
     borderWidth: 1,
+    overflow: 'hidden',
   },
 
   resultCardSuccess: {
@@ -960,14 +1370,19 @@ const styles = StyleSheet.create({
     borderColor: colors.urgent,
   },
 
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+
   resultIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.sm,
-    backgroundColor: colors.white,
   },
 
   resultIconSuccess: {
@@ -978,25 +1393,222 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
 
-  resultContent: {
+  resultHeaderContent: {
     flex: 1,
+  },
+
+  resultEyebrow: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    marginBottom: 3,
   },
 
   resultTitle: {
     ...typography.label,
-    marginBottom: 5,
   },
 
-  resultMessage: {
+  /* ========================= DANGER MESSAGE ========================= */
+
+  warningMessageBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.urgentSoft,
+  },
+
+  warningIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.urgentSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+
+  warningMessageContent: {
+    flex: 1,
+  },
+
+  warningMessageTitle: {
+    ...typography.label,
+    color: colors.urgent,
+    marginBottom: 4,
+  },
+
+  warningMessageText: {
     ...typography.bodySmall,
     color: colors.textSecondary,
-    lineHeight: 19,
+    lineHeight: 18,
   },
+
+  /* ========================= CONCERNS ========================= */
+
+  concernsSection: {
+    marginTop: spacing.xs,
+  },
+
+  concernsSectionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.urgent,
+    letterSpacing: 1.1,
+    marginBottom: spacing.sm,
+  },
+
+  concernItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+  },
+
+  concernIcon: {
+    width: 23,
+    height: 23,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+
+  concernContent: {
+    flex: 1,
+  },
+
+  concernLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 2,
+  },
+
+  concernLabel: {
+    ...typography.label,
+    color: colors.textPrimary,
+  },
+
+  concernMessage: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 17,
+  },
+
+  finalWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+  },
+
+  finalWarningText: {
+    ...typography.bodySmall,
+    color: colors.urgent,
+    fontWeight: '700',
+    flex: 1,
+    marginLeft: 7,
+  },
+
+  /* ========================= PASSED ========================= */
+
+  passedMessageBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+
+  passedIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.successSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+
+  passedMessageContent: {
+    flex: 1,
+  },
+
+  passedMessageTitle: {
+    ...typography.label,
+    color: colors.success,
+    marginBottom: 4,
+  },
+
+  passedMessageText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+
+  /* ========================= UNCERTAIN ========================= */
+
+  uncertainSection: {
+    backgroundColor: colors.accentSoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+
+  uncertainHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+
+  uncertainTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.accent,
+    letterSpacing: 1,
+    marginLeft: 6,
+  },
+
+  uncertainItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 7,
+  },
+
+  uncertainBullet: {
+    width: 18,
+    alignItems: 'center',
+    paddingTop: 6,
+  },
+
+  uncertainContent: {
+    flex: 1,
+  },
+
+  uncertainLabel: {
+    ...typography.label,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+
+  uncertainMessage: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 17,
+  },
+
+  /* ========================= DISCLAIMER ========================= */
 
   resultDisclaimer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -1006,13 +1618,107 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.textSecondary,
     flex: 1,
-    marginLeft: 5,
+    marginLeft: 6,
     lineHeight: 17,
   },
+
+  /* ========================= AI RESULT ========================= */
+
+  aiResultSection: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+
+  aiResultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+
+  aiResultIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  aiResultHeaderText: {
+    flex: 1,
+    marginLeft: 8,
+  },
+
+  aiResultTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 1.1,
+  },
+
+  aiResultSubtitle: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+
+  aiResultRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+  },
+
+  aiResultStatusIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  aiResultContent: {
+    flex: 1,
+    marginLeft: 8,
+  },
+
+  aiResultMainText: {
+    ...typography.label,
+    color: colors.textPrimary,
+    marginBottom: 3,
+  },
+
+  aiResultDescription: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+
+  aiDisclaimer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: spacing.sm,
+  },
+
+  aiDisclaimerText: {
+    ...typography.bodySmall,
+    color: colors.textMuted,
+    lineHeight: 17,
+    flex: 1,
+    marginLeft: 5,
+  },
+
+  /* ========================= BOTTOM ========================= */
 
   bottomSpace: {
     height: 130,
   },
+
+  /* ========================= FOOTER ========================= */
 
   footer: {
     paddingHorizontal: spacing.lg,

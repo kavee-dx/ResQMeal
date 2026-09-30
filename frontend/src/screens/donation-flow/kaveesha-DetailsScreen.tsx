@@ -1,4 +1,10 @@
-import React, { useMemo, useState } from 'react';
+// frontend/src/screens/donation-flow/kaveesha-DetailsScreen.tsx
+
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import {
   ActivityIndicator,
@@ -15,7 +21,6 @@ import {
   View,
 } from 'react-native';
 
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -30,9 +35,28 @@ type Props = NativeStackScreenProps<
   'Details'
 >;
 
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
+type IconName =
+  React.ComponentProps<typeof Ionicons>['name'];
 
-type TimeField = 'preparation' | 'expiry' | null;
+type TimeField =
+  | 'preparation'
+  | 'expiry'
+  | 'pickupFrom'
+  | 'pickupUntil'
+  | null;
+
+type DateField =
+  | 'preparation'
+  | 'expiry'
+  | 'pickupFrom'
+  | 'pickupUntil'
+  | null;
+
+type DropdownType =
+  | 'category'
+  | 'unit'
+  | 'district'
+  | null;
 
 const C = {
   navy: '#023047',
@@ -86,23 +110,101 @@ const UNITS = [
   'other',
 ] as const;
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], {
-    hour: 'numeric',
-    minute: '2-digit',
+const DISTRICTS = [
+  'Ampara',
+  'Anuradhapura',
+  'Badulla',
+  'Batticaloa',
+  'Colombo',
+  'Galle',
+  'Gampaha',
+  'Hambantota',
+  'Jaffna',
+  'Kalutara',
+  'Kandy',
+  'Kegalle',
+  'Kilinochchi',
+  'Kurunegala',
+  'Mannar',
+  'Matale',
+  'Matara',
+  'Monaragala',
+  'Mullaitivu',
+  'Nuwara Eliya',
+  'Polonnaruwa',
+  'Puttalam',
+  'Ratnapura',
+  'Trincomalee',
+  'Vavuniya',
+];
+
+/* ============================================================
+   DATE / TIME HELPERS
+   ============================================================ */
+
+function pad(value: number) {
+  return String(value).padStart(2, '0');
+}
+
+function dateToKey(date: Date) {
+  return `${date.getFullYear()}-${pad(
+    date.getMonth() + 1,
+  )}-${pad(date.getDate())}`;
+}
+
+function formatDateDisplay(value: string) {
+  if (!value) {
+    return 'Select date';
+  }
+
+  const parts = value.split('-');
+
+  if (parts.length !== 3) {
+    return 'Select date';
+  }
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+
+  const date = new Date(year, month - 1, day);
+
+  return date.toLocaleDateString([], {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 }
 
-function parseTime(value: string): Date {
-  const now = new Date();
+function parseDateKey(value: string) {
+  if (!value) {
+    return null;
+  }
 
+  const parts = value.split('-');
+
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+
+  const date = new Date(year, month - 1, day);
+
+  date.setHours(0, 0, 0, 0);
+
+  return date;
+}
+
+function parseTime(value: string) {
   const match = value.match(
     /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i,
   );
 
   if (!match) {
-    now.setHours(12, 0, 0, 0);
-    return now;
+    return null;
   }
 
   let hour = Number(match[1]);
@@ -117,10 +219,44 @@ function parseTime(value: string): Date {
     hour = 0;
   }
 
-  now.setHours(hour, minute, 0, 0);
-
-  return now;
+  return {
+    hour,
+    minute,
+  };
 }
+
+function combineDateTime(
+  dateValue: string,
+  timeValue: string,
+) {
+  const date = parseDateKey(dateValue);
+  const time = parseTime(timeValue);
+
+  if (!date || !time) {
+    return null;
+  }
+
+  date.setHours(
+    time.hour,
+    time.minute,
+    0,
+    0,
+  );
+
+  return date;
+}
+
+function formatTime(
+  hour: number,
+  minute: number,
+  period: 'AM' | 'PM',
+) {
+  return `${hour}:${pad(minute)} ${period}`;
+}
+
+/* ============================================================
+   AI RESULT
+   ============================================================ */
 
 function aiResultConfig(result: string) {
   switch (result) {
@@ -166,52 +302,237 @@ function aiResultConfig(result: string) {
   }
 }
 
+/* ============================================================
+   COMPONENT
+   ============================================================ */
+
 export default function DetailsScreen({
   navigation,
 }: Props) {
   const { state, update } = useCreateDonation();
 
-  const [voiceVisible, setVoiceVisible] = useState(false);
+  const [voiceVisible, setVoiceVisible] =
+    useState(false);
 
-  const [pickingPostPhoto, setPickingPostPhoto] = useState(false);
-  const [pickingAiPhoto, setPickingAiPhoto] = useState(false);
+  const [pickingPostPhoto, setPickingPostPhoto] =
+    useState(false);
 
-  const [aiModalVisible, setAiModalVisible] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
+  const [pickingAiPhoto, setPickingAiPhoto] =
+    useState(false);
 
-  const [aiPhotoUri, setAiPhotoUri] = useState<string | null>(null);
-  const [aiPhotoBase64, setAiPhotoBase64] = useState<string | null>(null);
+  const [aiModalVisible, setAiModalVisible] =
+    useState(false);
+
+  const [aiLoading, setAiLoading] =
+    useState(false);
+
+  const [aiPhotoUri, setAiPhotoUri] =
+    useState<string | null>(null);
+
+  const [aiPhotoBase64, setAiPhotoBase64] =
+    useState<string | null>(null);
+
   const [aiPhotoMimeType, setAiPhotoMimeType] =
     useState<string | null>(null);
 
-  const [timeField, setTimeField] = useState<TimeField>(null);
+  /* TIME PICKER */
 
-  const [iosPickerVisible, setIosPickerVisible] = useState(false);
+  const [timeField, setTimeField] =
+    useState<TimeField>(null);
 
-  const preparationDate = useMemo(
-    () => parseTime(state.preparationTime),
-    [state.preparationTime],
-  );
+  const [timeModalVisible, setTimeModalVisible] =
+    useState(false);
 
-  const expiryDate = useMemo(
-    () => parseTime(state.expiryTime),
-    [state.expiryTime],
-  );
+  const [selectedHour, setSelectedHour] =
+    useState(12);
+
+  const [selectedMinute, setSelectedMinute] =
+    useState(0);
+
+  const [selectedPeriod, setSelectedPeriod] =
+    useState<'AM' | 'PM'>('AM');
+
+  /* DATE PICKER */
+
+  const [dateField, setDateField] =
+    useState<DateField>(null);
+
+  const [dateModalVisible, setDateModalVisible] =
+    useState(false);
+
+  const [calendarMonth, setCalendarMonth] =
+    useState(new Date());
+
+  /* DROPDOWN */
+
+  const [dropdownType, setDropdownType] =
+    useState<DropdownType>(null);
+
+  /* ============================================================
+     GENERIC UPDATE
+     ============================================================ */
+
+  function updateField<K extends keyof typeof state>(
+    field: K,
+    value: (typeof state)[K],
+  ) {
+    update(field, value);
+  }
+
+  /* ============================================================
+     AUTOMATIC DONATION TYPE
+     ============================================================ */
+
+  const calculatedDonationType = useMemo(() => {
+    const expiry = combineDateTime(
+      state.expiryDate,
+      state.expiryTime,
+    );
+
+    if (!expiry) {
+      return null;
+    }
+
+    const now = new Date();
+
+    const remainingHours =
+      (expiry.getTime() - now.getTime()) /
+      (1000 * 60 * 60);
+
+    return remainingHours <= 10
+      ? 'URGENT'
+      : 'NORMAL';
+  }, [
+    state.expiryDate,
+    state.expiryTime,
+  ]);
+
+  useEffect(() => {
+    if (calculatedDonationType) {
+      if (
+        state.donationType !==
+        calculatedDonationType
+      ) {
+        update(
+          'donationType',
+          calculatedDonationType,
+        );
+      }
+    }
+  }, [
+    calculatedDonationType,
+    state.donationType,
+    update,
+  ]);
+
+  /* ============================================================
+     DATE VALIDATION
+     ============================================================ */
+
+  const preparationDateTime =
+    combineDateTime(
+      state.preparationDate,
+      state.preparationTime,
+    );
+
+  const expiryDateTime =
+    combineDateTime(
+      state.expiryDate,
+      state.expiryTime,
+    );
+
+  const pickupFromDateTime =
+    combineDateTime(
+      state.pickupAvailableFromDate,
+      state.pickupAvailableFromTime,
+    );
+
+  const pickupUntilDateTime =
+    combineDateTime(
+      state.pickupAvailableUntilDate,
+      state.pickupAvailableUntilTime,
+    );
+
+  const now = new Date();
+
+  const expiryInPast =
+    !!expiryDateTime &&
+    expiryDateTime.getTime() < now.getTime();
+
+  const preparationAfterExpiry =
+    !!preparationDateTime &&
+    !!expiryDateTime &&
+    expiryDateTime.getTime() <=
+      preparationDateTime.getTime();
+
+  const pickupFromAfterUntil =
+    !!pickupFromDateTime &&
+    !!pickupUntilDateTime &&
+    pickupUntilDateTime.getTime() <=
+      pickupFromDateTime.getTime();
+
+  const pickupBeforeNow =
+    !!pickupFromDateTime &&
+    pickupFromDateTime.getTime() <
+      now.getTime();
+
+  const pickupUntilBeforeNow =
+    !!pickupUntilDateTime &&
+    pickupUntilDateTime.getTime() <
+      now.getTime();
+
+  const pickupAfterExpiry =
+    !!pickupUntilDateTime &&
+    !!expiryDateTime &&
+    pickupUntilDateTime.getTime() >
+      expiryDateTime.getTime();
+
+  const timingError =
+    preparationAfterExpiry ||
+    expiryInPast;
+
+  const pickupError =
+    pickupFromAfterUntil ||
+    pickupBeforeNow ||
+    pickupUntilBeforeNow ||
+    pickupAfterExpiry;
+
+  /* ============================================================
+     CONTINUE VALIDATION
+     ============================================================ */
 
   const canContinue =
     state.foodType.trim().length > 0 &&
+    state.category.trim().length > 0 &&
     Number(state.quantity) > 0 &&
+    state.quantityUnit.trim().length > 0 &&
     Number(state.portions) > 0 &&
-    state.preparationTime.trim().length > 0 &&
-    state.expiryTime.trim().length > 0 &&
-    state.pickupLocation.trim().length > 0;
 
-  function updateField<K extends keyof typeof state>(
-  field: K,
-  value: (typeof state)[K],
-) {
-  update(field, value);
-}
+    state.preparationDate.trim().length > 0 &&
+    state.preparationTime.trim().length > 0 &&
+    state.expiryDate.trim().length > 0 &&
+    state.expiryTime.trim().length > 0 &&
+
+    !!state.donationType &&
+
+    state.storageCondition.trim().length > 0 &&
+    state.pickupLocation.trim().length > 0 &&
+    state.pickupDistrict.trim().length > 0 &&
+
+    state.pickupAvailableFromDate.trim().length > 0 &&
+    state.pickupAvailableFromTime.trim().length > 0 &&
+    state.pickupAvailableUntilDate.trim().length > 0 &&
+    state.pickupAvailableUntilTime.trim().length > 0 &&
+
+    !!state.photoUri &&
+    !!state.photoBase64 &&
+
+    !timingError &&
+    !pickupError;
+
+  /* ============================================================
+     PHOTO PERMISSION
+     ============================================================ */
 
   async function requestPhotoPermission() {
     const permission =
@@ -229,8 +550,13 @@ export default function DetailsScreen({
     return true;
   }
 
+  /* ============================================================
+     POST PHOTO
+     ============================================================ */
+
   async function choosePostPhoto() {
-    const allowed = await requestPhotoPermission();
+    const allowed =
+      await requestPhotoPermission();
 
     if (!allowed) {
       return;
@@ -240,35 +566,52 @@ export default function DetailsScreen({
 
     try {
       const result =
-        await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 0.7,
-          base64: true,
-        });
+        await ImagePicker.launchImageLibraryAsync(
+          {
+            mediaTypes:
+              ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.7,
+            base64: true,
+          },
+        );
 
-      if (result.canceled || !result.assets?.[0]) {
+      if (
+        result.canceled ||
+        !result.assets?.[0]
+      ) {
         return;
       }
 
       const asset = result.assets[0];
 
       updateField('photoUri', asset.uri);
-      updateField('photoBase64', asset.base64 ?? null);
+
+      updateField(
+        'photoBase64',
+        asset.base64 ?? null,
+      );
+
       updateField(
         'photoMimeType',
         asset.mimeType ?? 'image/jpeg',
       );
 
-      /*
-       * A new post photo means the old AI result may no longer
-       * describe the current post photo.
-       */
-      update('aiResult', 'PENDING');
-update('aiReason', '');
+      update(
+        'aiResult',
+        'PENDING',
+      );
+
+      update(
+        'aiReason',
+        '',
+      );
     } catch (error) {
-      console.error('Post photo selection error:', error);
+      console.error(
+        'Post photo selection error:',
+        error,
+      );
 
       Alert.alert(
         'Unable to select photo',
@@ -279,75 +622,93 @@ update('aiReason', '');
     }
   }
 
- async function chooseAiPhoto() {
-  const allowed = await requestPhotoPermission();
+  /* ============================================================
+     AI PHOTO
+     ============================================================ */
 
-  if (!allowed) {
-    return;
-  }
+  async function chooseAiPhoto() {
+    const allowed =
+      await requestPhotoPermission();
 
-  setPickingAiPhoto(true);
-
-  try {
-    const result =
-      await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-        base64: true,
-      });
-
-    if (result.canceled || !result.assets?.[0]) {
+    if (!allowed) {
       return;
     }
 
-    const asset = result.assets[0];
+    setPickingAiPhoto(true);
 
-    /*
-     * The AI photo also becomes the actual post photo.
-     * This keeps the Home feed photo and AI-checked photo
-     * synchronized.
-     */
-    updateField('photoUri', asset.uri);
-    updateField(
-      'photoBase64',
-      asset.base64 ?? null,
-    );
-    updateField(
-      'photoMimeType',
-      asset.mimeType ?? 'image/jpeg',
-    );
+    try {
+      const result =
+        await ImagePicker.launchImageLibraryAsync(
+          {
+            mediaTypes:
+              ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.7,
+            base64: true,
+          },
+        );
 
-    /*
-     * Store the same photo for the AI check.
-     */
-    setAiPhotoUri(asset.uri);
-    setAiPhotoBase64(asset.base64 ?? null);
-    setAiPhotoMimeType(
-      asset.mimeType ?? 'image/jpeg',
-    );
+      if (
+        result.canceled ||
+        !result.assets?.[0]
+      ) {
+        return;
+      }
 
-    /*
-     * A new photo means the previous AI result is no
-     * longer valid until the new photo is checked.
-     */
-    update('aiResult', 'PENDING');
-    update('aiReason', '');
-  } catch (error) {
-    console.error(
-      'AI photo selection error:',
-      error,
-    );
+      const asset = result.assets[0];
 
-    Alert.alert(
-      'Unable to select photo',
-      'Please try selecting another photo.',
-    );
-  } finally {
-    setPickingAiPhoto(false);
+      /*
+       * Keep AI photo and actual post photo synchronized.
+       */
+      updateField(
+        'photoUri',
+        asset.uri,
+      );
+
+      updateField(
+        'photoBase64',
+        asset.base64 ?? null,
+      );
+
+      updateField(
+        'photoMimeType',
+        asset.mimeType ?? 'image/jpeg',
+      );
+
+      setAiPhotoUri(asset.uri);
+
+      setAiPhotoBase64(
+        asset.base64 ?? null,
+      );
+
+      setAiPhotoMimeType(
+        asset.mimeType ?? 'image/jpeg',
+      );
+
+      update(
+        'aiResult',
+        'PENDING',
+      );
+
+      update(
+        'aiReason',
+        '',
+      );
+    } catch (error) {
+      console.error(
+        'AI photo selection error:',
+        error,
+      );
+
+      Alert.alert(
+        'Unable to select photo',
+        'Please try selecting another photo.',
+      );
+    } finally {
+      setPickingAiPhoto(false);
+    }
   }
-}
 
   function usePostPhotoForAi() {
     if (!state.photoBase64) {
@@ -360,14 +721,20 @@ update('aiReason', '');
     }
 
     setAiPhotoUri(state.photoUri);
-    setAiPhotoBase64(state.photoBase64);
+
+    setAiPhotoBase64(
+      state.photoBase64,
+    );
+
     setAiPhotoMimeType(
-      state.photoMimeType ?? 'image/jpeg',
+      state.photoMimeType ??
+        'image/jpeg',
     );
   }
 
   async function runAiScreening() {
-    const imageBase64 = aiPhotoBase64;
+    const imageBase64 =
+      aiPhotoBase64;
 
     if (!imageBase64) {
       Alert.alert(
@@ -378,7 +745,8 @@ update('aiReason', '');
       return;
     }
 
-    const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+    const apiUrl =
+      process.env.EXPO_PUBLIC_API_URL;
 
     if (!apiUrl) {
       Alert.alert(
@@ -397,18 +765,25 @@ update('aiReason', '');
         {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
             imageBase64,
-            mimeType: aiPhotoMimeType ?? 'image/jpeg',
+            mimeType:
+              aiPhotoMimeType ??
+              'image/jpeg',
           }),
         },
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
-      if (!response.ok || !data?.success) {
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
         throw new Error(
           data?.message ||
             data?.error ||
@@ -416,17 +791,27 @@ update('aiReason', '');
         );
       }
 
-      update('aiResult', data.result);
-update('aiReason', data.reason ?? '');
+      update(
+        'aiResult',
+        data.result,
+      );
+
+      update(
+        'aiReason',
+        data.reason ?? '',
+      );
 
       setAiModalVisible(false);
     } catch (error: any) {
-      console.error('AI screening error:', error);
+      console.error(
+        'AI screening error:',
+        error,
+      );
 
       Alert.alert(
         'AI screening unavailable',
         error?.message ||
-          'Unable to complete the AI screening. You can try another photo or continue without AI.',
+          'Unable to complete the AI screening. You can continue without AI.',
       );
     } finally {
       setAiLoading(false);
@@ -448,130 +833,459 @@ update('aiReason', data.reason ?? '');
     setAiModalVisible(false);
   }
 
-  function openTimePicker(field: TimeField) {
-    setTimeField(field);
+  /* ============================================================
+     TIME PICKER
+     ============================================================ */
 
-    if (Platform.OS === 'ios') {
-      setIosPickerVisible(true);
+  function getTimeFieldValue(
+    field: TimeField,
+  ) {
+    if (field === 'preparation') {
+      return state.preparationTime;
     }
+
+    if (field === 'expiry') {
+      return state.expiryTime;
+    }
+
+    if (field === 'pickupFrom') {
+      return state.pickupAvailableFromTime;
+    }
+
+    if (field === 'pickupUntil') {
+      return state.pickupAvailableUntilTime;
+    }
+
+    return '';
   }
 
-  function handleTimeChange(
-    event: any,
-    selectedDate?: Date,
+  function openTimePicker(
+    field: TimeField,
   ) {
-    if (Platform.OS === 'android') {
-      setTimeField(null);
+    const currentValue =
+      getTimeFieldValue(field);
+
+    const parsed =
+      parseTime(currentValue);
+
+    if (parsed) {
+      let displayHour =
+        parsed.hour % 12;
+
+      if (displayHour === 0) {
+        displayHour = 12;
+      }
+
+      setSelectedHour(
+        displayHour,
+      );
+
+      setSelectedMinute(
+        parsed.minute,
+      );
+
+      setSelectedPeriod(
+        parsed.hour >= 12
+          ? 'PM'
+          : 'AM',
+      );
+    } else {
+      const current =
+        new Date();
+
+      let hour =
+        current.getHours();
+
+      const period =
+        hour >= 12
+          ? 'PM'
+          : 'AM';
+
+      hour =
+        hour % 12 || 12;
+
+      setSelectedHour(hour);
+
+      setSelectedMinute(
+        Math.floor(
+          current.getMinutes() / 15,
+        ) * 15,
+      );
+
+      setSelectedPeriod(
+        period,
+      );
     }
 
-    if (event?.type === 'dismissed' || !selectedDate) {
-      return;
-    }
+    setTimeField(field);
+    setTimeModalVisible(true);
+  }
 
-    if (timeField === 'preparation') {
+  function confirmTime() {
+    const formatted =
+      formatTime(
+        selectedHour,
+        selectedMinute,
+        selectedPeriod,
+      );
+
+    if (
+      timeField ===
+      'preparation'
+    ) {
       updateField(
         'preparationTime',
-        formatTime(selectedDate),
+        formatted,
       );
     }
 
-    if (timeField === 'expiry') {
+    if (
+      timeField ===
+      'expiry'
+    ) {
       updateField(
         'expiryTime',
-        formatTime(selectedDate),
+        formatted,
       );
     }
 
-    if (Platform.OS === 'ios') {
-      setIosPickerVisible(false);
-      setTimeField(null);
+    if (
+      timeField ===
+      'pickupFrom'
+    ) {
+      updateField(
+        'pickupAvailableFromTime',
+        formatted,
+      );
     }
+
+    if (
+      timeField ===
+      'pickupUntil'
+    ) {
+      updateField(
+        'pickupAvailableUntilTime',
+        formatted,
+      );
+    }
+
+    setTimeModalVisible(false);
+    setTimeField(null);
+  }
+
+  function closeTimePicker() {
+    setTimeModalVisible(false);
+    setTimeField(null);
   }
 
   function renderTimePicker() {
-    if (!timeField) {
+    if (
+      !timeModalVisible ||
+      !timeField
+    ) {
       return null;
     }
 
-    const currentDate =
-      timeField === 'preparation'
-        ? preparationDate
-        : expiryDate;
+    const hours = Array.from(
+      { length: 12 },
+      (_, index) =>
+        index + 1,
+    );
 
-    if (Platform.OS === 'android') {
-      return (
-        <DateTimePicker
-          value={currentDate}
-          mode="time"
-          is24Hour={false}
-          display="clock"
-          onChange={handleTimeChange}
-        />
-      );
+    const minutes = [
+      0,
+      15,
+      30,
+      45,
+    ];
+
+    let title =
+      'Select time';
+
+    if (
+      timeField ===
+      'preparation'
+    ) {
+      title =
+        'Preparation time';
     }
 
-    if (!iosPickerVisible) {
-      return null;
+    if (
+      timeField === 'expiry'
+    ) {
+      title =
+        'Expiry time';
+    }
+
+    if (
+      timeField ===
+      'pickupFrom'
+    ) {
+      title =
+        'Pickup available from';
+    }
+
+    if (
+      timeField ===
+      'pickupUntil'
+    ) {
+      title =
+        'Pickup available until';
     }
 
     return (
       <Modal
-        visible={iosPickerVisible}
+        visible={timeModalVisible}
         transparent
-        animationType="slide"
-        onRequestClose={() => {
-          setIosPickerVisible(false);
-          setTimeField(null);
-        }}
+        animationType="fade"
+        onRequestClose={
+          closeTimePicker
+        }
       >
-        <View style={styles.timeModalOverlay}>
-          <View style={styles.timeModalCard}>
-            <View style={styles.timeModalHeader}>
+        <View
+          style={
+            styles.modalOverlay
+          }
+        >
+          <View
+            style={
+              styles.simpleTimeCard
+            }
+          >
+            <View
+              style={
+                styles.modalHeader
+              }
+            >
               <View>
-                <Text style={styles.timeModalEyebrow}>
+                <Text
+                  style={
+                    styles.modalEyebrow
+                  }
+                >
                   SELECT TIME
                 </Text>
 
-                <Text style={styles.timeModalTitle}>
-                  {timeField === 'preparation'
-                    ? 'Preparation time'
-                    : 'Expiry time'}
+                <Text
+                  style={
+                    styles.modalTitle
+                  }
+                >
+                  {title}
                 </Text>
               </View>
 
               <TouchableOpacity
-                onPress={() => {
-                  setIosPickerVisible(false);
-                  setTimeField(null);
-                }}
-                style={styles.modalCloseButton}
+                onPress={
+                  closeTimePicker
+                }
+                style={
+                  styles.modalClose
+                }
               >
                 <Ionicons
                   name="close"
-                  size={22}
+                  size={21}
                   color={C.navy}
                 />
               </TouchableOpacity>
             </View>
 
-            <DateTimePicker
-              value={currentDate}
-              mode="time"
-              display="spinner"
-              is24Hour={false}
-              onChange={handleTimeChange}
-              style={styles.iosPicker}
-            />
+            <View
+              style={
+                styles.timePreview
+              }
+            >
+              <Ionicons
+                name="time-outline"
+                size={25}
+                color={C.orange}
+              />
+
+              <Text
+                style={
+                  styles.timePreviewText
+                }
+              >
+                {selectedHour}:
+                {pad(
+                  selectedMinute,
+                )}{' '}
+                {selectedPeriod}
+              </Text>
+            </View>
+
+            <Text
+              style={
+                styles.timePickerLabel
+              }
+            >
+              Hour
+            </Text>
+
+            <View
+              style={
+                styles.timeChoices
+              }
+            >
+              {hours.map(
+                (hour) => {
+                  const selected =
+                    selectedHour ===
+                    hour;
+
+                  return (
+                    <TouchableOpacity
+                      key={hour}
+                      onPress={() =>
+                        setSelectedHour(
+                          hour,
+                        )
+                      }
+                      style={[
+                        styles.timeChoice,
+                        selected &&
+                          styles.timeChoiceSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.timeChoiceText,
+                          selected &&
+                            styles.timeChoiceTextSelected,
+                        ]}
+                      >
+                        {hour}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                },
+              )}
+            </View>
+
+            <Text
+              style={
+                styles.timePickerLabel
+              }
+            >
+              Minutes
+            </Text>
+
+            <View
+              style={
+                styles.minuteChoices
+              }
+            >
+              {minutes.map(
+                (minute) => {
+                  const selected =
+                    selectedMinute ===
+                    minute;
+
+                  return (
+                    <TouchableOpacity
+                      key={minute}
+                      onPress={() =>
+                        setSelectedMinute(
+                          minute,
+                        )
+                      }
+                      style={[
+                        styles.minuteChoice,
+                        selected &&
+                          styles.timeChoiceSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.timeChoiceText,
+                          selected &&
+                            styles.timeChoiceTextSelected,
+                        ]}
+                      >
+                        {pad(
+                          minute,
+                        )}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                },
+              )}
+            </View>
+
+            <Text
+              style={
+                styles.timePickerLabel
+              }
+            >
+              Period
+            </Text>
+
+            <View
+              style={
+                styles.periodChoices
+              }
+            >
+              {(
+                [
+                  'AM',
+                  'PM',
+                ] as const
+              ).map(
+                (period) => {
+                  const selected =
+                    selectedPeriod ===
+                    period;
+
+                  return (
+                    <TouchableOpacity
+                      key={period}
+                      onPress={() =>
+                        setSelectedPeriod(
+                          period,
+                        )
+                      }
+                      style={[
+                        styles.periodChoice,
+                        selected &&
+                          styles.periodChoiceSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.periodChoiceText,
+                          selected &&
+                            styles.periodChoiceTextSelected,
+                        ]}
+                      >
+                        {period}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                },
+              )}
+            </View>
 
             <TouchableOpacity
-              style={styles.timeDoneButton}
-              onPress={() => {
-                setIosPickerVisible(false);
-                setTimeField(null);
-              }}
+              onPress={
+                confirmTime
+              }
+              style={
+                styles.confirmButton
+              }
             >
-              <Text style={styles.timeDoneText}>
-                Done
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={20}
+                color={C.white}
+              />
+
+              <Text
+                style={
+                  styles.confirmButtonText
+                }
+              >
+                Select Time
               </Text>
             </TouchableOpacity>
           </View>
@@ -580,16 +1294,929 @@ update('aiReason', data.reason ?? '');
     );
   }
 
+  /* ============================================================
+     CALENDAR
+     ============================================================ */
+
+  function getDateFieldValue(
+    field: DateField,
+  ) {
+    if (
+      field ===
+      'preparation'
+    ) {
+      return state.preparationDate;
+    }
+
+    if (
+      field === 'expiry'
+    ) {
+      return state.expiryDate;
+    }
+
+    if (
+      field === 'pickupFrom'
+    ) {
+      return state.pickupAvailableFromDate;
+    }
+
+    if (
+      field === 'pickupUntil'
+    ) {
+      return state.pickupAvailableUntilDate;
+    }
+
+    return '';
+  }
+
+  function openDatePicker(
+    field: DateField,
+  ) {
+    if (!field) {
+      return;
+    }
+
+    const currentValue =
+      getDateFieldValue(field);
+
+    const parsed =
+      parseDateKey(
+        currentValue,
+      );
+
+    setCalendarMonth(
+      parsed ??
+        new Date(),
+    );
+
+    setDateField(field);
+    setDateModalVisible(true);
+  }
+
+  function setDateValue(
+    value: string,
+  ) {
+    if (
+      dateField ===
+      'preparation'
+    ) {
+      updateField(
+        'preparationDate',
+        value,
+      );
+    }
+
+    if (
+      dateField === 'expiry'
+    ) {
+      updateField(
+        'expiryDate',
+        value,
+      );
+    }
+
+    if (
+      dateField ===
+      'pickupFrom'
+    ) {
+      updateField(
+        'pickupAvailableFromDate',
+        value,
+      );
+    }
+
+    if (
+      dateField ===
+      'pickupUntil'
+    ) {
+      updateField(
+        'pickupAvailableUntilDate',
+        value,
+      );
+    }
+
+    setDateModalVisible(false);
+    setDateField(null);
+  }
+
+  function closeDatePicker() {
+    setDateModalVisible(false);
+    setDateField(null);
+  }
+
+  function getCalendarDays() {
+    const year =
+      calendarMonth.getFullYear();
+
+    const month =
+      calendarMonth.getMonth();
+
+    const firstDay =
+      new Date(
+        year,
+        month,
+        1,
+      ).getDay();
+
+    const daysInMonth =
+      new Date(
+        year,
+        month + 1,
+        0,
+      ).getDate();
+
+    const cells: (
+      | number
+      | null
+    )[] = [];
+
+    for (
+      let i = 0;
+      i < firstDay;
+      i++
+    ) {
+      cells.push(null);
+    }
+
+    for (
+      let day = 1;
+      day <=
+      daysInMonth;
+      day++
+    ) {
+      cells.push(day);
+    }
+
+    return cells;
+  }
+
+  function isDateDisabled(
+    date: Date,
+  ) {
+    const today =
+      new Date();
+
+    today.setHours(
+      0,
+      0,
+      0,
+      0,
+    );
+
+    /*
+     * No pickup/preparation/expiry date
+     * can be before today.
+     */
+    if (
+      date.getTime() <
+      today.getTime()
+    ) {
+      return true;
+    }
+
+    /*
+     * Expiry must not be before
+     * preparation date.
+     */
+    if (
+      dateField === 'expiry' &&
+      state.preparationDate
+    ) {
+      const preparation =
+        parseDateKey(
+          state.preparationDate,
+        );
+
+      if (
+        preparation &&
+        date.getTime() <
+          preparation.getTime()
+      ) {
+        return true;
+      }
+    }
+
+    /*
+     * Pickup from cannot be before
+     * preparation date.
+     */
+    if (
+      dateField ===
+        'pickupFrom' &&
+      state.preparationDate
+    ) {
+      const preparation =
+        parseDateKey(
+          state.preparationDate,
+        );
+
+      if (
+        preparation &&
+        date.getTime() <
+          preparation.getTime()
+      ) {
+        return true;
+      }
+    }
+
+    /*
+     * Pickup until cannot be before
+     * pickup from date.
+     */
+    if (
+      dateField ===
+        'pickupUntil' &&
+      state.pickupAvailableFromDate
+    ) {
+      const pickupFrom =
+        parseDateKey(
+          state.pickupAvailableFromDate,
+        );
+
+      if (
+        pickupFrom &&
+        date.getTime() <
+          pickupFrom.getTime()
+      ) {
+        return true;
+      }
+    }
+
+    /*
+     * Pickup dates cannot be after
+     * expiry date.
+     */
+    if (
+      (
+        dateField ===
+          'pickupFrom' ||
+        dateField ===
+          'pickupUntil'
+      ) &&
+      state.expiryDate
+    ) {
+      const expiry =
+        parseDateKey(
+          state.expiryDate,
+        );
+
+      if (
+        expiry &&
+        date.getTime() >
+          expiry.getTime()
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  function renderCalendar() {
+    if (
+      !dateModalVisible ||
+      !dateField
+    ) {
+      return null;
+    }
+
+    const cells =
+      getCalendarDays();
+
+    const selected =
+      getDateFieldValue(
+        dateField,
+      );
+
+    const monthName =
+      calendarMonth.toLocaleDateString(
+        [],
+        {
+          month: 'long',
+          year: 'numeric',
+        },
+      );
+
+    let title =
+      'Select date';
+
+    if (
+      dateField ===
+      'preparation'
+    ) {
+      title =
+        'Preparation date';
+    }
+
+    if (
+      dateField === 'expiry'
+    ) {
+      title =
+        'Expiry date';
+    }
+
+    if (
+      dateField ===
+      'pickupFrom'
+    ) {
+      title =
+        'Pickup available from';
+    }
+
+    if (
+      dateField ===
+      'pickupUntil'
+    ) {
+      title =
+        'Pickup available until';
+    }
+
+    return (
+      <Modal
+        visible={
+          dateModalVisible
+        }
+        transparent
+        animationType="fade"
+        onRequestClose={
+          closeDatePicker
+        }
+      >
+        <View
+          style={
+            styles.modalOverlay
+          }
+        >
+          <View
+            style={
+              styles.calendarCard
+            }
+          >
+            <View
+              style={
+                styles.modalHeader
+              }
+            >
+              <View>
+                <Text
+                  style={
+                    styles.modalEyebrow
+                  }
+                >
+                  SELECT DATE
+                </Text>
+
+                <Text
+                  style={
+                    styles.modalTitle
+                  }
+                >
+                  {title}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={
+                  closeDatePicker
+                }
+                style={
+                  styles.modalClose
+                }
+              >
+                <Ionicons
+                  name="close"
+                  size={21}
+                  color={C.navy}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={
+                styles.calendarHeader
+              }
+            >
+              <TouchableOpacity
+                onPress={() =>
+                  setCalendarMonth(
+                    new Date(
+                      calendarMonth.getFullYear(),
+                      calendarMonth.getMonth() -
+                        1,
+                      1,
+                    ),
+                  )
+                }
+                style={
+                  styles.calendarArrow
+                }
+              >
+                <Ionicons
+                  name="chevron-back"
+                  size={19}
+                  color={C.navy}
+                />
+              </TouchableOpacity>
+
+              <Text
+                style={
+                  styles.calendarMonth
+                }
+              >
+                {monthName}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() =>
+                  setCalendarMonth(
+                    new Date(
+                      calendarMonth.getFullYear(),
+                      calendarMonth.getMonth() +
+                        1,
+                      1,
+                    ),
+                  )
+                }
+                style={
+                  styles.calendarArrow
+                }
+              >
+                <Ionicons
+                  name="chevron-forward"
+                  size={19}
+                  color={C.navy}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={
+                styles.weekRow
+              }
+            >
+              {[
+                'Sun',
+                'Mon',
+                'Tue',
+                'Wed',
+                'Thu',
+                'Fri',
+                'Sat',
+              ].map(
+                (day) => (
+                  <Text
+                    key={day}
+                    style={
+                      styles.weekText
+                    }
+                  >
+                    {day}
+                  </Text>
+                ),
+              )}
+            </View>
+
+            <View
+              style={
+                styles.calendarGrid
+              }
+            >
+              {cells.map(
+                (
+                  day,
+                  index,
+                ) => {
+                  if (
+                    day ===
+                    null
+                  ) {
+                    return (
+                      <View
+                        key={
+                          `empty-${index}`
+                        }
+                        style={
+                          styles.calendarDay
+                        }
+                      />
+                    );
+                  }
+
+                  const date =
+                    new Date(
+                      calendarMonth.getFullYear(),
+                      calendarMonth.getMonth(),
+                      day,
+                    );
+
+                  const key =
+                    dateToKey(
+                      date,
+                    );
+
+                  const isSelected =
+                    selected ===
+                    key;
+
+                  const disabled =
+                    isDateDisabled(
+                      date,
+                    );
+
+                  return (
+                    <TouchableOpacity
+                      key={
+                        key
+                      }
+                      disabled={
+                        disabled
+                      }
+                      onPress={() =>
+                        setDateValue(
+                          key,
+                        )
+                      }
+                      style={[
+                        styles.calendarDay,
+                        isSelected &&
+                          styles.calendarDaySelected,
+                        disabled &&
+                          styles.calendarDayDisabled,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.calendarDayText,
+                          isSelected &&
+                            styles.calendarDayTextSelected,
+                          disabled &&
+                            styles.calendarDayTextDisabled,
+                        ]}
+                      >
+                        {
+                          day
+                        }
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                },
+              )}
+            </View>
+
+            <TouchableOpacity
+              onPress={() =>
+                setDateValue(
+                  dateToKey(
+                    new Date(),
+                  ),
+                )
+              }
+              style={
+                styles.todayButton
+              }
+            >
+              <Ionicons
+                name="today-outline"
+                size={18}
+                color={C.orange}
+              />
+
+              <Text
+                style={
+                  styles.todayButtonText
+                }
+              >
+                Use Today
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  /* ============================================================
+     DROPDOWN
+     ============================================================ */
+
+  function openDropdown(
+    type: DropdownType,
+  ) {
+    setDropdownType(type);
+  }
+
+  function closeDropdown() {
+    setDropdownType(null);
+  }
+
+  function renderDropdown() {
+    if (!dropdownType) {
+      return null;
+    }
+
+    let title = '';
+    let icon:
+      | IconName =
+      'list-outline';
+
+    let items:
+      readonly string[] =
+      [];
+
+    let selected = '';
+
+    if (
+      dropdownType ===
+      'category'
+    ) {
+      title =
+        'Select food category';
+
+      icon =
+        'fast-food-outline';
+
+      items =
+        FOOD_CATEGORIES;
+
+      selected =
+        state.category;
+    }
+
+    if (
+      dropdownType ===
+      'unit'
+    ) {
+      title =
+        'Select quantity unit';
+
+      icon =
+        'scale-outline';
+
+      items =
+        UNITS;
+
+      selected =
+        state.quantityUnit;
+    }
+
+    if (
+      dropdownType ===
+      'district'
+    ) {
+      title =
+        'Select pickup district';
+
+      icon =
+        'map-outline';
+
+      items =
+        DISTRICTS;
+
+      selected =
+        state.pickupDistrict;
+    }
+
+    function choose(
+      item: string,
+    ) {
+      if (
+        dropdownType ===
+        'category'
+      ) {
+        updateField(
+          'category',
+          item,
+        );
+      }
+
+      if (
+        dropdownType ===
+        'unit'
+      ) {
+        updateField(
+          'quantityUnit',
+          item as typeof state.quantityUnit,
+        );
+      }
+
+      if (
+        dropdownType ===
+        'district'
+      ) {
+        updateField(
+          'pickupDistrict',
+          item,
+        );
+      }
+
+      closeDropdown();
+    }
+
+    return (
+      <Modal
+        visible={true}
+        transparent
+        animationType="slide"
+        onRequestClose={
+          closeDropdown
+        }
+      >
+        <View
+          style={
+            styles.modalOverlay
+          }
+        >
+          <View
+            style={
+              styles.dropdownCard
+            }
+          >
+            <View
+              style={
+                styles.dropdownHandle
+              }
+            />
+
+            <View
+              style={
+                styles.modalHeader
+              }
+            >
+              <View
+                style={
+                  styles.dropdownTitleRow
+                }
+              >
+                <View
+                  style={
+                    styles.dropdownTitleIcon
+                  }
+                >
+                  <Ionicons
+                    name={icon}
+                    size={21}
+                    color={C.orange}
+                  />
+                </View>
+
+                <View>
+                  <Text
+                    style={
+                      styles.modalEyebrow
+                    }
+                  >
+                    SELECT OPTION
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.modalTitle
+                    }
+                  >
+                    {title}
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                onPress={
+                  closeDropdown
+                }
+                style={
+                  styles.modalClose
+                }
+              >
+                <Ionicons
+                  name="close"
+                  size={21}
+                  color={C.navy}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={
+                false
+              }
+              contentContainerStyle={
+                styles.dropdownList
+              }
+            >
+              {items.map(
+                (item) => {
+                  const isSelected =
+                    selected ===
+                    item;
+
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      onPress={() =>
+                        choose(
+                          item,
+                        )
+                      }
+                      activeOpacity={
+                        0.8
+                      }
+                      style={[
+                        styles.dropdownOption,
+                        isSelected &&
+                          styles.dropdownOptionSelected,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.dropdownOptionIcon,
+                          isSelected &&
+                            styles.dropdownOptionIconSelected,
+                        ]}
+                      >
+                        <Ionicons
+                          name={
+                            isSelected
+                              ? 'checkmark'
+                              : 'ellipse-outline'
+                          }
+                          size={
+                            isSelected
+                              ? 17
+                              : 15
+                          }
+                          color={
+                            isSelected
+                              ? C.white
+                              : C.muted
+                          }
+                        />
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.dropdownOptionText,
+                          isSelected &&
+                            styles.dropdownOptionTextSelected,
+                        ]}
+                      >
+                        {
+                          item
+                        }
+                      </Text>
+
+                      {isSelected ? (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={20}
+                          color={
+                            C.orange
+                          }
+                        />
+                      ) : (
+                        <Ionicons
+                          name="chevron-forward"
+                          size={18}
+                          color={
+                            C.muted
+                          }
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                },
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  /* ============================================================
+     LABEL / SECTION
+     ============================================================ */
+
   function renderLabel(
     label: string,
     required = false,
   ) {
     return (
-      <Text style={styles.fieldLabel}>
+      <Text
+        style={
+          styles.fieldLabel
+        }
+      >
         {label}
-        {required && (
-          <Text style={styles.required}> *</Text>
-        )}
+
+        {required ? (
+          <Text
+            style={
+              styles.required
+            }
+          >
+            {' '}
+            *
+          </Text>
+        ) : null}
       </Text>
     );
   }
@@ -600,8 +2227,16 @@ update('aiReason', data.reason ?? '');
     subtitle?: string,
   ) {
     return (
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionIcon}>
+      <View
+        style={
+          styles.sectionHeader
+        }
+      >
+        <View
+          style={
+            styles.sectionIcon
+          }
+        >
           <Ionicons
             name={icon}
             size={20}
@@ -609,13 +2244,25 @@ update('aiReason', data.reason ?? '');
           />
         </View>
 
-        <View style={styles.sectionHeaderText}>
-          <Text style={styles.sectionTitle}>
+        <View
+          style={
+            styles.sectionHeaderText
+          }
+        >
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
             {title}
           </Text>
 
           {subtitle ? (
-            <Text style={styles.sectionSubtitle}>
+            <Text
+              style={
+                styles.sectionSubtitle
+              }
+            >
               {subtitle}
             </Text>
           ) : null}
@@ -624,33 +2271,400 @@ update('aiReason', data.reason ?? '');
     );
   }
 
-  const aiConfig = aiResultConfig(state.aiResult);
+  /* ============================================================
+     DATE + TIME FIELD
+     ============================================================ */
+
+  function renderDateTimeFields(
+    dateFieldName:
+      | 'preparation'
+      | 'expiry'
+      | 'pickupFrom'
+      | 'pickupUntil',
+    timeFieldName:
+      | 'preparation'
+      | 'expiry'
+      | 'pickupFrom'
+      | 'pickupUntil',
+    dateValue: string,
+    timeValue: string,
+    dateLabel: string,
+    timeLabel: string,
+  ) {
+    return (
+      <View
+        style={
+          styles.dateTimeGroup
+        }
+      >
+        <Text
+          style={
+            styles.smallFieldLabel
+          }
+        >
+          {dateLabel}
+        </Text>
+
+        <View
+          style={
+            styles.dateTimeRow
+          }
+        >
+          <TouchableOpacity
+            onPress={() =>
+              openDatePicker(
+                dateFieldName,
+              )
+            }
+            style={[
+              styles.dateField,
+              dateValue &&
+                styles.dateFieldSelected,
+            ]}
+          >
+            <View
+              style={[
+                styles.dateTimeIcon,
+                dateValue &&
+                  styles.dateTimeIconSelected,
+              ]}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={19}
+                color={
+                  dateValue
+                    ? C.orange
+                    : C.navy
+                }
+              />
+            </View>
+
+            <View
+              style={
+                styles.dateTimeText
+              }
+            >
+              <Text
+                style={[
+                  styles.dateTimeValue,
+                  !dateValue &&
+                    styles.dateTimePlaceholder,
+                ]}
+              >
+                {formatDateDisplay(
+                  dateValue,
+                )}
+              </Text>
+
+              <Text
+                style={
+                  styles.dateTimeHint
+                }
+              >
+                Tap to select
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-down"
+              size={17}
+              color={C.muted}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() =>
+              openTimePicker(
+                timeFieldName,
+              )
+            }
+            style={[
+              styles.dateField,
+              timeValue &&
+                styles.dateFieldSelected,
+            ]}
+          >
+            <View
+              style={[
+                styles.dateTimeIcon,
+                timeValue &&
+                  styles.dateTimeIconSelected,
+              ]}
+            >
+              <Ionicons
+                name="time-outline"
+                size={19}
+                color={
+                  timeValue
+                    ? C.orange
+                    : C.navy
+                }
+              />
+            </View>
+
+            <View
+              style={
+                styles.dateTimeText
+              }
+            >
+              <Text
+                style={[
+                  styles.dateTimeValue,
+                  !timeValue &&
+                    styles.dateTimePlaceholder,
+                ]}
+              >
+                {timeValue ||
+                  'Select time'}
+              </Text>
+
+              <Text
+                style={
+                  styles.dateTimeHint
+                }
+              >
+                Tap to select
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-down"
+              size={17}
+              color={C.muted}
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  /* ============================================================
+     DONATION PRIORITY
+     ============================================================ */
+
+  function renderDonationPriority() {
+    if (
+      !state.expiryDate ||
+      !state.expiryTime
+    ) {
+      return (
+        <View
+          style={
+            styles.priorityWaiting
+          }
+        >
+          <View
+            style={
+              styles.priorityWaitingIcon
+            }
+          >
+            <Ionicons
+              name="time-outline"
+              size={22}
+              color={C.teal}
+            />
+          </View>
+
+          <View
+            style={
+              styles.priorityContent
+            }
+          >
+            <Text
+              style={
+                styles.priorityWaitingTitle
+              }
+            >
+              Donation priority
+            </Text>
+
+            <Text
+              style={
+                styles.priorityWaitingText
+              }
+            >
+              Select the expiry date and
+              time. ResQMeal will
+              automatically determine
+              whether this donation is
+              Urgent or Normal.
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    const urgent =
+      state.donationType ===
+      'URGENT';
+
+    return (
+      <View
+        style={[
+          styles.priorityCard,
+          urgent
+            ? styles.priorityUrgent
+            : styles.priorityNormal,
+        ]}
+      >
+        <View
+          style={[
+            styles.priorityIcon,
+            urgent
+              ? styles.priorityIconUrgent
+              : styles.priorityIconNormal,
+          ]}
+        >
+          <Ionicons
+            name={
+              urgent
+                ? 'flash'
+                : 'checkmark-circle'
+            }
+            size={27}
+            color={
+              urgent
+                ? C.orange
+                : C.success
+            }
+          />
+        </View>
+
+        <View
+          style={
+            styles.priorityContent
+          }
+        >
+          <View
+            style={
+              styles.priorityTitleRow
+            }
+          >
+            <Text
+              style={
+                styles.priorityLabel
+              }
+            >
+              DONATION PRIORITY
+            </Text>
+
+            <View
+              style={[
+                styles.priorityBadge,
+                urgent
+                  ? styles.priorityBadgeUrgent
+                  : styles.priorityBadgeNormal,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.priorityBadgeText,
+                  urgent
+                    ? styles.priorityBadgeTextUrgent
+                    : styles.priorityBadgeTextNormal,
+                ]}
+              >
+                {urgent
+                  ? 'URGENT'
+                  : 'NORMAL'}
+              </Text>
+            </View>
+          </View>
+
+          <Text
+            style={
+              styles.priorityTitle
+            }
+          >
+            {urgent
+              ? 'Urgent Rescue'
+              : 'Standard Donation'}
+          </Text>
+
+          <Text
+            style={
+              styles.priorityDescription
+            }
+          >
+            {urgent
+              ? 'Food should be rescued within 10 hours.'
+              : 'More than 10 hours remain before the food expires.'}
+          </Text>
+
+          <View
+            style={
+              styles.priorityAutoRow
+            }
+          >
+            <Ionicons
+              name="sparkles-outline"
+              size={15}
+              color={C.teal}
+            />
+
+            <Text
+              style={
+                styles.priorityAutoText
+              }
+            >
+              Automatically determined from expiry time
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const aiConfig =
+    aiResultConfig(
+      state.aiResult,
+    );
+
+  /* ============================================================
+     RENDER
+     ============================================================ */
 
   return (
-    <View style={styles.screen}>
+    <View
+      style={
+        styles.screen
+      }
+    >
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={
+          styles.flex
+        }
         behavior={
-          Platform.OS === 'ios'
+          Platform.OS ===
+          'ios'
             ? 'padding'
             : undefined
         }
       >
         <ScrollView
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={
+            false
+          }
           contentContainerStyle={
             styles.scrollContent
           }
           keyboardShouldPersistTaps="handled"
         >
-          {/* ------------------------------------------------ */}
           {/* HEADER */}
-          {/* ------------------------------------------------ */}
 
-          <View style={styles.topHeader}>
+          <View
+            style={
+              styles.topHeader
+            }
+          >
             <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={styles.backButton}
+              onPress={() =>
+                navigation.goBack()
+              }
+              style={
+                styles.backButton
+              }
             >
               <Ionicons
                 name="arrow-back"
@@ -659,34 +2673,79 @@ update('aiReason', data.reason ?? '');
               />
             </TouchableOpacity>
 
-            <View style={styles.headerCenter}>
-              <Text style={styles.headerEyebrow}>
+            <View
+              style={
+                styles.headerCenter
+              }
+            >
+              <Text
+                style={
+                  styles.headerEyebrow
+                }
+              >
                 STEP 2 OF 5
               </Text>
 
-              <Text style={styles.headerTitle}>
+              <Text
+                style={
+                  styles.headerTitle
+                }
+              >
                 Food details
               </Text>
             </View>
 
-            <View style={styles.headerPlaceholder} />
+            <View
+              style={
+                styles.headerPlaceholder
+              }
+            />
           </View>
 
-          {/* Progress */}
-          <View style={styles.progressTrack}>
-            <View style={styles.progressActive} />
-            <View style={styles.progressInactive} />
-            <View style={styles.progressInactive} />
-            <View style={styles.progressInactive} />
-            <View style={styles.progressInactive} />
+          <View
+            style={
+              styles.progressTrack
+            }
+          >
+            <View
+              style={
+                styles.progressActive
+              }
+            />
+            <View
+              style={
+                styles.progressInactive
+              }
+            />
+            <View
+              style={
+                styles.progressInactive
+              }
+            />
+            <View
+              style={
+                styles.progressInactive
+              }
+            />
+            <View
+              style={
+                styles.progressInactive
+              }
+            />
           </View>
 
-          {/* ------------------------------------------------ */}
           {/* INTRO */}
-          {/* ------------------------------------------------ */}
 
-          <View style={styles.introCard}>
-            <View style={styles.introIcon}>
+          <View
+            style={
+              styles.introCard
+            }
+          >
+            <View
+              style={
+                styles.introIcon
+              }
+            >
               <Ionicons
                 name="restaurant-outline"
                 size={25}
@@ -694,73 +2753,129 @@ update('aiReason', data.reason ?? '');
               />
             </View>
 
-            <View style={styles.introText}>
-              <Text style={styles.introTitle}>
+            <View
+              style={
+                styles.introText
+              }
+            >
+              <Text
+                style={
+                  styles.introTitle
+                }
+              >
                 Tell us about the food
               </Text>
 
-              <Text style={styles.introDescription}>
-                Add enough information so recipients
-                and volunteers can understand the
-                donation clearly.
+              <Text
+                style={
+                  styles.introDescription
+                }
+              >
+                Add enough information so
+                recipients and volunteers can
+                understand the donation clearly.
               </Text>
             </View>
           </View>
 
-          {/* ------------------------------------------------ */}
-          {/* FOOD INFORMATION */}
-          {/* ------------------------------------------------ */}
+          {/* ==================================================
+              FOOD INFORMATION
+             ================================================== */}
 
-         <View style={styles.card}>
-  {renderSectionHeader(
-    'fast-food-outline',
-    'Food information',
-    'Basic information about your donation',
-  )}
+          <View
+            style={
+              styles.card
+            }
+          >
+            {renderSectionHeader(
+              'fast-food-outline',
+              'Food information',
+              'Basic information about your donation',
+            )}
 
-  {/* VOICE ASSISTANT */}
+            {/* VOICE */}
 
-  <TouchableOpacity
-    activeOpacity={0.88}
-    onPress={() => setVoiceVisible(true)}
-    style={styles.voiceCard}
-  >
-    <View style={styles.voiceIcon}>
-      <Ionicons
-        name="mic-outline"
-        size={24}
-        color={C.white}
-      />
-    </View>
+            <TouchableOpacity
+              activeOpacity={0.88}
+              onPress={() =>
+                setVoiceVisible(true)
+              }
+              style={
+                styles.voiceCard
+              }
+            >
+              <View
+                style={
+                  styles.voiceIcon
+                }
+              >
+                <Ionicons
+                  name="mic-outline"
+                  size={24}
+                  color={C.white}
+                />
+              </View>
 
-    <View style={styles.voiceText}>
-      <View style={styles.voiceTitleRow}>
-        <Text style={styles.voiceTitle}>
-          Use Voice Assistant
-        </Text>
+              <View
+                style={
+                  styles.voiceText
+                }
+              >
+                <View
+                  style={
+                    styles.voiceTitleRow
+                  }
+                >
+                  <Text
+                    style={
+                      styles.voiceTitle
+                    }
+                  >
+                    Use Voice Assistant
+                  </Text>
 
-        <View style={styles.voiceOptional}>
-          <Text style={styles.voiceOptionalText}>
-            OPTIONAL
-          </Text>
-        </View>
-      </View>
+                  <View
+                    style={
+                      styles.voiceOptional
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.voiceOptionalText
+                      }
+                    >
+                      OPTIONAL
+                    </Text>
+                  </View>
+                </View>
 
-      <Text style={styles.voiceSubtitle}>
-        Answer the food questions by speaking instead of typing.
-      </Text>
-    </View>
+                <Text
+                  style={
+                    styles.voiceSubtitle
+                  }
+                >
+                  Answer the food questions by
+                  speaking instead of typing.
+                </Text>
+              </View>
 
-    <Ionicons
-      name="chevron-forward"
-      size={21}
-      color={C.white}
-    />
-  </TouchableOpacity>
+              <Ionicons
+                name="chevron-forward"
+                size={21}
+                color={C.white}
+              />
+            </TouchableOpacity>
 
-  {renderLabel('Food Type', true)}
+            {renderLabel(
+              'Food Type',
+              true,
+            )}
 
-            <View style={styles.inputWrapper}>
+            <View
+              style={
+                styles.inputWrapper
+              }
+            >
               <Ionicons
                 name="restaurant-outline"
                 size={19}
@@ -768,72 +2883,119 @@ update('aiReason', data.reason ?? '');
               />
 
               <TextInput
-                value={state.foodType}
-                onChangeText={(value) =>
-                  updateField('foodType', value)
+                value={
+                  state.foodType
+                }
+                onChangeText={(
+                  value,
+                ) =>
+                  updateField(
+                    'foodType',
+                    value,
+                  )
                 }
                 placeholder="e.g. Vegetable Fried Rice"
-                placeholderTextColor={C.muted}
-                style={styles.textInput}
+                placeholderTextColor={
+                  C.muted
+                }
+                style={
+                  styles.textInput
+                }
               />
             </View>
 
-            {renderLabel('Category', true)}
+            {/* CATEGORY DROPDOWN */}
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={
-                styles.horizontalOptions
+            {renderLabel(
+              'Category',
+              true,
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() =>
+                openDropdown(
+                  'category',
+                )
+              }
+              style={[
+                styles.selectField,
+                state.category &&
+                  styles.selectFieldSelected,
+              ]}
+            >
+              <View
+                style={[
+                  styles.selectIcon,
+                  state.category &&
+                    styles.selectIconSelected,
+                ]}
+              >
+                <Ionicons
+                  name="fast-food-outline"
+                  size={20}
+                  color={
+                    state.category
+                      ? C.orange
+                      : C.navy
+                  }
+                />
+              </View>
+
+              <View
+                style={
+                  styles.selectTextContainer
+                }
+              >
+                <Text
+                  style={[
+                    styles.selectValue,
+                    !state.category &&
+                      styles.selectPlaceholder,
+                  ]}
+                >
+                  {state.category ||
+                    'Select food category'}
+                </Text>
+
+                <Text
+                  style={
+                    styles.selectHint
+                  }
+                >
+                  Tap to choose
+                </Text>
+              </View>
+
+              <Ionicons
+                name="chevron-down"
+                size={19}
+                color={C.muted}
+              />
+            </TouchableOpacity>
+
+            {/* QUANTITY */}
+
+            <View
+              style={
+                styles.row
               }
             >
-              {FOOD_CATEGORIES.map((category) => {
-                const selected =
-                  state.category === category;
+              <View
+                style={
+                  styles.halfField
+                }
+              >
+                {renderLabel(
+                  'Quantity',
+                  true,
+                )}
 
-                return (
-                  <TouchableOpacity
-                    key={category}
-                    onPress={() =>
-                      updateField(
-                        'category',
-                        category,
-                      )
-                    }
-                    style={[
-                      styles.categoryPill,
-                      selected &&
-                        styles.categoryPillSelected,
-                    ]}
-                  >
-                    {selected ? (
-                      <Ionicons
-                        name="checkmark"
-                        size={15}
-                        color={C.white}
-                      />
-                    ) : null}
-
-                    <Text
-                      style={[
-                        styles.categoryText,
-                        selected &&
-                          styles.categoryTextSelected,
-                      ]}
-                    >
-                      {category}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {/* Quantity */}
-            <View style={styles.row}>
-              <View style={styles.halfField}>
-                {renderLabel('Quantity', true)}
-
-                <View style={styles.inputWrapper}>
+                <View
+                  style={
+                    styles.inputWrapper
+                  }
+                >
                   <Ionicons
                     name="scale-outline"
                     size={18}
@@ -841,8 +3003,12 @@ update('aiReason', data.reason ?? '');
                   />
 
                   <TextInput
-                    value={state.quantity}
-                    onChangeText={(value) =>
+                    value={
+                      state.quantity
+                    }
+                    onChangeText={(
+                      value,
+                    ) =>
                       updateField(
                         'quantity',
                         value.replace(
@@ -853,60 +3019,97 @@ update('aiReason', data.reason ?? '');
                     }
                     keyboardType="decimal-pad"
                     placeholder="5"
-                    placeholderTextColor={C.muted}
-                    style={styles.textInput}
+                    placeholderTextColor={
+                      C.muted
+                    }
+                    style={
+                      styles.textInput
+                    }
                   />
                 </View>
               </View>
 
-              <View style={styles.halfField}>
-                {renderLabel('Unit', true)}
+              {/* UNIT DROPDOWN */}
 
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={
-                    styles.unitScroll
+              <View
+                style={
+                  styles.halfField
+                }
+              >
+                {renderLabel(
+                  'Unit',
+                  true,
+                )}
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    openDropdown(
+                      'unit',
+                    )
                   }
+                  style={[
+                    styles.selectField,
+                    state.quantityUnit &&
+                      styles.selectFieldSelected,
+                  ]}
                 >
-                  {UNITS.map((unit) => {
-                    const selected =
-                      state.quantityUnit === unit;
+                  <View
+                    style={[
+                      styles.selectIcon,
+                      styles.selectIconSmall,
+                    ]}
+                  >
+                    <Ionicons
+                      name="scale-outline"
+                      size={19}
+                      color={C.orange}
+                    />
+                  </View>
 
-                    return (
-                      <TouchableOpacity
-                        key={unit}
-                        onPress={() =>
-                          updateField(
-                            'quantityUnit',
-                            unit,
-                          )
-                        }
-                        style={[
-                          styles.unitPill,
-                          selected &&
-                            styles.unitPillSelected,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.unitText,
-                            selected &&
-                              styles.unitTextSelected,
-                          ]}
-                        >
-                          {unit}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
+                  <View
+                    style={
+                      styles.selectTextContainer
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.selectValue
+                      }
+                    >
+                      {
+                        state.quantityUnit
+                      }
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.selectHint
+                      }
+                    >
+                      Tap to choose
+                    </Text>
+                  </View>
+
+                  <Ionicons
+                    name="chevron-down"
+                    size={18}
+                    color={C.muted}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
 
-            {renderLabel('Number of Portions', true)}
+            {renderLabel(
+              'Number of Portions',
+              true,
+            )}
 
-            <View style={styles.inputWrapper}>
+            <View
+              style={
+                styles.inputWrapper
+              }
+            >
               <Ionicons
                 name="people-outline"
                 size={19}
@@ -914,8 +3117,12 @@ update('aiReason', data.reason ?? '');
               />
 
               <TextInput
-                value={state.portions}
-                onChangeText={(value) =>
+                value={
+                  state.portions
+                }
+                onChangeText={(
+                  value,
+                ) =>
                   updateField(
                     'portions',
                     value.replace(
@@ -926,169 +3133,128 @@ update('aiReason', data.reason ?? '');
                 }
                 keyboardType="number-pad"
                 placeholder="e.g. 12"
-                placeholderTextColor={C.muted}
-                style={styles.textInput}
+                placeholderTextColor={
+                  C.muted
+                }
+                style={
+                  styles.textInput
+                }
               />
             </View>
           </View>
 
-          {/* ------------------------------------------------ */}
-          {/* TIME */}
-          {/* ------------------------------------------------ */}
+          {/* ==================================================
+              FOOD TIMING
+             ================================================== */}
 
-          <View style={styles.card}>
+          <View
+            style={
+              styles.card
+            }
+          >
             {renderSectionHeader(
               'time-outline',
               'Food timing',
-              'Select times using the clock',
+              'Select the actual preparation and expiry date and time',
             )}
 
-            <View style={styles.row}>
-              <View style={styles.halfField}>
-                {renderLabel(
-                  'Preparation Time',
-                  true,
-                )}
+            {renderDateTimeFields(
+              'preparation',
+              'preparation',
+              state.preparationDate,
+              state.preparationTime,
+              'Preparation date',
+              'Preparation time',
+            )}
 
-                <TouchableOpacity
-                  onPress={() =>
-                    openTimePicker(
-                      'preparation',
-                    )
+            {renderDateTimeFields(
+              'expiry',
+              'expiry',
+              state.expiryDate,
+              state.expiryTime,
+              'Expiry date',
+              'Expiry time',
+            )}
+
+            {timingError ? (
+              <View
+                style={
+                  styles.errorBox
+                }
+              >
+                <Ionicons
+                  name="warning-outline"
+                  size={19}
+                  color={C.danger}
+                />
+
+                <Text
+                  style={
+                    styles.errorText
                   }
-                  style={[
-                    styles.timeField,
-                    state.preparationTime &&
-                      styles.timeFieldSelected,
-                  ]}
                 >
-                  <View
-                    style={[
-                      styles.timeIcon,
-                      state.preparationTime &&
-                        styles.timeIconSelected,
-                    ]}
-                  >
-                    <Ionicons
-                      name="time-outline"
-                      size={20}
-                      color={
-                        state.preparationTime
-                          ? C.orange
-                          : C.navy
-                      }
-                    />
-                  </View>
-
-                  <View
-                    style={styles.timeTextContainer}
-                  >
-                    <Text
-                      style={[
-                        styles.timeValue,
-                        !state.preparationTime &&
-                          styles.timePlaceholder,
-                      ]}
-                    >
-                      {state.preparationTime ||
-                        'Select time'}
-                    </Text>
-
-                    <Text style={styles.timeHint}>
-                      Tap to choose
-                    </Text>
-                  </View>
-
-                  <Ionicons
-                    name="chevron-down"
-                    size={18}
-                    color={C.muted}
-                  />
-                </TouchableOpacity>
+                  {preparationAfterExpiry
+                    ? 'Expiry date and time must be later than the preparation date and time.'
+                    : 'Expiry date and time cannot be in the past.'}
+                </Text>
               </View>
+            ) : null}
 
-              <View style={styles.halfField}>
-                {renderLabel('Expiry Time', true)}
-
-                <TouchableOpacity
-                  onPress={() =>
-                    openTimePicker('expiry')
-                  }
-                  style={[
-                    styles.timeField,
-                    state.expiryTime &&
-                      styles.timeFieldSelected,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.timeIcon,
-                      state.expiryTime &&
-                        styles.timeIconSelected,
-                    ]}
-                  >
-                    <Ionicons
-                      name="alarm-outline"
-                      size={20}
-                      color={
-                        state.expiryTime
-                          ? C.orange
-                          : C.navy
-                      }
-                    />
-                  </View>
-
-                  <View
-                    style={styles.timeTextContainer}
-                  >
-                    <Text
-                      style={[
-                        styles.timeValue,
-                        !state.expiryTime &&
-                          styles.timePlaceholder,
-                      ]}
-                    >
-                      {state.expiryTime ||
-                        'Select time'}
-                    </Text>
-
-                    <Text style={styles.timeHint}>
-                      Tap to choose
-                    </Text>
-                  </View>
-
-                  <Ionicons
-                    name="chevron-down"
-                    size={18}
-                    color={C.muted}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.timeInfo}>
+            <View
+              style={
+                styles.timeInfo
+              }
+            >
               <Ionicons
                 name="information-circle-outline"
                 size={17}
                 color={C.teal}
               />
 
-              <Text style={styles.timeInfoText}>
-                Select the actual preparation and
-                expiry times using the clock picker.
+              <Text
+                style={
+                  styles.timeInfoText
+                }
+              >
+                ResQMeal uses the expiry date and
+                time to automatically determine
+                whether the donation is Urgent or
+                Normal.
               </Text>
             </View>
           </View>
 
-          {/* ------------------------------------------------ */}
-          {/* STORAGE */}
-          {/* ------------------------------------------------ */}
+          {/* ==================================================
+              AUTOMATIC DONATION TYPE
+             ================================================== */}
 
-          <View style={styles.card}>
+          <View
+            style={
+              styles.card
+            }
+          >
+            {renderSectionHeader(
+              'flash-outline',
+              'Donation type',
+              'Automatically determined from the expiry time',
+            )}
+
+            {renderDonationPriority()}
+          </View>
+
+          {/* ==================================================
+              STORAGE & PICKUP
+             ================================================== */}
+
+          <View
+            style={
+              styles.card
+            }
+          >
             {renderSectionHeader(
               'snow-outline',
               'Storage & pickup',
-              'Help us understand where the food can be collected',
+              'Tell recipients and volunteers where and when the food can be collected',
             )}
 
             {renderLabel(
@@ -1096,72 +3262,88 @@ update('aiReason', data.reason ?? '');
               true,
             )}
 
-            <View style={styles.storageGrid}>
-              {(
-                [
-                  'Refrigerated',
-                  'Frozen',
-                  'Room Temperature',
-                  'Other',
-                ] as const
-              ).map((condition) => {
-                const selected =
-                  state.storageCondition ===
-                  condition;
+            <View
+              style={
+                styles.storageGrid
+              }
+            >
+              {[
+                'Refrigerated',
+                'Frozen',
+                'Room Temperature',
+                'Other',
+              ].map(
+                (
+                  condition,
+                ) => {
+                  const selected =
+                    state.storageCondition ===
+                    condition;
 
-                return (
-                  <TouchableOpacity
-                    key={condition}
-                    onPress={() =>
-                      updateField(
-                        'storageCondition',
-                        condition,
-                      )
-                    }
-                    style={[
-                      styles.storageOption,
-                      selected &&
-                        styles.storageOptionSelected,
-                    ]}
-                  >
-                    <Ionicons
-                      name={
-                        condition ===
-                        'Refrigerated'
-                          ? 'snow-outline'
-                          : condition ===
-                              'Frozen'
-                            ? 'ice-cream-outline'
-                            : 'cube-outline'
+                  return (
+                    <TouchableOpacity
+                      key={
+                        condition
                       }
-                      size={20}
-                      color={
-                        selected
-                          ? C.orange
-                          : C.navy
+                      onPress={() =>
+                        updateField(
+                          'storageCondition',
+                          condition as typeof state.storageCondition,
+                        )
                       }
-                    />
-
-                    <Text
                       style={[
-                        styles.storageText,
+                        styles.storageOption,
                         selected &&
-                          styles.storageTextSelected,
+                          styles.storageOptionSelected,
                       ]}
                     >
-                      {condition}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <Ionicons
+                        name={
+                          condition ===
+                          'Refrigerated'
+                            ? 'snow-outline'
+                            : condition ===
+                                'Frozen'
+                              ? 'ice-cream-outline'
+                              : 'cube-outline'
+                        }
+                        size={20}
+                        color={
+                          selected
+                            ? C.orange
+                            : C.navy
+                        }
+                      />
+
+                      <Text
+                        style={[
+                          styles.storageText,
+                          selected &&
+                            styles.storageTextSelected,
+                        ]}
+                      >
+                        {
+                          condition
+                        }
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                },
+              )}
             </View>
+
+            {/* LOCATION */}
 
             {renderLabel(
               'Pickup Location',
               true,
             )}
 
-            <View style={styles.inputWrapper}>
+            <View
+              style={
+                styles.inputWrapper
+              }
+            >
               <Ionicons
                 name="location-outline"
                 size={19}
@@ -1169,109 +3351,411 @@ update('aiReason', data.reason ?? '');
               />
 
               <TextInput
-                value={state.pickupLocation}
-                onChangeText={(value) =>
+                value={
+                  state.pickupLocation
+                }
+                onChangeText={(
+                  value,
+                ) =>
                   updateField(
                     'pickupLocation',
                     value,
                   )
                 }
                 placeholder="e.g. Colombo 05, near Independence Square"
-                placeholderTextColor={C.muted}
-                style={styles.textInput}
+                placeholderTextColor={
+                  C.muted
+                }
+                style={
+                  styles.textInput
+                }
               />
             </View>
 
-            {renderLabel('Pickup District')}
+            {/* DISTRICT */}
 
-            <View style={styles.inputWrapper}>
+            {renderLabel(
+              'Pickup District',
+              true,
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() =>
+                openDropdown(
+                  'district',
+                )
+              }
+              style={[
+                styles.selectField,
+                state.pickupDistrict &&
+                  styles.selectFieldSelected,
+              ]}
+            >
+              <View
+                style={[
+                  styles.selectIcon,
+                  state.pickupDistrict &&
+                    styles.selectIconSelected,
+                ]}
+              >
+                <Ionicons
+                  name="map-outline"
+                  size={20}
+                  color={
+                    state.pickupDistrict
+                      ? C.orange
+                      : C.navy
+                  }
+                />
+              </View>
+
+              <View
+                style={
+                  styles.selectTextContainer
+                }
+              >
+                <Text
+                  style={[
+                    styles.selectValue,
+                    !state.pickupDistrict &&
+                      styles.selectPlaceholder,
+                  ]}
+                >
+                  {state.pickupDistrict ||
+                    'Select pickup district'}
+                </Text>
+
+                <Text
+                  style={
+                    styles.selectHint
+                  }
+                >
+                  Tap to choose
+                </Text>
+              </View>
+
               <Ionicons
-                name="map-outline"
+                name="chevron-down"
                 size={19}
                 color={C.muted}
               />
+            </TouchableOpacity>
 
-              <TextInput
-                value={state.pickupDistrict}
-                onChangeText={(value) =>
-                  updateField(
-                    'pickupDistrict',
-                    value,
-                  )
+            {/* PICKUP FROM */}
+
+            {renderLabel(
+              'Pickup Available From',
+              true,
+            )}
+
+            {renderDateTimeFields(
+              'pickupFrom',
+              'pickupFrom',
+              state.pickupAvailableFromDate,
+              state.pickupAvailableFromTime,
+              'Available date',
+              'Available time',
+            )}
+
+            {/* PICKUP UNTIL */}
+
+            {renderLabel(
+              'Pickup Available Until',
+              true,
+            )}
+
+            {renderDateTimeFields(
+              'pickupUntil',
+              'pickupUntil',
+              state.pickupAvailableUntilDate,
+              state.pickupAvailableUntilTime,
+              'Available date',
+              'Available time',
+            )}
+
+            {pickupError ? (
+              <View
+                style={
+                  styles.errorBox
                 }
-                placeholder="e.g. Colombo"
-                placeholderTextColor={C.muted}
-                style={styles.textInput}
-              />
+              >
+                <Ionicons
+                  name="warning-outline"
+                  size={19}
+                  color={C.danger}
+                />
+
+                <Text
+                  style={
+                    styles.errorText
+                  }
+                >
+                  {pickupFromAfterUntil
+                    ? 'Pickup start time must be earlier than pickup end time.'
+                    : pickupAfterExpiry
+                      ? 'Pickup availability cannot extend beyond the food expiry time.'
+                      : 'Pickup availability cannot be in the past.'}
+                </Text>
+              </View>
+            ) : null}
+
+            <View
+              style={
+                styles.pickupInfo
+              }
+            >
+              <View
+                style={
+                  styles.pickupInfoIcon
+                }
+              >
+                <Ionicons
+                  name="bicycle-outline"
+                  size={20}
+                  color={C.teal}
+                />
+              </View>
+
+              <View
+                style={
+                  styles.pickupInfoText
+                }
+              >
+                <Text
+                  style={
+                    styles.pickupInfoTitle
+                  }
+                >
+                  Why do I enter a pickup window?
+                </Text>
+
+                <Text
+                  style={
+                    styles.pickupInfoDescription
+                  }
+                >
+                  This tells volunteers and
+                  recipients when the food can
+                  actually be collected. The
+                  availability is entered manually
+                  by the donor.
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* ------------------------------------------------ */}
-          {/* FOOD PHOTO */}
-          {/* ------------------------------------------------ */}
+          {/* ==================================================
+              FOOD PHOTO
+             ================================================== */}
 
-          <View style={styles.card}>
+          <View
+            style={
+              styles.card
+            }
+          >
             {renderSectionHeader(
               'camera-outline',
-              'Food photo',
+              'Food photo • Required',
               'This is the photo recipients will see in the food post',
             )}
 
+            <View
+              style={
+                styles.requiredPhotoNotice
+              }
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color={C.orange}
+              />
+
+              <Text
+                style={
+                  styles.requiredPhotoNoticeText
+                }
+              >
+                A food photo is required to
+                create the donation post.
+              </Text>
+            </View>
+
             {state.photoUri ? (
-              <View style={styles.photoPreviewContainer}>
-                <Image
-                  source={{
-                    uri: state.photoUri,
-                  }}
-                  style={styles.foodPhoto}
-                />
-
+              <View
+                style={
+                  styles.uploadedPhotoCard
+                }
+              >
                 <View
-                  style={styles.photoOverlay}
+                  style={
+                    styles.uploadedPhotoFrame
+                  }
                 >
-                  <View
-                    style={styles.photoBadge}
-                  >
-                    <Ionicons
-                      name="images-outline"
-                      size={15}
-                      color={C.white}
-                    />
+                  <Image
+                    source={{
+                      uri: state.photoUri,
+                    }}
+                    style={
+                      styles.foodPhoto
+                    }
+                  />
 
-                    <Text
-                      style={styles.photoBadgeText}
+                  <View
+                    style={
+                      styles.photoTopOverlay
+                    }
+                  >
+                    <View
+                      style={
+                        styles.photoBadge
+                      }
                     >
-                      Post photo
-                    </Text>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color={C.white}
+                      />
+
+                      <Text
+                        style={
+                          styles.photoBadgeText
+                        }
+                      >
+                        Food photo uploaded
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={
+                      styles.photoBottomOverlay
+                    }
+                  >
+                    <View
+                      style={
+                        styles.photoImageInfo
+                      }
+                    >
+                      <View
+                        style={
+                          styles.photoImageInfoIcon
+                        }
+                      >
+                        <Ionicons
+                          name="restaurant-outline"
+                          size={17}
+                          color={C.white}
+                        />
+                      </View>
+
+                      <View>
+                        <Text
+                          style={
+                            styles.photoImageTitle
+                          }
+                        >
+                          Donation food photo
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.photoImageSubtitle
+                          }
+                        >
+                          This photo will appear on
+                          the food post
+                        </Text>
+                      </View>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={
+                        choosePostPhoto
+                      }
+                      style={
+                        styles.changePhotoButton
+                      }
+                    >
+                      <Ionicons
+                        name="camera-outline"
+                        size={17}
+                        color={C.white}
+                      />
+
+                      <Text
+                        style={
+                          styles.changePhotoText
+                        }
+                      >
+                        Change
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
-                <TouchableOpacity
-                  onPress={choosePostPhoto}
-                  style={styles.changePhotoButton}
+                <View
+                  style={
+                    styles.photoUploadedStatus
+                  }
                 >
-                  <Ionicons
-                    name="camera-outline"
-                    size={17}
-                    color={C.white}
-                  />
-
-                  <Text
+                  <View
                     style={
-                      styles.changePhotoText
+                      styles.photoStatusIcon
                     }
                   >
-                    Change photo
-                  </Text>
-                </TouchableOpacity>
+                    <Ionicons
+                      name="checkmark"
+                      size={15}
+                      color={C.success}
+                    />
+                  </View>
+
+                  <View
+                    style={
+                      styles.photoStatusText
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.photoStatusTitle
+                      }
+                    >
+                      Photo ready for your donation
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.photoStatusSubtitle
+                      }
+                    >
+                      You can change the photo
+                      anytime before continuing.
+                    </Text>
+                  </View>
+
+                  <Ionicons
+                    name="image-outline"
+                    size={20}
+                    color={C.teal}
+                  />
+                </View>
               </View>
             ) : (
               <TouchableOpacity
-                onPress={choosePostPhoto}
+                onPress={
+                  choosePostPhoto
+                }
                 activeOpacity={0.85}
-                style={styles.photoUploadBox}
+                style={
+                  styles.photoUploadBox
+                }
               >
-                <View style={styles.photoUploadIcon}>
+                <View
+                  style={
+                    styles.photoUploadIcon
+                  }
+                >
                   <Ionicons
                     name="camera-outline"
                     size={30}
@@ -1280,20 +3764,26 @@ update('aiReason', data.reason ?? '');
                 </View>
 
                 <Text
-                  style={styles.photoUploadTitle}
+                  style={
+                    styles.photoUploadTitle
+                  }
                 >
                   Upload food photo
                 </Text>
 
                 <Text
-                  style={styles.photoUploadSubtitle}
+                  style={
+                    styles.photoUploadSubtitle
+                  }
                 >
                   Add a clear photo of the food
                   for the Home feed
                 </Text>
 
                 <View
-                  style={styles.uploadAction}
+                  style={
+                    styles.uploadAction
+                  }
                 >
                   <Ionicons
                     name="add"
@@ -1302,7 +3792,9 @@ update('aiReason', data.reason ?? '');
                   />
 
                   <Text
-                    style={styles.uploadActionText}
+                    style={
+                      styles.uploadActionText
+                    }
                   >
                     Choose Photo
                   </Text>
@@ -1310,8 +3802,16 @@ update('aiReason', data.reason ?? '');
               </TouchableOpacity>
             )}
 
-            <View style={styles.photoTip}>
-              <View style={styles.photoTipIcon}>
+            <View
+              style={
+                styles.photoTip
+              }
+            >
+              <View
+                style={
+                  styles.photoTipIcon
+                }
+              >
                 <Ionicons
                   name="bulb-outline"
                   size={18}
@@ -1319,33 +3819,47 @@ update('aiReason', data.reason ?? '');
                 />
               </View>
 
-              <View style={styles.photoTipContent}>
+              <View
+                style={
+                  styles.photoTipContent
+                }
+              >
                 <Text
-                  style={styles.photoTipTitle}
+                  style={
+                    styles.photoTipTitle
+                  }
                 >
                   Photo tip
                 </Text>
 
                 <Text
-                  style={styles.photoTipText}
+                  style={
+                    styles.photoTipText
+                  }
                 >
                   Use good lighting and show the
-                  food closely. Avoid blurry,
-                  dark, or distant photos.
+                  food closely. Avoid blurry, dark,
+                  or distant photos.
                 </Text>
               </View>
             </View>
 
-            {/* ------------------------------------------------ */}
-            {/* AI ACTION */}
-            {/* ------------------------------------------------ */}
+            {/* AI */}
 
             <TouchableOpacity
               activeOpacity={0.88}
-              onPress={openAiModal}
-              style={styles.aiActionCard}
+              onPress={
+                openAiModal
+              }
+              style={
+                styles.aiActionCard
+              }
             >
-              <View style={styles.aiActionIcon}>
+              <View
+                style={
+                  styles.aiActionIcon
+                }
+              >
                 <Ionicons
                   name="sparkles"
                   size={24}
@@ -1353,21 +3867,33 @@ update('aiReason', data.reason ?? '');
                 />
               </View>
 
-              <View style={styles.aiActionText}>
+              <View
+                style={
+                  styles.aiActionText
+                }
+              >
                 <View
-                  style={styles.aiActionTitleRow}
+                  style={
+                    styles.aiActionTitleRow
+                  }
                 >
                   <Text
-                    style={styles.aiActionTitle}
+                    style={
+                      styles.aiActionTitle
+                    }
                   >
                     AI Food Safety Check
                   </Text>
 
                   <View
-                    style={styles.optionalBadge}
+                    style={
+                      styles.optionalBadge
+                    }
                   >
                     <Text
-                      style={styles.optionalText}
+                      style={
+                        styles.optionalText
+                      }
                     >
                       OPTIONAL
                     </Text>
@@ -1375,7 +3901,9 @@ update('aiReason', data.reason ?? '');
                 </View>
 
                 <Text
-                  style={styles.aiActionDescription}
+                  style={
+                    styles.aiActionDescription
+                  }
                 >
                   Get visual screening and
                   food-safety decision support
@@ -1383,7 +3911,9 @@ update('aiReason', data.reason ?? '');
                 </Text>
 
                 <Text
-                  style={styles.aiActionLink}
+                  style={
+                    styles.aiActionLink
+                  }
                 >
                   Tap to check a photo
                 </Text>
@@ -1396,11 +3926,8 @@ update('aiReason', data.reason ?? '');
               />
             </TouchableOpacity>
 
-            {/* ------------------------------------------------ */}
-            {/* AI RESULT */}
-            {/* ------------------------------------------------ */}
-
-            {state.aiResult !== 'PENDING' ? (
+            {state.aiResult !==
+            'PENDING' ? (
               <View
                 style={[
                   styles.aiResultCard,
@@ -1411,26 +3938,30 @@ update('aiReason', data.reason ?? '');
                 ]}
               >
                 <View
-                  style={[
-                    styles.aiResultIcon,
-                    {
-                      backgroundColor:
-                        C.white,
-                    },
-                  ]}
+                  style={
+                    styles.aiResultIcon
+                  }
                 >
                   <Ionicons
-                    name={aiConfig.icon}
+                    name={
+                      aiConfig.icon
+                    }
                     size={24}
-                    color={aiConfig.color}
+                    color={
+                      aiConfig.color
+                    }
                   />
                 </View>
 
                 <View
-                  style={styles.aiResultContent}
+                  style={
+                    styles.aiResultContent
+                  }
                 >
                   <View
-                    style={styles.aiResultHeader}
+                    style={
+                      styles.aiResultHeader
+                    }
                   >
                     <Text
                       style={[
@@ -1441,17 +3972,15 @@ update('aiReason', data.reason ?? '');
                         },
                       ]}
                     >
-                      {aiConfig.title}
+                      {
+                        aiConfig.title
+                      }
                     </Text>
 
                     <View
-                      style={[
-                        styles.completedBadge,
-                        {
-                          backgroundColor:
-                            C.white,
-                        },
-                      ]}
+                      style={
+                        styles.completedBadge
+                      }
                     >
                       <Text
                         style={[
@@ -1468,14 +3997,18 @@ update('aiReason', data.reason ?? '');
                   </View>
 
                   <Text
-                    style={styles.aiResultMessage}
+                    style={
+                      styles.aiResultMessage
+                    }
                   >
                     {state.aiReason ||
                       aiConfig.message}
                   </Text>
 
                   <Text
-                    style={styles.aiDisclaimer}
+                    style={
+                      styles.aiDisclaimer
+                    }
                   >
                     AI screening provides decision
                     support based on visible
@@ -1485,8 +4018,12 @@ update('aiReason', data.reason ?? '');
                   </Text>
 
                   <TouchableOpacity
-                    onPress={openAiModal}
-                    style={styles.checkAgainButton}
+                    onPress={
+                      openAiModal
+                    }
+                    style={
+                      styles.checkAgainButton
+                    }
                   >
                     <Ionicons
                       name="refresh-outline"
@@ -1507,44 +4044,58 @@ update('aiReason', data.reason ?? '');
             ) : null}
           </View>
 
-          {/* ------------------------------------------------ */}
-          {/* ADDITIONAL DETAILS */}
-          {/* ------------------------------------------------ */}
+          {/* ==================================================
+              ADDITIONAL DETAILS
+             ================================================== */}
 
-          <View style={styles.card}>
+          <View
+            style={
+              styles.card
+            }
+          >
             {renderSectionHeader(
               'document-text-outline',
               'Additional details',
-              'Anything else recipients or volunteers should know',
+              'Optional information recipients or volunteers should know',
             )}
 
             <TextInput
-              value={state.additionalDetails}
-              onChangeText={(value) =>
+              value={
+                state.additionalDetails
+              }
+              onChangeText={(
+                value,
+              ) =>
                 updateField(
                   'additionalDetails',
                   value,
                 )
               }
               placeholder="Add helpful information about the food, packaging, pickup instructions, or allergens..."
-              placeholderTextColor={C.muted}
+              placeholderTextColor={
+                C.muted
+              }
               multiline
               numberOfLines={5}
               textAlignVertical="top"
-              style={styles.multilineInput}
+              style={
+                styles.multilineInput
+              }
             />
           </View>
 
-          
-
-          {/* ------------------------------------------------ */}
-          {/* CONTINUE */}
-          {/* ------------------------------------------------ */}
+          {/* ==================================================
+              CONTINUE
+             ================================================== */}
 
           <TouchableOpacity
-            disabled={!canContinue}
+            disabled={
+              !canContinue
+            }
             onPress={() =>
-              navigation.navigate('Safety')
+              navigation.navigate(
+                'Safety',
+              )
             }
             style={[
               styles.continueButton,
@@ -1566,13 +4117,19 @@ update('aiReason', data.reason ?? '');
               name="arrow-forward"
               size={21}
               color={
-                canContinue ? C.white : C.muted
+                canContinue
+                  ? C.white
+                  : C.muted
               }
             />
           </TouchableOpacity>
 
           {!canContinue ? (
-            <View style={styles.validationHint}>
+            <View
+              style={
+                styles.validationHint
+              }
+            >
               <Ionicons
                 name="information-circle-outline"
                 size={17}
@@ -1580,48 +4137,73 @@ update('aiReason', data.reason ?? '');
               />
 
               <Text
-                style={styles.validationHintText}
+                style={
+                  styles.validationHintText
+                }
               >
-                Complete the required food,
-                quantity, portion, time, and
-                pickup fields to continue.
+                Complete all required food,
+                timing, donation type, storage,
+                pickup, and photo fields to
+                continue.
               </Text>
             </View>
           ) : null}
 
-          <View style={styles.bottomSpace} />
+          <View
+            style={
+              styles.bottomSpace
+            }
+          />
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ================================================== */}
-      {/* TIME PICKER */}
-      {/* ================================================== */}
+      {/* MODALS */}
 
       {renderTimePicker()}
+      {renderCalendar()}
+      {renderDropdown()}
 
-      {/* ================================================== */}
-      {/* AI MODAL */}
-      {/* ================================================== */}
+      {/* ==================================================
+          AI MODAL
+         ================================================== */}
 
       <Modal
-        visible={aiModalVisible}
+        visible={
+          aiModalVisible
+        }
         transparent
         animationType="slide"
-        onRequestClose={closeAiModal}
+        onRequestClose={
+          closeAiModal
+        }
       >
-        <View style={styles.aiModalOverlay}>
-          <View style={styles.aiModalCard}>
+        <View
+          style={
+            styles.aiModalOverlay
+          }
+        >
+          <View
+            style={
+              styles.aiModalCard
+            }
+          >
             <ScrollView
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={
+                false
+              }
               contentContainerStyle={
                 styles.aiModalContent
               }
             >
-              {/* Modal header */}
-
-              <View style={styles.aiModalHeader}>
+              <View
+                style={
+                  styles.aiModalHeader
+                }
+              >
                 <View
-                  style={styles.aiModalIcon}
+                  style={
+                    styles.aiModalIcon
+                  }
                 >
                   <Ionicons
                     name="sparkles"
@@ -1631,8 +4213,12 @@ update('aiReason', data.reason ?? '');
                 </View>
 
                 <TouchableOpacity
-                  onPress={closeAiModal}
-                  disabled={aiLoading}
+                  onPress={
+                    closeAiModal
+                  }
+                  disabled={
+                    aiLoading
+                  }
                   style={
                     styles.aiModalClose
                   }
@@ -1645,22 +4231,32 @@ update('aiReason', data.reason ?? '');
                 </TouchableOpacity>
               </View>
 
-              <Text style={styles.aiModalTitle}>
+              <Text
+                style={
+                  styles.aiModalTitle
+                }
+              >
                 AI Food Safety Check
               </Text>
 
               <Text
-                style={styles.aiModalSubtitle}
+                style={
+                  styles.aiModalSubtitle
+                }
               >
                 Optional visual screening to
                 support your food-safety decision.
               </Text>
 
-              {/* Info */}
-
-              <View style={styles.aiInfoBox}>
+              <View
+                style={
+                  styles.aiInfoBox
+                }
+              >
                 <View
-                  style={styles.aiInfoIcon}
+                  style={
+                    styles.aiInfoIcon
+                  }
                 >
                   <Ionicons
                     name="shield-checkmark-outline"
@@ -1670,16 +4266,22 @@ update('aiReason', data.reason ?? '');
                 </View>
 
                 <View
-                  style={styles.aiInfoText}
+                  style={
+                    styles.aiInfoText
+                  }
                 >
                   <Text
-                    style={styles.aiInfoTitle}
+                    style={
+                      styles.aiInfoTitle
+                    }
                   >
                     What does AI check?
                   </Text>
 
                   <Text
-                    style={styles.aiInfoDescription}
+                    style={
+                      styles.aiInfoDescription
+                    }
                   >
                     The system looks for visible
                     indicators such as unusual
@@ -1691,10 +4293,10 @@ update('aiReason', data.reason ?? '');
                 </View>
               </View>
 
-              {/* Important disclaimer */}
-
               <View
-                style={styles.aiWarningBox}
+                style={
+                  styles.aiWarningBox
+                }
               >
                 <Ionicons
                   name="information-circle-outline"
@@ -1703,7 +4305,9 @@ update('aiReason', data.reason ?? '');
                 />
 
                 <Text
-                  style={styles.aiWarningText}
+                  style={
+                    styles.aiWarningText
+                  }
                 >
                   This is decision support only.
                   A photo cannot confirm whether
@@ -1711,10 +4315,10 @@ update('aiReason', data.reason ?? '');
                 </Text>
               </View>
 
-              {/* Instructions */}
-
               <View
-                style={styles.photoInstructionCard}
+                style={
+                  styles.photoInstructionCard
+                }
               >
                 <View
                   style={
@@ -1736,120 +4340,56 @@ update('aiReason', data.reason ?? '');
                   </Text>
                 </View>
 
-                <View
-                  style={styles.instructionRow}
-                >
-                  <View
-                    style={
-                      styles.instructionNumber
-                    }
-                  >
-                    <Text
+                {[
+                  'Take a close-up photo of the food.',
+                  'Use good lighting and avoid dark shadows.',
+                  'Make sure the food surface is clearly visible.',
+                  'Avoid blurry or very distant photos.',
+                ].map(
+                  (
+                    text,
+                    index,
+                  ) => (
+                    <View
+                      key={
+                        text
+                      }
                       style={
-                        styles.instructionNumberText
+                        styles.instructionRow
                       }
                     >
-                      1
-                    </Text>
-                  </View>
+                      <View
+                        style={
+                          styles.instructionNumber
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.instructionNumberText
+                          }
+                        >
+                          {index +
+                            1}
+                        </Text>
+                      </View>
 
-                  <Text
-                    style={
-                      styles.instructionText
-                    }
-                  >
-                    Take a close-up photo of the
-                    food.
-                  </Text>
-                </View>
-
-                <View
-                  style={styles.instructionRow}
-                >
-                  <View
-                    style={
-                      styles.instructionNumber
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.instructionNumberText
-                      }
-                    >
-                      2
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={
-                      styles.instructionText
-                    }
-                  >
-                    Use good lighting and avoid
-                    dark shadows.
-                  </Text>
-                </View>
-
-                <View
-                  style={styles.instructionRow}
-                >
-                  <View
-                    style={
-                      styles.instructionNumber
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.instructionNumberText
-                      }
-                    >
-                      3
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={
-                      styles.instructionText
-                    }
-                  >
-                    Make sure the food surface is
-                    clearly visible.
-                  </Text>
-                </View>
-
-                <View
-                  style={styles.instructionRow}
-                >
-                  <View
-                    style={
-                      styles.instructionNumber
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.instructionNumberText
-                      }
-                    >
-                      4
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={
-                      styles.instructionText
-                    }
-                  >
-                    Avoid blurry or very distant
-                    photos.
-                  </Text>
-                </View>
+                      <Text
+                        style={
+                          styles.instructionText
+                        }
+                      >
+                        {text}
+                      </Text>
+                    </View>
+                  ),
+                )}
               </View>
-
-              {/* Current selected AI photo */}
 
               {aiPhotoUri ? (
                 <View
-                  style={styles.aiSelectedPhoto}
+                  style={
+                    styles.aiSelectedPhoto
+                  }
                 >
                   <Image
                     source={{
@@ -1882,19 +4422,25 @@ update('aiReason', data.reason ?? '');
                 </View>
               ) : null}
 
-              {/* Photo choices */}
-
               <Text
-                style={styles.choosePhotoTitle}
+                style={
+                  styles.choosePhotoTitle
+                }
               >
                 Choose a photo
               </Text>
 
               {state.photoBase64 ? (
                 <TouchableOpacity
-                  onPress={usePostPhotoForAi}
-                  disabled={aiLoading}
-                  style={styles.aiPhotoChoice}
+                  onPress={
+                    usePostPhotoForAi
+                  }
+                  disabled={
+                    aiLoading
+                  }
+                  style={
+                    styles.aiPhotoChoice
+                  }
                 >
                   <View
                     style={
@@ -1940,12 +4486,16 @@ update('aiReason', data.reason ?? '');
               ) : null}
 
               <TouchableOpacity
-                onPress={chooseAiPhoto}
+                onPress={
+                  chooseAiPhoto
+                }
                 disabled={
                   pickingAiPhoto ||
                   aiLoading
                 }
-                style={styles.aiPhotoChoice}
+                style={
+                  styles.aiPhotoChoice
+                }
               >
                 <View
                   style={[
@@ -1989,7 +4539,9 @@ update('aiReason', data.reason ?? '');
                 {pickingAiPhoto ? (
                   <ActivityIndicator
                     size="small"
-                    color={C.orange}
+                    color={
+                      C.orange
+                    }
                   />
                 ) : (
                   <Ionicons
@@ -2000,14 +4552,14 @@ update('aiReason', data.reason ?? '');
                 )}
               </TouchableOpacity>
 
-              {/* Run */}
-
               <TouchableOpacity
                 disabled={
                   !aiPhotoBase64 ||
                   aiLoading
                 }
-                onPress={runAiScreening}
+                onPress={
+                  runAiScreening
+                }
                 style={[
                   styles.runAiButton,
                   (!aiPhotoBase64 ||
@@ -2019,11 +4571,15 @@ update('aiReason', data.reason ?? '');
                   <>
                     <ActivityIndicator
                       size="small"
-                      color={C.white}
+                      color={
+                        C.white
+                      }
                     />
 
                     <Text
-                      style={styles.runAiText}
+                      style={
+                        styles.runAiText
+                      }
                     >
                       Checking photo...
                     </Text>
@@ -2033,11 +4589,15 @@ update('aiReason', data.reason ?? '');
                     <Ionicons
                       name="sparkles"
                       size={20}
-                      color={C.white}
+                      color={
+                        C.white
+                      }
                     />
 
                     <Text
-                      style={styles.runAiText}
+                      style={
+                        styles.runAiText
+                      }
                     >
                       Start AI Check
                     </Text>
@@ -2046,12 +4606,20 @@ update('aiReason', data.reason ?? '');
               </TouchableOpacity>
 
               <TouchableOpacity
-                disabled={aiLoading}
-                onPress={closeAiModal}
-                style={styles.skipAiButton}
+                disabled={
+                  aiLoading
+                }
+                onPress={
+                  closeAiModal
+                }
+                style={
+                  styles.skipAiButton
+                }
               >
                 <Text
-                  style={styles.skipAiText}
+                  style={
+                    styles.skipAiText
+                  }
                 >
                   Skip AI Check
                 </Text>
@@ -2061,66 +4629,95 @@ update('aiReason', data.reason ?? '');
         </View>
       </Modal>
 
-      {/* ================================================== */}
-      {/* VOICE */}
-      {/* ================================================== */}
+      {/* ==================================================
+          VOICE ASSISTANT
+         ================================================== */}
 
       <VoiceAssistantModal
-  visible={voiceVisible}
-  onComplete={(values: any) => {
-    update(
-      'foodType',
-      values.foodType ?? state.foodType
-    );
+        visible={
+          voiceVisible
+        }
+        onComplete={(
+          values: any,
+        ) => {
+          update(
+            'foodType',
+            values.foodType ??
+              state.foodType,
+          );
 
-    update(
-      'category',
-      values.category ?? state.category
-    );
+          update(
+            'category',
+            values.category ??
+              state.category,
+          );
 
-    update(
-      'quantity',
-      values.quantity ?? state.quantity
-    );
+          update(
+            'quantity',
+            values.quantity ??
+              state.quantity,
+          );
 
-    update(
-      'portions',
-      values.portions ?? state.portions
-    );
+          update(
+            'quantityUnit',
+            values.quantityUnit ??
+              state.quantityUnit,
+          );
 
-    update(
-      'preparationTime',
-      values.preparationTime ?? state.preparationTime
-    );
+          update(
+            'portions',
+            values.portions ??
+              state.portions,
+          );
 
-    update(
-      'expiryTime',
-      values.expiryTime ?? state.expiryTime
-    );
+          update(
+            'preparationTime',
+            values.preparationTime ??
+              state.preparationTime,
+          );
 
-    update(
-      'storageCondition',
-      values.storageCondition ?? state.storageCondition
-    );
+          update(
+            'expiryTime',
+            values.expiryTime ??
+              state.expiryTime,
+          );
 
-    update(
-      'pickupLocation',
-      values.pickupLocation ?? state.pickupLocation
-    );
+          update(
+            'storageCondition',
+            values.storageCondition ??
+              state.storageCondition,
+          );
 
-    update(
-      'additionalDetails',
-      values.additionalDetails ?? state.additionalDetails
-    );
+          update(
+            'pickupLocation',
+            values.pickupLocation ??
+              state.pickupLocation,
+          );
 
-    setVoiceVisible(false);
-  }}
-/>
-       
+          update(
+            'pickupDistrict',
+            values.pickupDistrict ??
+              state.pickupDistrict,
+          );
 
+          update(
+            'additionalDetails',
+            values.additionalDetails ??
+              state.additionalDetails,
+          );
+
+          setVoiceVisible(
+            false,
+          );
+        }}
+      />
     </View>
   );
 }
+
+/* ============================================================
+   STYLES
+   ============================================================ */
 
 const styles = StyleSheet.create({
   flex: {
@@ -2217,7 +4814,8 @@ const styles = StyleSheet.create({
     width: 47,
     height: 47,
     borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor:
+      'rgba(255,255,255,0.12)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 13,
@@ -2296,6 +4894,13 @@ const styles = StyleSheet.create({
     color: C.orange,
   },
 
+  smallFieldLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: C.secondary,
+    marginBottom: 7,
+  },
+
   inputWrapper: {
     minHeight: 50,
     borderWidth: 1,
@@ -2317,39 +4922,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
 
-  horizontalOptions: {
-    gap: 8,
-    paddingBottom: 5,
-    marginBottom: 13,
-  },
-
-  categoryPill: {
-    minHeight: 38,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 20,
-    paddingHorizontal: 13,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: C.white,
-  },
-
-  categoryPillSelected: {
-    backgroundColor: C.navy,
-    borderColor: C.navy,
-  },
-
-  categoryText: {
-    color: C.secondary,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  categoryTextSelected: {
-    color: C.white,
-  },
-
   row: {
     flexDirection: 'row',
     gap: 12,
@@ -2360,59 +4932,153 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
 
-  unitScroll: {
-    gap: 6,
-    paddingBottom: 5,
-  },
+  /* SELECT */
 
-  unitPill: {
-    minHeight: 48,
-    paddingHorizontal: 11,
-    borderRadius: 13,
+  selectField: {
+    minHeight: 58,
     borderWidth: 1,
     borderColor: C.border,
+    borderRadius: 15,
+    backgroundColor: '#FCFDFD',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.white,
+    paddingHorizontal: 10,
+    marginBottom: 14,
   },
 
-  unitPillSelected: {
-    borderColor: C.orange,
+  selectFieldSelected: {
+    borderColor: '#F6C18D',
+    backgroundColor: '#FFFBF7',
+  },
+
+  selectIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: C.softBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
+
+  selectIconSelected: {
     backgroundColor: C.softOrange,
   },
 
-  unitText: {
-    color: C.secondary,
-    fontSize: 12,
-    fontWeight: '700',
+  selectIconSmall: {
+    backgroundColor: C.softOrange,
   },
 
-  unitTextSelected: {
-    color: C.orange,
+  selectTextContainer: {
+    flex: 1,
   },
 
-  /* TIME */
+  selectValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.navy,
+  },
 
-  timeField: {
-    minHeight: 69,
-    borderRadius: 16,
+  selectPlaceholder: {
+    color: C.muted,
+  },
+
+  selectHint: {
+    fontSize: 9,
+    color: C.muted,
+    marginTop: 2,
+  },
+
+  /* VOICE */
+
+  voiceCard: {
+    backgroundColor: C.navy,
+    borderRadius: 20,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  voiceIcon: {
+    width: 47,
+    height: 47,
+    borderRadius: 15,
+    backgroundColor: C.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  voiceText: {
+    flex: 1,
+  },
+
+  voiceTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flexWrap: 'wrap',
+  },
+
+  voiceTitle: {
+    color: C.white,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  voiceOptional: {
+    backgroundColor:
+      'rgba(255,255,255,0.13)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+
+  voiceOptionalText: {
+    color: '#D8E7EC',
+    fontSize: 8,
+    fontWeight: '900',
+  },
+
+  voiceSubtitle: {
+    color: '#C9D9DF',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
+  },
+
+  /* DATE + TIME */
+
+  dateTimeGroup: {
+    marginBottom: 13,
+  },
+
+  dateTimeRow: {
+    flexDirection: 'row',
+    gap: 9,
+  },
+
+  dateField: {
+    flex: 1,
+    minHeight: 65,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: C.border,
     backgroundColor: '#FCFDFD',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    marginBottom: 5,
+    paddingHorizontal: 9,
   },
 
-  timeFieldSelected: {
+  dateFieldSelected: {
     borderColor: '#F6C18D',
     backgroundColor: '#FFFBF7',
   },
 
-  timeIcon: {
-    width: 40,
-    height: 40,
+  dateTimeIcon: {
+    width: 39,
+    height: 39,
     borderRadius: 12,
     backgroundColor: C.softBlue,
     alignItems: 'center',
@@ -2420,38 +5086,39 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
 
-  timeIconSelected: {
+  dateTimeIconSelected: {
     backgroundColor: C.softOrange,
   },
 
-  timeTextContainer: {
+  dateTimeText: {
     flex: 1,
   },
 
-  timeValue: {
-    fontSize: 14,
+  dateTimeValue: {
+    fontSize: 12,
     fontWeight: '800',
     color: C.navy,
   },
 
-  timePlaceholder: {
+  dateTimePlaceholder: {
     color: C.muted,
-    fontWeight: '700',
   },
 
-  timeHint: {
-    fontSize: 10,
+  dateTimeHint: {
+    fontSize: 9,
     color: C.muted,
     marginTop: 2,
   },
 
+  /* INFO */
+
   timeInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: C.softBlue,
     padding: 11,
     borderRadius: 13,
-    marginTop: 8,
+    marginTop: 3,
   },
 
   timeInfoText: {
@@ -2460,6 +5127,164 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 16,
     marginLeft: 7,
+  },
+
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: C.dangerSoft,
+    borderRadius: 13,
+    padding: 11,
+    marginTop: 2,
+    marginBottom: 10,
+  },
+
+  errorText: {
+    flex: 1,
+    color: C.danger,
+    fontSize: 11,
+    lineHeight: 16,
+    marginLeft: 7,
+    fontWeight: '700',
+  },
+
+  /* PRIORITY */
+
+  priorityWaiting: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.softBlue,
+    borderRadius: 17,
+    padding: 13,
+  },
+
+  priorityWaitingIcon: {
+    width: 45,
+    height: 45,
+    borderRadius: 14,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  priorityContent: {
+    flex: 1,
+  },
+
+  priorityWaitingTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: C.navy,
+  },
+
+  priorityWaitingText: {
+    fontSize: 10,
+    lineHeight: 15,
+    color: C.secondary,
+    marginTop: 3,
+  },
+
+  priorityCard: {
+    flexDirection: 'row',
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: 1,
+  },
+
+  priorityUrgent: {
+    backgroundColor: '#FFF9F3',
+    borderColor: '#F6C18D',
+  },
+
+  priorityNormal: {
+    backgroundColor: C.successSoft,
+    borderColor: '#CDE8D1',
+  },
+
+  priorityIcon: {
+    width: 49,
+    height: 49,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  priorityIconUrgent: {
+    backgroundColor: C.softOrange,
+  },
+
+  priorityIconNormal: {
+    backgroundColor: C.white,
+  },
+
+  priorityTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+
+  priorityLabel: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.7,
+    color: C.muted,
+  },
+
+  priorityBadge: {
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+
+  priorityBadgeUrgent: {
+    backgroundColor: C.softOrange,
+  },
+
+  priorityBadgeNormal: {
+    backgroundColor: C.white,
+  },
+
+  priorityBadgeText: {
+    fontSize: 8,
+    fontWeight: '900',
+  },
+
+  priorityBadgeTextUrgent: {
+    color: C.orange,
+  },
+
+  priorityBadgeTextNormal: {
+    color: C.success,
+  },
+
+  priorityTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: C.navy,
+    marginTop: 4,
+  },
+
+  priorityDescription: {
+    color: C.secondary,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
+  },
+
+  priorityAutoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 5,
+  },
+
+  priorityAutoText: {
+    color: C.teal,
+    fontSize: 9,
+    fontWeight: '700',
   },
 
   /* STORAGE */
@@ -2500,14 +5325,78 @@ const styles = StyleSheet.create({
     color: C.navy,
   },
 
+  /* PICKUP */
+
+  pickupInfo: {
+    flexDirection: 'row',
+    backgroundColor: C.softBlue,
+    borderRadius: 15,
+    padding: 12,
+    marginTop: 4,
+  },
+
+  pickupInfoIcon: {
+    width: 39,
+    height: 39,
+    borderRadius: 12,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
+
+  pickupInfoText: {
+    flex: 1,
+  },
+
+  pickupInfoTitle: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: C.navy,
+  },
+
+  pickupInfoDescription: {
+    color: C.secondary,
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 3,
+  },
+
   /* PHOTO */
 
-  photoPreviewContainer: {
-    height: 230,
-    borderRadius: 19,
+  requiredPhotoNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.softOrange,
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    marginTop: -7,
+    marginBottom: 12,
+  },
+
+  requiredPhotoNoticeText: {
+    flex: 1,
+    color: C.secondary,
+    fontSize: 10,
+    lineHeight: 15,
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+
+  uploadedPhotoCard: {
+    width: '100%',
+  },
+
+  uploadedPhotoFrame: {
+    width: '100%',
+    height: 360,
+    borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: C.softBlue,
     position: 'relative',
+    borderWidth: 1,
+    borderColor: '#DCE8EC',
   },
 
   foodPhoto: {
@@ -2516,20 +5405,23 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
 
-  photoOverlay: {
+  photoTopOverlay: {
     position: 'absolute',
-    top: 12,
-    left: 12,
+    top: 14,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
   },
 
   photoBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: 'rgba(2,48,71,0.88)',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 22,
+    backgroundColor:
+      'rgba(2,48,71,0.90)',
   },
 
   photoBadgeText: {
@@ -2538,89 +5430,83 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  changePhotoButton: {
+  photoBottomOverlay: {
     position: 'absolute',
-    bottom: 12,
-    right: 12,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    backgroundColor:
+      'rgba(1,28,46,0.78)',
+  },
+
+  photoImageInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+
+  photoImageInfoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor:
+      'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
+
+  photoImageTitle: {
+    color: C.white,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+  photoImageSubtitle: {
+    color: '#D5E3E8',
+    fontSize: 9,
+    lineHeight: 14,
+    marginTop: 2,
+  },
+
+  changePhotoButton: {
     backgroundColor: C.orange,
     borderRadius: 13,
     paddingHorizontal: 13,
     paddingVertical: 9,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
   },
 
   changePhotoText: {
     color: C.white,
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '900',
   },
 
-  photoUploadBox: {
-    minHeight: 220,
-    borderRadius: 19,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: '#C8D9DF',
-    backgroundColor: '#FBFDFD',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-
-  photoUploadIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
-    backgroundColor: C.softOrange,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-
-  photoUploadTitle: {
-    color: C.navy,
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
-  photoUploadSubtitle: {
-    color: C.muted,
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 18,
-    marginTop: 5,
-    marginBottom: 14,
-  },
-
-  uploadAction: {
+  photoUploadedStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: C.navy,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-  },
-
-  uploadActionText: {
-    color: C.white,
-    fontSize: 12,
-    fontWeight: '800',
-  },
-
-  photoTip: {
-    flexDirection: 'row',
-    padding: 12,
+    backgroundColor: C.successSoft,
+    borderWidth: 1,
+    borderColor: '#CDE8D1',
     borderRadius: 15,
-    backgroundColor: C.softOrange,
-    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
   },
 
-  photoTipIcon: {
-    width: 32,
-    height: 32,
+  photoStatusIcon: {
+    width: 30,
+    height: 30,
     borderRadius: 10,
     backgroundColor: C.white,
     alignItems: 'center',
@@ -2628,24 +5514,111 @@ const styles = StyleSheet.create({
     marginRight: 9,
   },
 
+  photoStatusText: {
+    flex: 1,
+  },
+
+  photoStatusTitle: {
+    color: C.navy,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+
+  photoStatusSubtitle: {
+    color: C.secondary,
+    fontSize: 9,
+    lineHeight: 14,
+    marginTop: 2,
+  },
+
+  photoUploadBox: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#E7B47F',
+    backgroundColor: '#FFFBF7',
+    borderRadius: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 18,
+    alignItems: 'center',
+  },
+
+  photoUploadIcon: {
+    width: 62,
+    height: 62,
+    borderRadius: 20,
+    backgroundColor: C.softOrange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 11,
+  },
+
+  photoUploadTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: C.navy,
+  },
+
+  photoUploadSubtitle: {
+    fontSize: 11,
+    color: C.muted,
+    textAlign: 'center',
+    lineHeight: 16,
+    marginTop: 4,
+  },
+
+  uploadAction: {
+    marginTop: 13,
+    backgroundColor: C.orange,
+    borderRadius: 13,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+
+  uploadActionText: {
+    color: C.white,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+
+  photoTip: {
+    flexDirection: 'row',
+    marginTop: 11,
+    padding: 11,
+    borderRadius: 14,
+    backgroundColor: C.softBlue,
+  },
+
+  photoTipIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 11,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+
   photoTipContent: {
     flex: 1,
   },
 
   photoTipTitle: {
-    fontSize: 12,
-    fontWeight: '800',
     color: C.navy,
-    marginBottom: 2,
+    fontSize: 11,
+    fontWeight: '900',
   },
 
   photoTipText: {
-    fontSize: 11,
     color: C.secondary,
-    lineHeight: 16,
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 2,
   },
 
-  /* AI ACTION */
+  /* AI */
 
   aiActionCard: {
     marginTop: 13,
@@ -2704,7 +5677,6 @@ const styles = StyleSheet.create({
     color: C.secondary,
     lineHeight: 16,
     marginTop: 3,
-    marginRight: 5,
   },
 
   aiActionLink: {
@@ -2713,8 +5685,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 5,
   },
-
-  /* AI RESULT */
 
   aiResultCard: {
     marginTop: 12,
@@ -2727,6 +5697,7 @@ const styles = StyleSheet.create({
     width: 43,
     height: 43,
     borderRadius: 14,
+    backgroundColor: C.white,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
@@ -2753,6 +5724,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     paddingHorizontal: 6,
     paddingVertical: 4,
+    backgroundColor: C.white,
   },
 
   completedText: {
@@ -2804,64 +5776,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FCFDFD',
   },
 
-  /* VOICE */
-
-  voiceCard: {
-    backgroundColor: C.navy,
-    borderRadius: 20,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-
-  voiceIcon: {
-    width: 47,
-    height: 47,
-    borderRadius: 15,
-    backgroundColor: C.orange,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 11,
-  },
-
-  voiceText: {
-    flex: 1,
-  },
-
-  voiceTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    flexWrap: 'wrap',
-  },
-
-  voiceTitle: {
-    color: C.white,
-    fontSize: 14,
-    fontWeight: '800',
-  },
-
-  voiceOptional: {
-    backgroundColor: 'rgba(255,255,255,0.13)',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-  },
-
-  voiceOptionalText: {
-    color: '#D8E7EC',
-    fontSize: 8,
-    fontWeight: '900',
-  },
-
-  voiceSubtitle: {
-    color: '#C9D9DF',
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 3,
-  },
-
   /* CONTINUE */
 
   continueButton: {
@@ -2908,42 +5822,48 @@ const styles = StyleSheet.create({
     height: 10,
   },
 
-  /* TIME MODAL */
+  /* GENERAL MODAL */
 
-  timeModalOverlay: {
+  modalOverlay: {
     flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(1,28,46,0.48)',
+    backgroundColor:
+      'rgba(1,28,46,0.56)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
   },
 
-  timeModalCard: {
+  simpleTimeCard: {
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '92%',
     backgroundColor: C.white,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderRadius: 26,
     padding: 20,
   },
 
-  timeModalHeader: {
+  modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 15,
   },
 
-  timeModalEyebrow: {
+  modalEyebrow: {
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.2,
     color: C.orange,
   },
 
-  timeModalTitle: {
+  modalTitle: {
     fontSize: 20,
     fontWeight: '900',
     color: C.navy,
     marginTop: 3,
   },
 
-  modalCloseButton: {
+  modalClose: {
     width: 40,
     height: 40,
     borderRadius: 13,
@@ -2952,23 +5872,310 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  iosPicker: {
-    alignSelf: 'center',
-    width: 300,
-    height: 210,
+  /* TIME MODAL */
+
+  timePreview: {
+    minHeight: 72,
+    borderRadius: 18,
+    backgroundColor: C.softOrange,
+    borderWidth: 1,
+    borderColor: '#F6C18D',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 18,
   },
 
-  timeDoneButton: {
-    height: 52,
-    borderRadius: 15,
-    backgroundColor: C.orange,
+  timePreviewText: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: C.navy,
+  },
+
+  timePickerLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: C.navy,
+    marginBottom: 8,
+  },
+
+  timeChoices: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginBottom: 15,
+  },
+
+  timeChoice: {
+    width: 47,
+    height: 40,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  timeDoneText: {
+  timeChoiceSelected: {
+    backgroundColor: C.orange,
+    borderColor: C.orange,
+  },
+
+  timeChoiceText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: C.secondary,
+  },
+
+  timeChoiceTextSelected: {
+    color: C.white,
+  },
+
+  minuteChoices: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 15,
+  },
+
+  minuteChoice: {
+    flex: 1,
+    height: 43,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  periodChoices: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+
+  periodChoice: {
+    flex: 1,
+    height: 48,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  periodChoiceSelected: {
+    backgroundColor: C.navy,
+    borderColor: C.navy,
+  },
+
+  periodChoiceText: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: C.secondary,
+  },
+
+  periodChoiceTextSelected: {
+    color: C.white,
+  },
+
+  confirmButton: {
+    height: 52,
+    borderRadius: 15,
+    backgroundColor: C.orange,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  confirmButtonText: {
     color: C.white,
     fontSize: 14,
+    fontWeight: '900',
+  },
+
+  /* CALENDAR */
+
+  calendarCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: C.white,
+    borderRadius: 26,
+    padding: 20,
+  },
+
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+
+  calendarArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: C.softBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  calendarMonth: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: C.navy,
+  },
+
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+
+  weekText: {
+    flex: 1,
+    textAlign: 'center',
+    color: C.muted,
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+
+  calendarDay: {
+    width: '14.2857%',
+    height: 43,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+
+  calendarDaySelected: {
+    backgroundColor: C.orange,
+  },
+
+  calendarDayDisabled: {
+    opacity: 0.28,
+  },
+
+  calendarDayText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.navy,
+  },
+
+  calendarDayTextSelected: {
+    color: C.white,
+    fontWeight: '900',
+  },
+
+  calendarDayTextDisabled: {
+    color: C.muted,
+  },
+
+  todayButton: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: C.softOrange,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    marginTop: 12,
+  },
+
+  todayButtonText: {
+    color: C.orange,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+
+  /* DROPDOWN */
+
+  dropdownCard: {
+    width: '100%',
+    maxWidth: 560,
+    maxHeight: '85%',
+    backgroundColor: C.white,
+    borderRadius: 27,
+    padding: 18,
+  },
+
+  dropdownHandle: {
+    width: 42,
+    height: 4,
+    borderRadius: 10,
+    backgroundColor: C.border,
+    alignSelf: 'center',
+    marginBottom: 15,
+  },
+
+  dropdownTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  dropdownTitleIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 14,
+    backgroundColor: C.softOrange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  dropdownList: {
+    paddingBottom: 8,
+  },
+
+  dropdownOption: {
+    minHeight: 58,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.white,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+
+  dropdownOptionSelected: {
+    borderColor: C.orange,
+    backgroundColor: '#FFF9F3',
+  },
+
+  dropdownOptionIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 11,
+    backgroundColor: C.softBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  dropdownOptionIconSelected: {
+    backgroundColor: C.orange,
+  },
+
+  dropdownOptionText: {
+    flex: 1,
+    color: C.secondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  dropdownOptionTextSelected: {
+    color: C.navy,
     fontWeight: '900',
   },
 
@@ -2976,7 +6183,8 @@ const styles = StyleSheet.create({
 
   aiModalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(1,28,46,0.56)',
+    backgroundColor:
+      'rgba(1,28,46,0.56)',
     justifyContent: 'flex-end',
   },
 
@@ -3161,7 +6369,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 7,
     borderRadius: 20,
-    backgroundColor: 'rgba(2,48,71,0.88)',
+    backgroundColor:
+      'rgba(2,48,71,0.88)',
   },
 
   aiSelectedPhotoBadgeText: {

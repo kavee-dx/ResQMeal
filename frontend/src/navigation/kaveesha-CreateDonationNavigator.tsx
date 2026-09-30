@@ -1,9 +1,5 @@
 // frontend/src/navigation/kaveesha-CreateDonationNavigator.tsx
-// Registered in AppNavigator.tsx under the existing "CreateDonation" route
-// name — see kaveesha-README-createDonationFlow.md for the exact one-line
-// import swap. Every navigation.navigate('CreateDonation') call elsewhere in
-// the app keeps working unchanged; it now opens this 5-step wizard instead
-// of a single long form.
+// Create Donation flow navigator
 // Owner: Kaveesha
 
 import React from 'react';
@@ -18,23 +14,43 @@ import AnalysisScreen from '../screens/donation-flow/kaveesha-AnalysisScreen';
 import SafetyCheckScreen from '../screens/donation-flow/kaveesha-SafetyCheckScreen';
 import ReviewScreen from '../screens/donation-flow/kaveesha-ReviewScreen';
 
-const Stack = createNativeStackNavigator<CreateDonationFlowParamList>();
+const Stack =
+  createNativeStackNavigator<CreateDonationFlowParamList>();
 
 export default function KaveeshaCreateDonationNavigator() {
   return (
     <CreateDonationProvider>
       <Stack.Navigator
-        initialRouteName="TypeSelect"
+        initialRouteName="Details"
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen name="TypeSelect" component={TypeSelectScreen} />
-        <Stack.Screen name="Details" component={DetailsScreen} />
-        <Stack.Screen name="Analysis" component={AnalysisScreen} />
-        <Stack.Screen name="Safety" component={SafetyCheckScreen} />
-        <Stack.Screen name="Review" component={ReviewScreen} />
+        <Stack.Screen
+          name="TypeSelect"
+          component={TypeSelectScreen}
+        />
+
+        <Stack.Screen
+          name="Details"
+          component={DetailsScreen}
+        />
+
+        <Stack.Screen
+          name="Analysis"
+          component={AnalysisScreen}
+        />
+
+        <Stack.Screen
+          name="Safety"
+          component={SafetyCheckScreen}
+        />
+
+        <Stack.Screen
+          name="Review"
+          component={ReviewScreen}
+        />
       </Stack.Navigator>
     </CreateDonationProvider>
   );

@@ -55,6 +55,7 @@ export type RootStackParamList = {
   CreateDonation: undefined;
   MyDonations: undefined;
   DonationDetail: { donationId: string };
+  EditDonation: { donationId: string };
 
   FoodRescueRequests: undefined;
   NGOCommunities: undefined;

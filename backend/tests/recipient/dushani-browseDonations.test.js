@@ -1,7 +1,7 @@
 // Sprint item 4 — Browse Donations: the live donation pool a recipient searches,
 // filtered by food type, quantity and distance, with urgent-request matches first.
 const FoodRequest = require('../../src/models/dushani-foodRequestModel');
-const Donation = require('../../src/models/kaveesha-Donation.model');
+const Donation = require('../../src/models/kaveesha-Donation');
 const User = require('../../src/models/dushani-User');
 const DonorProfile = require('../../src/models/dushani-DonorProfile');
 

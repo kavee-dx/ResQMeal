@@ -73,6 +73,12 @@ const FoodRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // The moment the recipient called the request off, so a cancelled timeline
+    // row can show its own time instead of the document's last write.
+    cancelledAt: {
+      type: Date,
+      default: null,
+    },
     // When the recipient actually wants the food, chosen in the request form.
     // A standard request stays open until this moment (see expiresAt); emergency
     // requests are needed straight away so this stays null.

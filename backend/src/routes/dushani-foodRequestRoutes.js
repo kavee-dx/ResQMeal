@@ -8,6 +8,7 @@ const {
 const { getMyRequestsHandler } = require('../controllers/dushani-requestStatusController');
 const { getRequestProgressHandler } = require('../controllers/dushani-requestProgressController');
 const { deleteFoodRequestHandler } = require('../controllers/dushani-deleteFoodRequestController');
+const { cancelFoodRequestHandler } = require('../controllers/dushani-cancelFoodRequestController');
 const { updateFoodRequestStatusHandler } = require('../controllers/dushani-updateRequestStatusController');
 const {
   getRequestMatchesHandler,
@@ -62,6 +63,13 @@ router.post('/:id/accept', acceptFoodRequestHandler);
 // marks the delivery on the way, and donor, volunteer or recipient marks it
 // delivered. Forward-only.
 router.patch('/:id/status', updateFoodRequestStatusHandler);
+
+// POST /api/recipient/food-requests/:id/cancel
+// Sprint item 09 — the recipient calls their own request off. It works for a
+// request still waiting for a donor and for one a donor has already accepted or
+// dispatched; a delivered, expired or cancelled request is refused with 409.
+// Releasing anything the donor committed to is the next item.
+router.post('/:id/cancel', cancelFoodRequestHandler);
 
 // GET /api/recipient/food-requests/:id/matches
 // One of the caller's own requests with the donations scored against it.

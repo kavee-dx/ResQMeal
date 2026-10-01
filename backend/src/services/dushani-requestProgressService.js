@@ -76,7 +76,9 @@ function buildTimeline(request, status) {
     timeline.push({
       key: status,
       ...TERMINAL_LABELS[status],
-      at: request.updatedAt,
+      // A cancellation stamps its own moment; an expiry has no field of its
+      // own, so the last write is all the document carries.
+      at: request.cancelledAt ?? request.updatedAt,
       state: 'stopped',
     });
   }

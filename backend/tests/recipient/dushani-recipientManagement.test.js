@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 /**
  *
- * Only the three SERVICE modules are auto-mocked here — and only because the
+ * Only the four SERVICE modules below are auto-mocked here — and only because the
  * controllers destructure their functions at load time
  * (`const { createFoodRequest } = require('../services/...')`), so a
  * jest.mock() declared at the top of the file (hoisted before any requires)
@@ -19,6 +19,7 @@ const mongoose = require('mongoose');
 jest.mock('../../src/services/dushani-createFoodRequestService');
 jest.mock('../../src/services/dushani-requestStatusService');
 jest.mock('../../src/services/dushani-deleteFoodRequestService');
+jest.mock('../../src/services/dushani-cancelFoodRequestService');
 
 const FoodRequest = require('../../src/models/dushani-foodRequestModel');
 
@@ -26,15 +27,18 @@ const FoodRequest = require('../../src/models/dushani-foodRequestModel');
 const mockedCreateService = require('../../src/services/dushani-createFoodRequestService');
 const mockedStatusService = require('../../src/services/dushani-requestStatusService');
 const mockedDeleteService = require('../../src/services/dushani-deleteFoodRequestService');
+const mockedCancelService = require('../../src/services/dushani-cancelFoodRequestService');
 
 // Real, unmocked implementations — used to test the service layer itself.
 const { createFoodRequest } = jest.requireActual('../../src/services/dushani-createFoodRequestService');
 const { getRequestsByRecipient } = jest.requireActual('../../src/services/dushani-requestStatusService');
 const { deleteFoodRequest } = jest.requireActual('../../src/services/dushani-deleteFoodRequestService');
+const { cancelFoodRequest } = jest.requireActual('../../src/services/dushani-cancelFoodRequestService');
 
 const { createFoodRequestHandler } = require('../../src/controllers/dushani-createFoodRequestController');
 const { getMyRequestsHandler } = require('../../src/controllers/dushani-requestStatusController');
 const { deleteFoodRequestHandler } = require('../../src/controllers/dushani-deleteFoodRequestController');
+const { cancelFoodRequestHandler } = require('../../src/controllers/dushani-cancelFoodRequestController');
 
 function mockResponse() {
   const res = {};
@@ -972,5 +976,188 @@ describe('updateFoodRequestStatus (sprint item 4)', () => {
     await expect(
       updateFoodRequestStatus({ actorId: 'donor1', role: 'DONOR', requestId: null, status: 'DISPATCHED' }),
     ).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 09 (backend) — cancelling a request, real implementation
+// ---------------------------------------------------------------------------
+describe('cancelFoodRequest (sprint item 09)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  it('stamps cancelledAt on the model as null until the request is called off', () => {
+    const pending = new FoodRequest({
+      recipient: 'recipient1',
+      foodType: 'Rice',
+      quantity: '5 kg',
+      location: 'Colombo 05',
+    });
+    expect(pending.cancelledAt).toBeNull();
+  });
+
+  it.each(['PENDING', 'MATCHED', 'DISPATCHED'])(
+    'cancels a live %s request and stamps the moment',
+    async (status) => {
+      mockFound(doc({ status, expiresAt: future }));
+      const write = jest
+        .spyOn(FoodRequest, 'findOneAndUpdate')
+        .mockResolvedValue(doc({ status: 'CANCELLED', expiresAt: future }));
+
+      await expect(cancelFoodRequest('recipient1', 'req1')).resolves.toEqual({
+        id: 'req1',
+        status: 'CANCELLED',
+      });
+
+      const [query, update] = write.mock.calls[0];
+      expect(query).toMatchObject({
+        _id: 'req1',
+        recipient: 'recipient1',
+        status: { $in: ['PENDING', 'MATCHED', 'DISPATCHED'] },
+      });
+      expect(update.$set.status).toBe('CANCELLED');
+      expect(update.$set.cancelledAt).toBeInstanceOf(Date);
+    },
+  );
+
+  it('keeps the donor who had claimed the request visible', async () => {
+    const found = doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future });
+    mockFound(found);
+    jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'CANCELLED', acceptedBy: 'donor1', expiresAt: future }));
+
+    await cancelFoodRequest('recipient1', 'req1');
+
+    // Releasing the donation itself is the next sprint item, so the claim is
+    // left on the document for it to read.
+    const [, update] = FoodRequest.findOneAndUpdate.mock.calls[0];
+    expect(update.$set).not.toHaveProperty('acceptedBy');
+    expect(found.acceptedBy).toBe('donor1');
+  });
+
+  it('scopes the lookup to the owning recipient', async () => {
+    const spy = mockFound(null);
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    expect(spy).toHaveBeenCalledWith({ _id: 'req1', recipient: 'recipient1' });
+  });
+
+  it('409s a request that is already cancelled', async () => {
+    mockFound(doc({ status: 'CANCELLED', expiresAt: future }));
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request is already cancelled',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('409s a request the food was already delivered for', async () => {
+    mockFound(doc({ status: 'FULFILLED', expiresAt: future }));
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'The food has already been delivered — there is nothing to cancel',
+    });
+  });
+
+  it('409s a waiting request whose expiry has passed', async () => {
+    mockFound(
+      doc({ status: 'PENDING', expiresAt: new Date('2020-01-01T00:00:00.000Z') }),
+    );
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request has already expired',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('409s when a donor claimed the request in the same moment', async () => {
+    mockFound(doc({ status: 'PENDING', expiresAt: future }));
+    jest.spyOn(FoodRequest, 'findOneAndUpdate').mockResolvedValue(null);
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request has moved on — refresh to see its latest status',
+    });
+  });
+
+  it('400s without a recipient or request id', async () => {
+    await expect(cancelFoodRequest(null, 'req1')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(cancelFoodRequest('recipient1', null)).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('puts the cancelled moment on the progress timeline', async () => {
+    const cancelledAt = new Date('2026-09-24T08:15:00.000Z');
+    mockFound(
+      doc({
+        status: 'CANCELLED',
+        cancelledAt,
+        updatedAt: new Date('2026-09-24T09:40:00.000Z'),
+        expiresAt: future,
+      }),
+    );
+
+    const { progress, timeline } = await getRequestProgress('recipient1', 'req1');
+
+    expect(progress).toMatchObject({ outcome: 'stopped', stageLabel: 'Request cancelled' });
+    const last = timeline[timeline.length - 1];
+    expect(last).toMatchObject({ key: 'CANCELLED', state: 'stopped' });
+    expect(last.at).toEqual(cancelledAt);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 09 (backend) — cancel controller, service auto-mocked
+// ---------------------------------------------------------------------------
+describe('dushani-cancelFoodRequestController (sprint item 09)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('reports success with the cancelled id', async () => {
+    mockedCancelService.cancelFoodRequest.mockResolvedValue({
+      id: 'req1',
+      status: 'CANCELLED',
+    });
+    const req = { params: { id: 'req1' }, user: { id: 'user1' } };
+    const res = mockResponse();
+
+    await cancelFoodRequestHandler(req, res);
+
+    expect(mockedCancelService.cancelFoodRequest).toHaveBeenCalledWith('user1', 'req1');
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      id: 'req1',
+      status: 'CANCELLED',
+    });
+  });
+
+  it('maps the 404 for a request the caller does not own', async () => {
+    mockedCancelService.cancelFoodRequest.mockRejectedValue(
+      Object.assign(new Error('Food request not found'), { statusCode: 404 }),
+    );
+    const req = { params: { id: 'req1' }, user: { id: 'user1' } };
+    const res = mockResponse();
+
+    await cancelFoodRequestHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Food request not found' });
+  });
+
+  it('sends an unexpected failure as 500', async () => {
+    mockedCancelService.cancelFoodRequest.mockRejectedValue(new Error('mongo is down'));
+    const req = { params: { id: 'req1' }, user: { id: 'user1' } };
+    const res = mockResponse();
+
+    await cancelFoodRequestHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
   });
 });

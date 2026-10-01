@@ -6,6 +6,7 @@ const {
   createEmergencyFoodRequestHandler,
 } = require('../controllers/dushani-createFoodRequestController');
 const { getMyRequestsHandler } = require('../controllers/dushani-requestStatusController');
+const { getMyRequestHistoryHandler } = require('../controllers/dushani-requestHistoryController');
 const { getRequestProgressHandler } = require('../controllers/dushani-requestProgressController');
 const { deleteFoodRequestHandler } = require('../controllers/dushani-deleteFoodRequestController');
 const { cancelFoodRequestHandler } = require('../controllers/dushani-cancelFoodRequestController');
@@ -34,6 +35,12 @@ router.post('/emergency', createEmergencyFoodRequestHandler);
 
 // GET /api/recipient/food-requests/mine
 router.get('/mine', getMyRequestsHandler);
+
+// GET /api/recipient/food-requests/history
+// Sprint item 12 — Historical Request Retrieval: only the caller's requests
+// that can no longer be answered (delivered, never claimed, cancelled), newest
+// closure first, each carrying the moment it ended as closedAt.
+router.get('/history', getMyRequestHistoryHandler);
 
 // GET /api/recipient/food-requests/open
 // Sprint item 4 — the request board: every logged-in role can see what

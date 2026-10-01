@@ -18,8 +18,8 @@ import { useIsWide } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import {
-  getMyFoodRequests,
-  type FoodRequest,
+  getMyRequestHistory,
+  type FoodRequestHistoryRow,
   type FoodRequestStatus,
 } from '../services/dushani-foodRequestApi';
 
@@ -80,22 +80,6 @@ const FILTERS: { key: string; label: string; outcomes: Outcome[] }[] = [
   { key: 'CANCELLED', label: 'Cancelled', outcomes: ['CANCELLED'] },
 ];
 
-const isOutcome = (status: FoodRequestStatus): status is Outcome =>
-  status === 'FULFILLED' || status === 'EXPIRED' || status === 'CANCELLED';
-
-/** The moment the request stopped being live, per outcome. */
-function closingMoment(request: FoodRequest): string | null {
-  if (request.status === 'FULFILLED') {
-    return request.fulfilledAt ?? request.updatedAt ?? request.createdAt;
-  }
-  if (request.status === 'CANCELLED') {
-    return request.cancelledAt ?? request.updatedAt ?? request.createdAt;
-  }
-  // An expired request carries no stamp of its own; its expiry date is the
-  // moment it closed.
-  return request.expiresAt ?? request.updatedAt ?? request.createdAt;
-}
-
 function formatDay(value: string | null): string {
   if (!value) return '—';
   return new Date(value).toLocaleDateString(undefined, {
@@ -130,7 +114,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
   const wide = useIsWide();
   const displayName = useDisplayName();
 
-  const [requests, setRequests] = useState<FoodRequest[]>([]);
+  const [past, setPast] = useState<FoodRequestHistoryRow[]>([]);
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -140,7 +124,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
     if (showSpinner) setLoading(true);
     setError(null);
     try {
-      setRequests(await getMyFoodRequests());
+      setPast(await getMyRequestHistory());
     } catch (err) {
       setError(
         err instanceof Error
@@ -157,11 +141,6 @@ export default function RequestHistoryScreen({ navigation }: Props) {
     load(true);
   }, [load]);
 
-  const past = useMemo(
-    () => requests.filter((request) => isOutcome(request.status)),
-    [requests],
-  );
-
   const counts = useMemo(() => {
     const tally: Record<Outcome, number> = { FULFILLED: 0, EXPIRED: 0, CANCELLED: 0 };
     past.forEach((request) => {
@@ -175,20 +154,14 @@ export default function RequestHistoryScreen({ navigation }: Props) {
     activeFilter.outcomes.includes(request.status as Outcome),
   );
 
-  // Newest month first, and the requests inside it newest first too — the list
-  // already arrives sorted by when it was posted, which is rarely when it ended.
+  // The endpoint already returns them newest-closure-first, so the month
+  // headings fall out of the order they arrive in.
   const groups = useMemo(() => {
-    const byMonth = new Map<string, FoodRequest[]>();
-    [...visible]
-      .sort(
-        (left, right) =>
-          new Date(closingMoment(right) ?? 0).getTime() -
-          new Date(closingMoment(left) ?? 0).getTime(),
-      )
-      .forEach((request) => {
-        const key = monthOf(closingMoment(request));
-        byMonth.set(key, [...(byMonth.get(key) ?? []), request]);
-      });
+    const byMonth = new Map<string, FoodRequestHistoryRow[]>();
+    visible.forEach((request) => {
+      const key = monthOf(request.closedAt);
+      byMonth.set(key, [...(byMonth.get(key) ?? []), request]);
+    });
     return Array.from(byMonth, ([month, items]) => ({ month, items }));
   }, [visible]);
 
@@ -449,13 +422,13 @@ function HistoryRow({
   wide,
   onOpen,
 }: {
-  request: FoodRequest;
+  request: FoodRequestHistoryRow;
   wide: boolean;
   onOpen: () => void;
 }) {
   const T = useAppTypography();
   const meta = OUTCOME_META[request.status as Outcome];
-  const closed = closingMoment(request);
+  const closed = request.closedAt;
   // A request called off after a donor had taken it reads differently from one
   // cancelled while still waiting, and the timestamps say which was which.
   const cancelledAfterAccept =

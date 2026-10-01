@@ -99,6 +99,25 @@ export async function getMyFoodRequests(): Promise<FoodRequest[]> {
   return response.data;
 }
 
+/**
+ * A closed request: delivered, never claimed or called off. The server works
+ * out when it stopped being live, so the history does not have to guess the
+ * date from whichever stage timestamps happen to be filled in.
+ */
+export interface FoodRequestHistoryRow extends FoodRequest {
+  closedAt: string | null;
+}
+
+// GET /api/recipient/food-requests/history
+export async function getMyRequestHistory(): Promise<
+  FoodRequestHistoryRow[]
+> {
+  const response = await api.get<FoodRequestHistoryRow[]>(
+    '/recipient/food-requests/history',
+  );
+  return response.data;
+}
+
 // GET /api/recipient/food-requests/open
 // Every logged-in role can see what recipients still need; emergency requests
 // come first and no contact details are included.

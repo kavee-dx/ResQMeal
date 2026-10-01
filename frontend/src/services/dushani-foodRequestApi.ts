@@ -33,6 +33,13 @@ export interface FoodRequest {
   preferredAt?: string | null;
   expiresAt?: string;
   createdAt: string;
+  updatedAt?: string;
+  // Each stage stamps its own moment, so a past request can say when it ended
+  // instead of falling back to the document's last write.
+  acceptedAt?: string | null;
+  dispatchedAt?: string | null;
+  fulfilledAt?: string | null;
+  cancelledAt?: string | null;
 }
 
 /** A live request as it appears on the board — no recipient contact details. */

@@ -1,11 +1,13 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import React, { useState, useCallback } from "react";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { Colors, Radius, Spacing, Shadows } from "@/constants/theme";
 import { useAppTypography } from "../hooks/kaveesha-useAppTypography";
 import type { RootStackParamList } from "../navigation/types";
+import { getCurrentAssignment } from "@/services/dilshara-assignmentService";
 
 import HomeHeader from "../components/kaveesha-HomeHeader";
 import StatCard from "../components/kaveesha-StatCard";
@@ -19,6 +21,23 @@ export default function VolunteerHomeScreen({ navigation, route }: Props) {
   const theme = Colors.light;
   const T = useAppTypography();
   const { fullName } = route.params;
+
+  // RESQ-198: reflects whether the volunteer currently has an active
+  // assignment. Refetched every time the screen regains focus, so it
+  // stays accurate after returning from the Assignment Status screen.
+  const [assignedCount, setAssignedCount] = useState(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      getCurrentAssignment()
+        .then((assignment) => setAssignedCount(assignment ? 1 : 0))
+        .catch(() => {
+          // Fail quietly on the dashboard — this is a summary stat,
+          // not a blocking action. The Assignment screen itself will
+          // surface a proper error if something is actually wrong.
+        });
+    }, [])
+  );
 
   return (
     <ScrollView
@@ -83,16 +102,19 @@ export default function VolunteerHomeScreen({ navigation, route }: Props) {
           justifyContent: "space-between",
         }}
       >
-        <StatCard icon="navigate-outline" label="Assigned Deliveries" value="0" accentColor={ACCENT} />
+        <StatCard
+          icon="navigate-outline"
+          label="Assigned Deliveries"
+          value={String(assignedCount)}
+          accentColor={ACCENT}
+        />
         <StatCard icon="hourglass-outline" label="Hours Contributed" value="0" accentColor={ACCENT} />
         <StatCard icon="checkmark-circle-outline" label="Completed Tasks" value="0" accentColor={ACCENT} />
         <StatCard icon="calendar-outline" label="Upcoming Pickups" value="0" accentColor={ACCENT} />
       </View>
 
       <TouchableOpacity
-        onPress={() =>
-          Alert.alert("Coming soon", "Assignment tracking will be available in a future update.")
-        }
+        onPress={() => navigation.navigate("AssignmentStatus")}
         activeOpacity={0.85}
         style={{
           flexDirection: "row",

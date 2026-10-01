@@ -20,6 +20,7 @@ jest.mock('../../src/services/dushani-createFoodRequestService');
 jest.mock('../../src/services/dushani-requestStatusService');
 jest.mock('../../src/services/dushani-deleteFoodRequestService');
 jest.mock('../../src/services/dushani-cancelFoodRequestService');
+jest.mock('../../src/services/dushani-requestHistoryService');
 
 const FoodRequest = require('../../src/models/dushani-foodRequestModel');
 
@@ -28,17 +29,20 @@ const mockedCreateService = require('../../src/services/dushani-createFoodReques
 const mockedStatusService = require('../../src/services/dushani-requestStatusService');
 const mockedDeleteService = require('../../src/services/dushani-deleteFoodRequestService');
 const mockedCancelService = require('../../src/services/dushani-cancelFoodRequestService');
+const mockedHistoryService = require('../../src/services/dushani-requestHistoryService');
 
 // Real, unmocked implementations — used to test the service layer itself.
 const { createFoodRequest } = jest.requireActual('../../src/services/dushani-createFoodRequestService');
 const { getRequestsByRecipient } = jest.requireActual('../../src/services/dushani-requestStatusService');
 const { deleteFoodRequest } = jest.requireActual('../../src/services/dushani-deleteFoodRequestService');
 const { cancelFoodRequest } = jest.requireActual('../../src/services/dushani-cancelFoodRequestService');
+const { getRequestHistory } = jest.requireActual('../../src/services/dushani-requestHistoryService');
 
 const { createFoodRequestHandler } = require('../../src/controllers/dushani-createFoodRequestController');
 const { getMyRequestsHandler } = require('../../src/controllers/dushani-requestStatusController');
 const { deleteFoodRequestHandler } = require('../../src/controllers/dushani-deleteFoodRequestController');
 const { cancelFoodRequestHandler } = require('../../src/controllers/dushani-cancelFoodRequestController');
+const { getMyRequestHistoryHandler } = require('../../src/controllers/dushani-requestHistoryController');
 
 function mockResponse() {
   const res = {};
@@ -1416,5 +1420,164 @@ describe('cancelFoodRequest releases the donation (sprint item 10)', () => {
     // The pool exclusion is read from the request's status, so CANCELLED alone
     // frees the donation — the link itself stays for the history screens.
     expect(write.mock.calls[0][1].$set).not.toHaveProperty('linkedDonation');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 12 — Historical Request Retrieval
+// ---------------------------------------------------------------------------
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const posted = new Date('2026-09-10T08:00:00.000Z');
+
+function historyDoc(overrides) {
+  return {
+    _id: new mongoose.Types.ObjectId(),
+    recipient: 'recipient1',
+    foodType: 'Cooked Rice',
+    quantity: '10 packets',
+    location: 'Colombo 05',
+    urgency: 'NORMAL',
+    status: 'FULFILLED',
+    createdAt: posted,
+    updatedAt: new Date(posted.getTime() + HOUR),
+    // Still open by default, so a PENDING fixture is not silently read as
+    // expired just because the posting date sits in the past.
+    expiresAt: new Date(Date.now() + 24 * HOUR),
+    acceptedAt: null,
+    dispatchedAt: null,
+    fulfilledAt: null,
+    cancelledAt: null,
+    ...overrides,
+  };
+}
+
+function mockHistoryFind(rows) {
+  const find = jest.spyOn(FoodRequest, 'find').mockReturnValue(chainQuery(rows));
+  return find;
+}
+
+describe('getRequestHistory (sprint item 12)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('reads only the caller’s own requests', async () => {
+    const find = mockHistoryFind([]);
+
+    await getRequestHistory('recipient1');
+
+    expect(find.mock.calls[0][0]).toEqual({ recipient: 'recipient1' });
+  });
+
+  it('keeps just the requests that can no longer be answered', async () => {
+    mockHistoryFind([
+      historyDoc({ _id: 'live1', status: 'PENDING' }),
+      historyDoc({ _id: 'live2', status: 'DISPATCHED' }),
+      historyDoc({ _id: 'got', status: 'FULFILLED', fulfilledAt: new Date(Date.now() - 30 * DAY) }),
+      historyDoc({ _id: 'off', status: 'CANCELLED', cancelledAt: new Date(Date.now() - 5 * DAY) }),
+      historyDoc({ _id: 'missed', status: 'PENDING', expiresAt: new Date(Date.now() - DAY) }),
+    ]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    // Newest closure first, and the dead PENDING row joins it as EXPIRED.
+    expect(rows.map((row) => row._id)).toEqual(['missed', 'off', 'got']);
+    expect(rows.map((row) => row.status)).toEqual(['EXPIRED', 'CANCELLED', 'FULFILLED']);
+  });
+
+  it('says when each outcome actually ended', async () => {
+    const fulfilledAt = new Date('2026-09-12T15:00:00.000Z');
+    const cancelledAt = new Date('2026-09-12T09:00:00.000Z');
+    const expiredAt = new Date('2026-09-12T12:00:00.000Z');
+    mockHistoryFind([
+      historyDoc({ _id: 'got', status: 'FULFILLED', fulfilledAt }),
+      historyDoc({ _id: 'off', status: 'CANCELLED', cancelledAt }),
+      historyDoc({ _id: 'missed', status: 'EXPIRED', expiresAt: expiredAt }),
+    ]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    const closedAt = Object.fromEntries(
+      rows.map((row) => [row._id, new Date(row.closedAt).getTime()]),
+    );
+    expect(closedAt).toEqual({
+      got: fulfilledAt.getTime(),
+      off: cancelledAt.getTime(),
+      missed: expiredAt.getTime(),
+    });
+  });
+
+  it('falls back to the last write for a request that closed before stages stamped', async () => {
+    const written = new Date('2026-09-11T10:00:00.000Z');
+    mockHistoryFind([historyDoc({ _id: 'old', status: 'FULFILLED', fulfilledAt: null, updatedAt: written })]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    expect(`${rows[0].closedAt}`).toBe(`${written}`);
+  });
+
+  it('lists the most recently closed first, not the most recently posted', async () => {
+    mockHistoryFind([
+      historyDoc({ _id: 'posted-later', createdAt: new Date('2026-09-20T08:00:00.000Z'), cancelledAt: new Date('2026-09-20T09:00:00.000Z'), status: 'CANCELLED' }),
+      historyDoc({ _id: 'posted-earlier', createdAt: posted, fulfilledAt: new Date('2026-09-28T09:00:00.000Z') }),
+    ]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    expect(rows.map((row) => row._id)).toEqual(['posted-earlier', 'posted-later']);
+  });
+
+  it('returns an empty history instead of failing', async () => {
+    mockHistoryFind([historyDoc({ _id: 'live', status: 'PENDING' })]);
+
+    await expect(getRequestHistory('recipient1')).resolves.toEqual([]);
+  });
+
+  it('refuses to read the whole collection without a recipient', async () => {
+    const find = mockHistoryFind([]);
+
+    await expect(getRequestHistory()).rejects.toMatchObject({ statusCode: 400 });
+    expect(find).not.toHaveBeenCalled();
+  });
+});
+
+describe('dushani-requestHistoryController (sprint item 12)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('passes the logged-in recipient to the lookup and lists what it found', async () => {
+    const rows = [{ _id: 'req1', status: 'CANCELLED', closedAt: new Date() }];
+    mockedHistoryService.getRequestHistory.mockResolvedValue(rows);
+    const res = mockResponse();
+
+    await getMyRequestHistoryHandler({ user: { id: 'recipient1', role: 'RECIPIENT' } }, res);
+
+    expect(mockedHistoryService.getRequestHistory).toHaveBeenCalledWith('recipient1');
+    expect(res.json).toHaveBeenCalledWith(rows);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('answers an anonymous call with a missing id instead of a crash', async () => {
+    mockedHistoryService.getRequestHistory.mockRejectedValue(
+      Object.assign(new Error('recipientId is required'), { statusCode: 400 }),
+    );
+    const res = mockResponse();
+
+    await getMyRequestHistoryHandler({}, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'recipientId is required' }),
+    );
+  });
+
+  it('reports a failed lookup with the server message', async () => {
+    mockedHistoryService.getRequestHistory.mockRejectedValue(new Error('mongo is down'));
+    const res = mockResponse();
+
+    await getMyRequestHistoryHandler({ user: { id: 'recipient1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'mongo is down' }),
+    );
   });
 });

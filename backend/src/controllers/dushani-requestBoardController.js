@@ -24,6 +24,9 @@ async function acceptFoodRequestHandler(req, res) {
       donorId: req.user?.id ?? null,
       role: req.user?.role ?? null,
       requestId: req.params.id,
+      // Sprint item 10 — optional: which of the donor's own donations will
+      // deliver this. Without it the claim behaves as it always has.
+      donationId: req.body?.donationId ?? null,
     });
     return res.json({ success: true, ...result });
   } catch (error) {

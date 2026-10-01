@@ -1,10 +1,16 @@
+const mongoose = require('mongoose');
 const FoodRequest = require('../models/dushani-foodRequestModel');
+const Donation = require('../models/kaveesha-Donation');
+const { heldDonationIds, isHeld } = require('./dushani-donationHoldService');
 
 // Sprint item 4 (board side) — a live request is public so any logged-in
 // person can see what recipients need, but the recipient's phone number is
 // only released to the donor who commits to delivering it.
 const PUBLIC_FIELDS =
   'foodType quantity location urgency priority status createdAt expiresAt preferredAt';
+
+// The same statuses the recipient's own search treats as live food.
+const DONATION_POOL_STATUSES = ['active', 'expiring', 'pending'];
 
 function toPublicView(request) {
   return {
@@ -44,12 +50,48 @@ function fail(message, statusCode) {
 }
 
 /**
+ * Sprint item 10 — the donation the donor says they will deliver with. Optional:
+ * a claim without one works exactly as before. It has to be the donor's own,
+ * still-live, and not already committed to another request, because the moment
+ * it is linked the donation leaves the pool every other recipient searches.
+ */
+async function resolveLinkedDonation({ donorId, donationId }) {
+  if (!donationId) return null;
+
+  if (!mongoose.isValidObjectId(donationId)) {
+    fail('That donation does not look right', 400);
+  }
+
+  const donation = await Donation.findOne({ _id: donationId, donor: donorId }).lean();
+  if (!donation) {
+    fail('Pick one of your own live donations to deliver this request', 400);
+  }
+
+  const stillEdible =
+    new Date(donation.expiryTime ?? 0).getTime() > Date.now() &&
+    DONATION_POOL_STATUSES.includes(donation.status);
+  if (!stillEdible) fail('That donation is no longer available', 409);
+
+  if (isHeld(donation._id, await heldDonationIds())) {
+    fail('That donation is already committed to another request', 409);
+  }
+
+  return {
+    id: `${donation._id}`,
+    foodType: donation.foodType,
+    numberOfPortions: Number(donation.numberOfPortions) || null,
+  };
+}
+
+/**
  * A donor claims an open request. The status filter makes the write atomic, so
  * two donors tapping Accept at the same moment cannot both take it.
  */
-async function acceptFoodRequest({ donorId, role, requestId }) {
+async function acceptFoodRequest({ donorId, role, requestId, donationId = null }) {
   if (!donorId || !requestId) fail('donorId and requestId are required', 400);
   if (role !== 'DONOR') fail('Only a donor can accept a food request', 403);
+
+  const linked = await resolveLinkedDonation({ donorId, donationId });
 
   const claimed = await FoodRequest.findOneAndUpdate(
     { _id: requestId, status: 'PENDING', expiresAt: { $gt: new Date() } },
@@ -58,6 +100,7 @@ async function acceptFoodRequest({ donorId, role, requestId }) {
         status: 'MATCHED',
         acceptedBy: donorId,
         acceptedAt: new Date(),
+        linkedDonation: linked?.id ?? null,
       },
     },
     { new: true },
@@ -76,6 +119,7 @@ async function acceptFoodRequest({ donorId, role, requestId }) {
       urgency: claimed.urgency,
       preferredAt: claimed.preferredAt ?? null,
       acceptedAt: claimed.acceptedAt,
+      linkedDonation: linked,
     };
   }
 

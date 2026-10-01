@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const FoodRequest = require('../models/dushani-foodRequestModel');
+const Donation = require('../models/kaveesha-Donation');
 const { effectiveStatus } = require('./dushani-requestProgressService');
 
 // Sprint item 09 — cancelling closes a request the recipient no longer needs.
@@ -44,7 +46,31 @@ async function cancelFoodRequest(recipientId, requestId) {
 
   if (!updated) fail('This request has moved on — refresh to see its latest status', 409);
 
-  return { id: updated._id.toString(), status: updated.status };
+  // Sprint item 10 — the donation the claiming donor set aside for this request
+  // is searchable again the moment the request stops being live: the hold is
+  // read from the request, so cancelling lifts it. Reporting which one lets the
+  // recipient see what went back to the pool.
+  return {
+    id: updated._id.toString(),
+    status: updated.status,
+    releasedDonation: await describeReleasedDonation(updated.linkedDonation),
+  };
+}
+
+/** The donation this request was holding, or null when none was linked. */
+async function describeReleasedDonation(donationId) {
+  if (!donationId || !mongoose.isValidObjectId(donationId)) return null;
+
+  const donation = await Donation.findById(donationId)
+    .select('foodType numberOfPortions')
+    .lean();
+  if (!donation) return null;
+
+  return {
+    id: `${donation._id}`,
+    foodType: donation.foodType,
+    numberOfPortions: Number(donation.numberOfPortions) || null,
+  };
 }
 
 module.exports = { cancelFoodRequest, CANCELABLE_STATUSES };

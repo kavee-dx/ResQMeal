@@ -1005,7 +1005,7 @@ describe('cancelFoodRequest (sprint item 09)', () => {
         .spyOn(FoodRequest, 'findOneAndUpdate')
         .mockResolvedValue(doc({ status: 'CANCELLED', expiresAt: future }));
 
-      await expect(cancelFoodRequest('recipient1', 'req1')).resolves.toEqual({
+      await expect(cancelFoodRequest('recipient1', 'req1')).resolves.toMatchObject({
         id: 'req1',
         status: 'CANCELLED',
       });
@@ -1159,5 +1159,262 @@ describe('dushani-cancelFoodRequestController (sprint item 09)', () => {
     await cancelFoodRequestHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 10 (backend) — the donation a claim holds, and its release
+// ---------------------------------------------------------------------------
+const Donation = require('../../src/models/kaveesha-Donation');
+const { heldDonationIds } = require('../../src/services/dushani-donationHoldService');
+const { loadCandidates } = require('../../src/services/dushani-matchRequestService');
+
+// Mongoose queries here are all terminal-`.lean()` chains, so one self-returning
+// step covers find/sort/limit/select whatever the service happens to call.
+function chainQuery(docs) {
+  const step = {};
+  ['sort', 'limit', 'select'].forEach((method) => {
+    step[method] = jest.fn(() => step);
+  });
+  step.lean = jest.fn(() => Promise.resolve(docs));
+  return step;
+}
+
+const poolExpiry = new Date(Date.now() + 6 * 60 * 60 * 1000);
+// Real ObjectId values: the services validate the id before they query, so a
+// made-up string would be rejected as malformed rather than tested.
+const DON_ID = new mongoose.Types.ObjectId();
+const DON2_ID = new mongoose.Types.ObjectId();
+
+function donorDonation(overrides) {
+  return {
+    _id: DON_ID,
+    donor: 'donor1',
+    foodType: 'Cooked Rice',
+    numberOfPortions: 40,
+    quantity: 10,
+    status: 'active',
+    expiryTime: poolExpiry,
+    ...overrides,
+  };
+}
+
+// The hold lookup runs on every accept; the default is an empty pool of holders.
+function mockHolders(rows = []) {
+  return jest
+    .spyOn(FoodRequest, 'find')
+    .mockImplementation((query) =>
+      chainQuery(query && query.status ? rows : [])
+    );
+}
+
+describe('acceptFoodRequest with a donation (sprint item 10)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('records which of the donor’s own donations will deliver the request', async () => {
+    mockHolders();
+    jest
+      .spyOn(Donation, 'findOne')
+      .mockReturnValue(chainQuery(donorDonation()));
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'MATCHED' }));
+
+    const result = await acceptFoodRequest({
+      donorId: 'donor1',
+      role: 'DONOR',
+      requestId: 'req1',
+      donationId: `${DON_ID}`,
+    });
+
+    const [query, update] = write.mock.calls[0];
+    expect(query).toMatchObject({ _id: 'req1', status: 'PENDING' });
+    expect(update.$set.linkedDonation).toBe(`${DON_ID}`);
+    expect(result.linkedDonation).toEqual({
+      id: `${DON_ID}`,
+      foodType: 'Cooked Rice',
+      numberOfPortions: 40,
+    });
+  });
+
+  it('still claims without naming a donation', async () => {
+    const findOne = jest.spyOn(Donation, 'findOne');
+    mockHolders();
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'MATCHED' }));
+
+    const result = await acceptFoodRequest({
+      donorId: 'donor1',
+      role: 'DONOR',
+      requestId: 'req1',
+    });
+
+    expect(findOne).not.toHaveBeenCalled();
+    expect(write.mock.calls[0][1].$set.linkedDonation).toBeNull();
+    expect(result.linkedDonation).toBeNull();
+  });
+
+  it('400s a donation that is not the donor’s own', async () => {
+    mockHolders();
+    jest.spyOn(Donation, 'findOne').mockReturnValue(chainQuery(null));
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        donationId: `${DON_ID}`,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Pick one of your own live donations to deliver this request',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('400s an id that is not a donation at all', async () => {
+    const findOne = jest.spyOn(Donation, 'findOne');
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        donationId: 'not-an-id',
+      }),
+    ).rejects.toMatchObject({ statusCode: 400, message: 'That donation does not look right' });
+    expect(findOne).not.toHaveBeenCalled();
+  });
+
+  it('409s a donation that has already gone', async () => {
+    mockHolders();
+    jest
+      .spyOn(Donation, 'findOne')
+      .mockReturnValue(chainQuery(donorDonation({ status: 'completed' })));
+
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        donationId: `${DON_ID}`,
+      }),
+    ).rejects.toMatchObject({ statusCode: 409, message: 'That donation is no longer available' });
+  });
+
+  it('409s a donation another request is already holding', async () => {
+    mockHolders([{ linkedDonation: DON_ID }]);
+    jest.spyOn(Donation, 'findOne').mockReturnValue(chainQuery(donorDonation()));
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req2',
+        donationId: `${DON_ID}`,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'That donation is already committed to another request',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe('the donation pool around a held donation (sprint item 10)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('holds every donation committed to a live request', async () => {
+    const find = jest
+      .spyOn(FoodRequest, 'find')
+      .mockReturnValue(chainQuery([{ linkedDonation: DON_ID }]));
+
+    const held = await heldDonationIds();
+
+    const query = find.mock.calls[0][0];
+    expect(query.status.$in).toEqual(['MATCHED', 'DISPATCHED', 'FULFILLED']);
+    expect(query.linkedDonation).toEqual({ $ne: null });
+    expect(held.has(`${DON_ID}`)).toBe(true);
+  });
+
+  it('takes the committed donation out of the pool other recipients search', async () => {
+    mockHolders([{ linkedDonation: DON_ID }]);
+    jest
+      .spyOn(Donation, 'find')
+      .mockReturnValue(chainQuery([donorDonation(), donorDonation({ _id: DON2_ID })]));
+
+    const pool = await loadCandidates(Date.now());
+
+    expect(pool.map((donation) => `${donation._id}`)).toEqual([`${DON2_ID}`]);
+  });
+
+  it('lists it again once nothing holds it', async () => {
+    mockHolders([]);
+    jest
+      .spyOn(Donation, 'find')
+      .mockReturnValue(chainQuery([donorDonation(), donorDonation({ _id: DON2_ID })]));
+
+    const pool = await loadCandidates(Date.now());
+
+    expect(pool.map((donation) => `${donation._id}`)).toEqual([`${DON_ID}`, `${DON2_ID}`]);
+  });
+});
+
+describe('cancelFoodRequest releases the donation (sprint item 10)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('reports the donation that went back to the pool', async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    mockFound(
+      doc({ status: 'MATCHED', acceptedBy: 'donor1', linkedDonation: DON_ID, expiresAt: future }),
+    );
+    jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(
+        doc({ status: 'CANCELLED', acceptedBy: 'donor1', linkedDonation: DON_ID, expiresAt: future }),
+      );
+    jest
+      .spyOn(Donation, 'findById')
+      .mockReturnValue(chainQuery(donorDonation()));
+
+    const result = await cancelFoodRequest('recipient1', 'req1');
+
+    expect(result).toMatchObject({ id: 'req1', status: 'CANCELLED' });
+    expect(result.releasedDonation).toEqual({
+      id: `${DON_ID}`,
+      foodType: 'Cooked Rice',
+      numberOfPortions: 40,
+    });
+  });
+
+  it('releases nothing when the donor never named a donation', async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    mockFound(doc({ status: 'PENDING', expiresAt: future }));
+    jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'CANCELLED', expiresAt: future }));
+    const findById = jest.spyOn(Donation, 'findById');
+
+    const result = await cancelFoodRequest('recipient1', 'req1');
+
+    expect(findById).not.toHaveBeenCalled();
+    expect(result.releasedDonation).toBeNull();
+  });
+
+  it('keeps the link on the cancelled request as the record of what was released', async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    mockFound(doc({ status: 'MATCHED', linkedDonation: DON_ID, expiresAt: future }));
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'CANCELLED', linkedDonation: DON_ID, expiresAt: future }));
+    jest.spyOn(Donation, 'findById').mockReturnValue(chainQuery(donorDonation()));
+
+    await cancelFoodRequest('recipient1', 'req1');
+
+    // The pool exclusion is read from the request's status, so CANCELLED alone
+    // frees the donation — the link itself stays for the history screens.
+    expect(write.mock.calls[0][1].$set).not.toHaveProperty('linkedDonation');
   });
 });

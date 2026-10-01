@@ -2,6 +2,7 @@ const FoodRequest = require('../models/dushani-foodRequestModel');
 const Donation = require('../models/kaveesha-Donation');
 const User = require('../models/dushani-User');
 const { effectiveStatus } = require('./dushani-requestProgressService');
+const { heldDonationIds, isHeld } = require('./dushani-donationHoldService');
 
 // Sprint item 4 — Donation–Request Matching. Four criteria decide how well a
 // donation fits a request, and they are weighted so the ranking is explainable:
@@ -300,13 +301,19 @@ function rankDonations(request, donations, profile, now = Date.now()) {
 }
 
 async function loadCandidates(now) {
-  return Donation.find({
+  // A donation a donor has already committed to somebody's live request is out
+  // of the pool until that request is delivered or cancelled (sprint item 10),
+  // so it must not be suggested to anyone else in the meantime.
+  const held = await heldDonationIds();
+  const donations = await Donation.find({
     status: { $in: CANDIDATE_STATUSES },
     expiryTime: { $gt: new Date(now) },
   })
     .sort({ expiryTime: 1 })
     .limit(CANDIDATE_LIMIT)
     .lean();
+
+  return donations.filter((donation) => !isHeld(donation._id, held));
 }
 
 function requestView(request) {
@@ -399,6 +406,7 @@ module.exports = {
   parseRequestedItems,
   foodTokens,
   rankDonations,
+  loadCandidates,
   getRequestMatches,
   getRecipientSuggestions,
 };

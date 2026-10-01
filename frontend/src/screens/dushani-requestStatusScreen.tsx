@@ -17,6 +17,9 @@ import { useIsWide } from '../hooks/dushani-useWideLayout';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
+import CancelRequestAction, {
+  CANCELABLE,
+} from '../components/dushani-cancelRequestAction';
 import {
   getMyFoodRequests,
   deleteFoodRequest,
@@ -399,6 +402,14 @@ export default function RequestStatusScreen({ navigation }: Props) {
                 </Text>
               </TouchableOpacity>
             )
+          ) : CANCELABLE.includes(item.status) ? (
+            // A donor is already on this one, so it is cancelled rather than
+            // deleted — and only after the recipient confirms it in place.
+            <CancelRequestAction
+              requestId={item._id}
+              status={item.status}
+              onDone={() => loadRequests(false)}
+            />
           ) : (
             <Text style={{ ...T.bodySmall, fontSize: 11, color: C.textMuted }}>
               Locked — a donor is handling this

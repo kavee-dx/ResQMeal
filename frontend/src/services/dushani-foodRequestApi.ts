@@ -192,6 +192,22 @@ export async function deleteFoodRequest(requestId: string) {
   return response.data;
 }
 
+// POST /api/recipient/food-requests/:id/cancel
+// Task 09 — the recipient calls off a request a donor has already accepted.
+export interface CancelledFoodRequest {
+  id: string;
+  status: FoodRequestStatus;
+}
+
+export async function cancelFoodRequest(
+  requestId: string,
+): Promise<CancelledFoodRequest> {
+  const response = await api.post<CancelledFoodRequest>(
+    `/recipient/food-requests/${requestId}/cancel`,
+  );
+  return response.data;
+}
+
 /** One of the four criteria the matcher scores a donation on. */
 export interface MatchCriterion {
   key: 'foodType' | 'quantity' | 'proximity' | 'urgency';

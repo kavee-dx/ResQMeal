@@ -396,6 +396,13 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                 action="View the board"
                 onPress={() => navigation.navigate('RequestBoard')}
               />
+              <BigTile
+                icon="file-tray-full-outline"
+                title="Request history"
+                subtitle="Every request that has already closed — the food you received, the ones no donor claimed and the ones you cancelled."
+                action="Open my history"
+                onPress={() => navigation.navigate('RequestHistory')}
+              />
 
               <View style={styles.footNote}>
                 <Ionicons

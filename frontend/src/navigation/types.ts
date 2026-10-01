@@ -67,6 +67,7 @@ export type RootStackParamList = {
   RequestStatus: undefined;
   RequestProgress: { requestId: string };
   RequestBoard: undefined;
+  RequestHistory: undefined;
 
   // Recipient suggestions
     RecipientSuggestions: { donationId: string };

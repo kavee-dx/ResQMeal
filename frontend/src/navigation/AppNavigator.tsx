@@ -36,6 +36,7 @@ import NGOCommunitiesScreen from "../screens/kaveesha-NGOCommunitiesScreen";
 import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
 import RequestBoardScreen from "../screens/dushani-requestBoardScreen";
 import AssignmentStatusScreen from "../screens/dilshara-AssignmentStatusScreen"; // NEW
+import RecipientSuggestionsScreen from "../screens/dilshara-recipientSuggestionsScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -207,6 +208,12 @@ export default function AppNavigator({ initialAuth }: Props) {
           component={RegistrationPendingScreen}
           options={{ headerShown: false }}
         />
+
+        {/* Recipient Suggestions */}
+        <Stack.Screen
+  name="RecipientSuggestions"
+  component={RecipientSuggestionsScreen}
+/>
       </Stack.Navigator>
     </NavigationContainer>
   );

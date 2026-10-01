@@ -19,7 +19,7 @@ const foodRequestRoutes = require("./routes/dushani-foodRequestRoutes");
 const { expireOverdueDonations } = require("./services/kaveesha-donationExpiryService");
 const volunteerAvailabilityRoutes = require("./routes/dilshara-volunteerAvailability.routes");
 const assignmentRoutes = require("./routes/dilshara-assignmentRoutes");
-
+const recipientSuggestionRoutes = require("./routes/dilshara-recipientSuggestion.routes");
 const app = express();
 
 // Middleware
@@ -48,6 +48,7 @@ app.use("/api/donor/donations", deleteDonationRoute);
 app.use("/api/recipient/food-requests", foodRequestRoutes);
 app.use("/api/volunteer-profile", volunteerAvailabilityRoutes);
 app.use("/api/assignments", assignmentRoutes);
+app.use("/api/recipient-suggestions", recipientSuggestionRoutes);
 app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
 app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
 app.use('/api/monitoring/map', require('./routes/amasha-mapRoutes'));

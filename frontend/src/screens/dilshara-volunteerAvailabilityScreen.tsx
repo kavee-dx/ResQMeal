@@ -10,7 +10,12 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
 import { getAvailability, updateAvailability } from '@/services/dilshara-availabilityService';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'VolunteerAvailability'>;
 
 type Day = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
@@ -35,7 +40,7 @@ const DELIVERY_STATUS_LABEL: Record<CurrentDeliveryStatus, string> = {
   IN_TRANSIT: 'Delivery in progress',
 };
 
-export default function VolunteerAvailabilityScreen() {
+export default function VolunteerAvailabilityScreen({ navigation }: Props) {
   const [form, setForm] = useState<AvailabilityFormState>({
     availabilityStatus: 'UNAVAILABLE',
     availableDays: [],
@@ -44,15 +49,12 @@ export default function VolunteerAvailabilityScreen() {
   });
 
   // Still local/static for now — this will come from the assignment system
-  // once that exists (see dilshara-allocationEligibility.service.js notes).
+  // once that exists.
   const [currentDeliveryStatus] = useState<CurrentDeliveryStatus>('IDLE');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // RESQ-132/133: loads the volunteer's saved availability from the backend
-  // so the screen restores real state instead of resetting to defaults
-  // every time it opens.
   useEffect(() => {
     const loadAvailability = async () => {
       try {
@@ -106,7 +108,6 @@ export default function VolunteerAvailabilityScreen() {
     return null;
   };
 
-  // RESQ-133: saves the volunteer's availability to the backend.
   const handleSave = async () => {
     const error = validate();
     if (error) {
@@ -142,6 +143,16 @@ export default function VolunteerAvailabilityScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
+      <TouchableOpacity
+        onPress={() =>
+          navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Profile')
+        }
+        hitSlop={8}
+        style={styles.backButton}
+      >
+        <Ionicons name="arrow-back" size={22} color="#1B1B1B" />
+      </TouchableOpacity>
+
       <Text style={styles.title}>Delivery Availability</Text>
       <Text style={styles.subtitle}>Manage when you're available for food deliveries.</Text>
 
@@ -236,6 +247,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   title: {
     fontSize: 22,

@@ -56,6 +56,7 @@ export type RootStackParamList = {
   MyDonations: undefined;
   DonationDetail: { donationId: string };
   EditDonation: { donationId: string };
+  
 
   FoodRescueRequests: undefined;
   NGOCommunities: undefined;
@@ -66,6 +67,9 @@ export type RootStackParamList = {
   RequestStatus: undefined;
   RequestProgress: { requestId: string };
   RequestBoard: undefined;
+
+  // Recipient suggestions
+    RecipientSuggestions: { donationId: string };
 };
 
 export type HomeRouteName =

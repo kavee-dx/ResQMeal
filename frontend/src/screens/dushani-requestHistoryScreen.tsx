@@ -80,6 +80,13 @@ const FILTERS: { key: string; label: string; outcomes: Outcome[] }[] = [
   { key: 'CANCELLED', label: 'Cancelled', outcomes: ['CANCELLED'] },
 ];
 
+// The server sends the list newest-closure-first. Reading a history backwards
+// — the way it actually happened — is just the same list turned around.
+const ORDERS: { key: string; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
+  { key: 'NEWEST', label: 'Newest first', icon: 'arrow-down' },
+  { key: 'OLDEST', label: 'Oldest first', icon: 'arrow-up' },
+];
+
 function formatDay(value: string | null): string {
   if (!value) return '—';
   return new Date(value).toLocaleDateString(undefined, {
@@ -89,8 +96,16 @@ function formatDay(value: string | null): string {
   });
 }
 
-function monthOf(value: string | null): string {
-  if (!value) return 'Earlier';
+// Two requests can close on the same day, so a row names the hour as well.
+function formatTime(value: string | null): string {
+  if (!value) return '—';
+  return new Date(value).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function monthOf(value: string | null): string {  if (!value) return 'Earlier';
   return new Date(value).toLocaleDateString(undefined, {
     month: 'long',
     year: 'numeric',
@@ -116,6 +131,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
 
   const [past, setPast] = useState<FoodRequestHistoryRow[]>([]);
   const [filter, setFilter] = useState('ALL');
+  const [order, setOrder] = useState('NEWEST');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -154,16 +170,18 @@ export default function RequestHistoryScreen({ navigation }: Props) {
     activeFilter.outcomes.includes(request.status as Outcome),
   );
 
-  // The endpoint already returns them newest-closure-first, so the month
-  // headings fall out of the order they arrive in.
+  const ordered = order === 'OLDEST' ? [...visible].reverse() : visible;
+
+  // Ordered by when each request ended, so the month headings fall out of that
+  // order instead of being worked out again.
   const groups = useMemo(() => {
     const byMonth = new Map<string, FoodRequestHistoryRow[]>();
-    visible.forEach((request) => {
+    ordered.forEach((request) => {
       const key = monthOf(request.closedAt);
       byMonth.set(key, [...(byMonth.get(key) ?? []), request]);
     });
     return Array.from(byMonth, ([month, items]) => ({ month, items }));
-  }, [visible]);
+  }, [ordered]);
 
   const renderState = (
     icon: React.ComponentProps<typeof Ionicons>['name'],
@@ -299,6 +317,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
                       activeOpacity={0.85}
                       style={[styles.tab, active && styles.tabActive]}
                       accessibilityRole="tab"
+                      accessibilityLabel={`${entry.label} requests`}
                       accessibilityState={{ selected: active }}
                     >
                       <Text
@@ -324,6 +343,47 @@ export default function RequestHistoryScreen({ navigation }: Props) {
                     </TouchableOpacity>
                   );
                 })}
+              </View>
+            )}
+
+            {!loading && !error && past.length > 0 && (
+              <View style={styles.orderRow}>
+                <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted, flexShrink: 1 }}>
+                  {visible.length === past.length
+                    ? `Showing all ${past.length} closed requests`
+                    : `Showing ${visible.length} of ${past.length}`}
+                </Text>
+                <View style={styles.orderButtons}>
+                  {ORDERS.map((entry) => {
+                    const active = entry.key === order;
+                    return (
+                      <TouchableOpacity
+                        key={entry.key}
+                        onPress={() => setOrder(entry.key)}
+                        activeOpacity={0.85}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={`Order the history ${entry.label.toLowerCase()}`}
+                        style={[styles.orderButton, active && styles.orderButtonActive]}
+                      >
+                        <Ionicons
+                          name={entry.icon}
+                          size={12}
+                          color={active ? C.white : C.teal}
+                        />
+                        <Text
+                          style={{
+                            ...T.labelStrong,
+                            fontSize: 11,
+                            color: active ? C.white : C.teal,
+                          }}
+                        >
+                          {entry.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             )}
 
@@ -450,9 +510,21 @@ function HistoryRow({
           <Text style={{ ...T.labelStrong, fontSize: 14, color: C.navy, flex: 1 }} numberOfLines={1}>
             {request.foodType}
           </Text>
-          <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted }}>
-            {formatDay(closed)}
-          </Text>
+          <View style={styles.rowWhen}>
+            <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted }}>
+              {formatDay(closed)}
+            </Text>
+            <Text
+              style={{
+                ...T.caption,
+                fontSize: 10,
+                color: C.textMuted,
+                marginTop: 1,
+              }}
+            >
+              {formatTime(closed)}
+            </Text>
+          </View>
         </View>
 
         <Text style={{ ...T.bodySmall, color: C.textMuted, marginTop: 2 }} numberOfLines={1}>
@@ -473,6 +545,9 @@ function HistoryRow({
           {cancelledAfterAccept
             ? 'You cancelled after a donor had accepted.'
             : meta.ending}
+        </Text>
+        <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted, marginTop: Spacing.two }}>
+          Requested {formatDay(request.createdAt)}
         </Text>
       </View>
 
@@ -644,6 +719,34 @@ const styles = StyleSheet.create({
     borderColor: C.amber,
     backgroundColor: C.amber,
   },
+  orderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+    marginTop: Spacing.three,
+  },
+  orderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  orderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    minHeight: 30,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    backgroundColor: C.offWhite,
+  },
+  orderButtonActive: {
+    borderColor: C.teal,
+    backgroundColor: C.teal,
+  },
   group: {
     marginTop: Spacing.four,
   },
@@ -690,7 +793,14 @@ const styles = StyleSheet.create({
   },
   rowTop: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  // Kept off the food name's line so a narrow phone screen never squeezes the
+  // name into ellipses to fit the date.
+  rowWhen: {
+    alignItems: 'flex-end',
+    marginLeft: Spacing.three,
+    flexShrink: 0,
   },
   rowEnd: {
     alignItems: 'flex-end',

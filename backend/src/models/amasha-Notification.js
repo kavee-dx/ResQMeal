@@ -44,4 +44,7 @@ notificationSchema.index(
   { unique: true, partialFilterExpression: { dedupeKey: { $type: "string" } } }
 );
 
+// Auto-delete notifications after 90 days
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 90 });
+
 module.exports = mongoose.model("Notification", notificationSchema);

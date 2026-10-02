@@ -12,6 +12,11 @@ export interface Assignment {
   deliveredAt?: string;
 }
 
+export interface AssignmentSummary {
+  completedCount: number;
+  hoursContributed: number;
+}
+
 export async function getCurrentAssignment(): Promise<Assignment | null> {
   const response = await api.get('/assignments/current');
   return response.data.assignment;
@@ -23,4 +28,10 @@ export async function updateAssignmentStatus(
 ): Promise<Assignment> {
   const response = await api.patch(`/assignments/${id}/status`, { status });
   return response.data.assignment;
+}
+
+// Dashboard totals (completed deliveries + hours contributed).
+export async function getAssignmentSummary(): Promise<AssignmentSummary> {
+  const response = await api.get('/assignments/summary');
+  return response.data.summary;
 }

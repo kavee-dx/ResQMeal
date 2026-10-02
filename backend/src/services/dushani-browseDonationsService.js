@@ -5,6 +5,7 @@ const DonorProfile = require('../models/dushani-DonorProfile');
 const { effectiveStatus } = require('./dushani-requestProgressService');
 const { MATCH_CRITERIA, rankDonations, foodTokens } = require('./dushani-matchRequestService');
 const { heldDonationIds, isHeld } = require('./dushani-donationHoldService');
+const { askedDonationIds } = require('./dushani-donationRequestService');
 
 // Sprint item 4 — Browse Donations. Donors post food; a recipient comes here to
 // search that live pool by food type, by how much they can carry, and by how far
@@ -161,7 +162,7 @@ async function browseDonations({
     throw error;
   }
 
-  const [viewer, allDonations, requests, held] = await Promise.all([
+  const [viewer, allDonations, requests, held, asked] = await Promise.all([
     User.findById(recipientId).select('district city').lean(),
     Donation.find({
       status: { $in: CANDIDATE_STATUSES },
@@ -172,6 +173,7 @@ async function browseDonations({
       .lean(),
     FoodRequest.find({ recipient: recipientId }).lean(),
     heldDonationIds(),
+    askedDonationIds(recipientId),
   ]);
 
   // Sprint item 10 — a donation a donor has committed to somebody's live
@@ -222,6 +224,9 @@ async function browseDonations({
     .map((donation) => ({
       ...donationView(donation, names[`${donation.donor}`] || 'A ResQMeal donor', reference, now),
       answering: bestByDonation[`${donation._id}`] || null,
+      // Sprint item 39 — the card shows whether this recipient has already put
+      // in an ask, so they do not have to remember which donations they tried.
+      asked: asked.has(`${donation._id}`),
     }))
     .filter((item) => {
       if (query) {

@@ -20,7 +20,9 @@ import { useIsWide } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import DonationCard from '../components/dushani-donationCard';
 import {
+  askForDonation,
   browseDonations,
+  type BrowseDonation,
   type DonationBrowse,
   type DonationFilters,
 } from '../services/dushani-foodRequestApi';
@@ -198,6 +200,28 @@ export default function AvailableFoodScreen({ navigation }: Props) {
     setMinPortions(null);
     setNearOnly(false);
   };
+
+  // Sprint item 39 — asking writes the recipient's own record against the
+  // donation; the donor's post is untouched. When a donation answers one of the
+  // recipient's requests, that request travels with the ask so the donor reads
+  // the need behind it. Throws so the card can show the server's reason inline.
+  const handleAsk = useCallback(async (donation: BrowseDonation, note: string) => {
+    await askForDonation({
+      donationId: donation.id,
+      requestId: donation.answering?.requestId ?? null,
+      note,
+    });
+    setData((current) =>
+      current
+        ? {
+            ...current,
+            donations: current.donations.map((item) =>
+              item.id === donation.id ? { ...item, asked: true } : item,
+            ),
+          }
+        : current,
+    );
+  }, []);
 
   const stats = data?.stats;
   const donations = data?.donations ?? [];
@@ -446,6 +470,7 @@ export default function AvailableFoodScreen({ navigation }: Props) {
                   donation={donation}
                   expanded={openId === donation.id}
                   onToggle={() => setOpenId((current) => (current === donation.id ? null : donation.id))}
+                  onAsk={(note) => handleAsk(donation, note)}
                 />
               ))}
             </View>
@@ -460,8 +485,8 @@ export default function AvailableFoodScreen({ navigation }: Props) {
               marginTop: Spacing.three,
             }}
           >
-            Donor contact numbers stay private — they are shared only when a donor
-            accepts your request.
+            Asking shows the donor your name and what you need — your contact
+            number stays private until a donor accepts your request.
           </Text>
         </View>
       </ScrollView>

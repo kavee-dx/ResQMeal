@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Radius, Spacing } from '../constants/theme';
@@ -59,14 +59,21 @@ type Props = {
   donation: BrowseDonation;
   expanded: boolean;
   onToggle: () => void;
+  /** Sends the ask for this donation; resolves once the donor has it. */
+  onAsk: (note: string) => Promise<void>;
 };
 
 /**
  * One live donation a donor has posted: what it is, how much, how far the pickup
- * is, and which of the recipient's own requests it answers.
+ * is, which of the recipient's own requests it answers, and whether they have
+ * already asked this donor for it.
  */
-export default function DonationCard({ donation, expanded, onToggle }: Props) {
+export default function DonationCard({ donation, expanded, onToggle, onAsk }: Props) {
   const T = useAppTypography();
+  const [composing, setComposing] = useState(false);
+  const [note, setNote] = useState('');
+  const [sending, setSending] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
   const left = timeLeft(donation.expiryTime);
   const urgent = donation.answering?.urgent;
   const portions = donation.numberOfPortions ?? donation.quantity;
@@ -196,17 +203,113 @@ export default function DonationCard({ donation, expanded, onToggle }: Props) {
             </View>
           )}
 
-          <View style={styles.contactNote}>
-            <Ionicons
-              name="chatbox-ellipses-outline"
-              size={15}
-              color={C.teal}
-              style={{ marginRight: Spacing.two }}
-            />
-            <Text style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, flex: 1 }}>
-              Donor messaging is not built yet, so arrange the pickup through your
-              own request — a donor who accepts it gets your contact number.
-            </Text>
+          <View style={styles.askBlock}>
+            {donation.asked && !composing && (
+              <View style={styles.askSent}>
+                <Ionicons
+                  name="checkmark-circle"
+                  size={15}
+                  color={C.success}
+                  style={{ marginRight: Spacing.two }}
+                />
+                <Text style={{ ...T.bodySmall, fontSize: 12, color: C.navy, flex: 1 }} accessibilityLabel="Ask already sent">
+                  You have asked {donation.donorName} for this. They see your name
+                  and your request on their donation page.
+                </Text>
+              </View>
+            )}
+
+            {composing ? (
+              <View style={styles.askComposer}>
+                <Text style={{ ...T.caption, fontSize: 10.5, color: C.textMuted, marginBottom: 4 }}>
+                  YOUR NOTE TO {donation.donorName.toUpperCase()} (OPTIONAL)
+                </Text>
+                <TextInput
+                  value={note}
+                  onChangeText={(text) => {
+                    setNote(text);
+                    setAskError(null);
+                  }}
+                  placeholder="Who you feed and when you can collect it."
+                  placeholderTextColor={C.textMuted}
+                  multiline
+                  maxLength={300}
+                  style={styles.askInput}
+                  accessibilityLabel="Note to the donor"
+                  editable={!sending}
+                />
+                {donation.answering && (
+                  <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted, marginTop: 4 }}>
+                    Sent with your request for {donation.answering.requestFood}.
+                  </Text>
+                )}
+
+                {askError && (
+                  <Text style={{ ...T.bodySmall, fontSize: 12, color: C.error, marginTop: Spacing.two }}>
+                    {askError}
+                  </Text>
+                )}
+
+                <View style={styles.askActions}>
+                  <TouchableOpacity
+                    onPress={async () => {
+                      setSending(true);
+                      setAskError(null);
+                      try {
+                        await onAsk(note.trim());
+                        setNote('');
+                        setComposing(false);
+                      } catch (error: any) {
+                        setAskError(
+                          error?.response?.data?.message ??
+                            'Could not send your ask — try again.',
+                        );
+                      } finally {
+                        setSending(false);
+                      }
+                    }}
+                    activeOpacity={0.88}
+                    disabled={sending}
+                    style={[styles.sendBtn, sending && styles.sendBtnDisabled]}
+                    accessibilityLabel="Send ask"
+                  >
+                    <Text style={{ ...T.buttonSmall, color: C.white }}>
+                      {sending ? 'Sending…' : donation.asked ? 'Update ask' : 'Send ask'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setComposing(false);
+                      setNote('');
+                      setAskError(null);
+                    }}
+                    activeOpacity={0.88}
+                    disabled={sending}
+                    style={styles.cancelBtn}
+                    accessibilityLabel="Cancel asking"
+                  >
+                    <Text style={{ ...T.buttonSmall, color: C.textMuted }}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setComposing(true)}
+                activeOpacity={0.88}
+                style={styles.askButton}
+                accessibilityLabel={donation.asked ? 'Change your ask' : 'Ask this donor for the donation'}
+              >
+                <Ionicons
+                  name={donation.asked ? 'create-outline' : 'hand-left-outline'}
+                  size={15}
+                  color={C.teal}
+                  style={{ marginRight: Spacing.two }}
+                />
+                <Text style={{ ...T.buttonSmall, color: C.teal }}>
+                  {donation.asked ? 'Add a note for the donor' : `Ask ${donation.donorName} for this`}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       )}
@@ -315,12 +418,59 @@ const styles = StyleSheet.create({
     gap: 5,
     marginBottom: 3,
   },
-  contactNote: {
+  askBlock: {
+    marginTop: Spacing.two,
+    paddingTop: Spacing.two,
+    borderTopWidth: 1,
+    borderTopColor: C.cardBorder,
+  },
+  askSent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: C.tealSoft,
+    backgroundColor: C.successSoft,
     borderRadius: Radius.sm,
     padding: Spacing.three - 4,
-    marginTop: Spacing.two,
+  },
+  askComposer: {
+    backgroundColor: C.white,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    padding: Spacing.three - 4,
+  },
+  askInput: {
+    minHeight: 62,
+    textAlignVertical: 'top',
+    borderWidth: 1,
+    borderColor: C.cardBorder,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.two + 2,
+    paddingVertical: Spacing.two,
+    color: C.navy,
+    backgroundColor: C.offWhite,
+  },
+  askActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    marginTop: Spacing.two + 2,
+  },
+  sendBtn: {
+    backgroundColor: C.teal,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  sendBtnDisabled: {
+    opacity: 0.6,
+  },
+  cancelBtn: {
+    paddingVertical: Spacing.two,
+  },
+  askButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
   },
 });

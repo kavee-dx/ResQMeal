@@ -34,7 +34,6 @@ import VolunteerAvailabilityScreen from "../screens/dilshara-volunteerAvailabili
 import FoodRescueRequestsScreen from "../screens/kaveesha-FoodRescueRequestsScreen";
 import NGOCommunitiesScreen from "../screens/kaveesha-NGOCommunitiesScreen";
 import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
-import RequestBoardScreen from "../screens/dushani-requestBoardScreen";
 import RequestHistoryScreen from "../screens/dushani-requestHistoryScreen";
 import AssignmentStatusScreen from "../screens/dilshara-AssignmentStatusScreen"; // NEW
 import RecipientSuggestionsScreen from "../screens/dilshara-recipientSuggestionsScreen";
@@ -187,7 +186,6 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen name="FoodRequest" component={FoodRequestScreen} />
         <Stack.Screen name="RequestStatus" component={RequestStatusScreen} />
         <Stack.Screen name="RequestProgress" component={RequestProgressScreen} />
-        <Stack.Screen name="RequestBoard" component={RequestBoardScreen} />
         <Stack.Screen name="RequestHistory" component={RequestHistoryScreen} />
 
         

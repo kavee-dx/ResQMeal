@@ -24,3 +24,19 @@ export interface CampaignFormValues {
 }
 
 export type CampaignFormErrors = Partial<Record<keyof CampaignFormValues, string>>;
+
+// A campaign as returned by the API
+export interface CampaignPost {
+  _id: string;
+  title: string;
+  description: string;
+  category: CampaignCategory;
+  location: string;
+  startDate: string; // ISO date
+  endDate: string; // ISO date
+  targetMeals?: number;
+  contactPhone: string;
+  imageUrl?: string; // relative path, e.g. /uploads/campaigns/123.jpg
+  status: 'active' | 'closed';
+  createdAt: string;
+}

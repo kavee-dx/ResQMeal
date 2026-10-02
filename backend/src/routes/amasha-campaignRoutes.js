@@ -1,6 +1,3 @@
-// backend/src/routes/amasha-campaignRoutes.js
-// Owner: Amasha
-
 const express = require("express");
 const router = express.Router();
 
@@ -9,6 +6,8 @@ const uploadCampaignImage = require("../middleware/amasha-uploadCampaignImage");
 const {
   createCampaign,
   getMyCampaigns,
+  updateCampaign,
+  deleteCampaign,
 } = require("../controllers/amasha-campaignController");
 const User = require("../models/dushani-User");
 
@@ -26,7 +25,7 @@ async function ngoOnly(req, res, next) {
     if (!user || user.role !== "NGO") {
       return res
         .status(403)
-        .json({ success: false, message: "Only NGO accounts can post campaigns." });
+        .json({ success: false, message: "Only NGO accounts can manage campaigns." });
     }
     if (user.accountStatus !== "active") {
       return res
@@ -36,7 +35,7 @@ async function ngoOnly(req, res, next) {
     if (REQUIRE_APPROVED_NGO && user.approvalStatus !== "APPROVED") {
       return res.status(403).json({
         success: false,
-        message: "Your NGO account must be approved before you can post campaigns.",
+        message: "Your NGO account must be approved before you can manage campaigns.",
       });
     }
     next();
@@ -51,5 +50,11 @@ router.get("/me", requireAuth, ngoOnly, getMyCampaigns);
 
 // POST /api/campaigns
 router.post("/", requireAuth, ngoOnly, uploadCampaignImage, createCampaign);
+
+// PUT /api/campaigns/:id  — edit one of your own campaigns
+router.put("/:id", requireAuth, ngoOnly, uploadCampaignImage, updateCampaign);
+
+// DELETE /api/campaigns/:id  — remove one of your own campaigns
+router.delete("/:id", requireAuth, ngoOnly, deleteCampaign);
 
 module.exports = router;

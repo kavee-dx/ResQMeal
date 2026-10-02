@@ -389,14 +389,6 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                 onPress={() => navigation.navigate('RequestStatus')}
               />
               <BigTile
-                variant="accent"
-                icon="megaphone-outline"
-                title="Request board"
-                subtitle="The live requests every recipient still needs help with, urgent ones at the top."
-                action="View the board"
-                onPress={() => navigation.navigate('RequestBoard')}
-              />
-              <BigTile
                 icon="file-tray-full-outline"
                 title="Request history"
                 subtitle="Every request that has already closed — the food you received, the ones no donor claimed and the ones you cancelled."

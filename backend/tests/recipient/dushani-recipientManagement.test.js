@@ -23,6 +23,7 @@ jest.mock('../../src/services/dushani-cancelFoodRequestService');
 jest.mock('../../src/services/dushani-requestHistoryService');
 
 const FoodRequest = require('../../src/models/dushani-foodRequestModel');
+const RecipientProfile = require('../../src/models/dushani-RecipientProfile');
 
 // Auto-mocked versions — this is what the controllers under test actually call.
 const mockedCreateService = require('../../src/services/dushani-createFoodRequestService');
@@ -579,10 +580,11 @@ describe('getOpenRequests (sprint item 4)', () => {
 
   function mockFindAll(docs) {
     const lean = jest.fn().mockResolvedValue(docs);
-    const select = jest.fn().mockReturnValue({ lean });
+    const populate = jest.fn().mockReturnValue({ lean });
+    const select = jest.fn().mockReturnValue({ populate });
     const sort = jest.fn().mockReturnValue({ select });
     const find = jest.spyOn(FoodRequest, 'find').mockReturnValue({ sort });
-    return { find, sort, select, lean };
+    return { find, sort, select, populate, lean };
   }
 
   it('lists only live pending requests', async () => {
@@ -593,20 +595,77 @@ describe('getOpenRequests (sprint item 4)', () => {
     expect(query.status).toBe('PENDING');
     expect(query.expiresAt.$gt.getTime()).toBeLessThanOrEqual(Date.now());
     expect(spies.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    expect(spies.populate).toHaveBeenCalledWith({ path: 'recipient', select: 'fullName' });
   });
 
-  it('puts emergency requests first and hides contact details', async () => {
+  it('puts emergency requests first and shows the post without the phone number', async () => {
     mockFindAll([
-      doc({ _id: { toString: () => 'normal1' }, urgency: 'NORMAL' }),
-      doc({ _id: { toString: () => 'urgent1' }, urgency: 'URGENT' }),
+      doc({
+        _id: { toString: () => 'normal1' },
+        urgency: 'NORMAL',
+        recipient: { _id: 'user1', fullName: 'Dushani Naveendhya' },
+      }),
+      doc({
+        _id: { toString: () => 'urgent1' },
+        urgency: 'URGENT',
+        details: 'Kitchen supply fell through, needed tonight.',
+        recipient: { _id: 'user2', fullName: 'Kamala Perera' },
+      }),
     ]);
 
     const result = await getOpenRequests();
 
     expect(result.map((request) => request.id)).toEqual(['urgent1', 'normal1']);
     expect(Object.keys(result[0]).sort()).toEqual(
-      ['createdAt', 'expiresAt', 'foodType', 'id', 'location', 'preferredAt', 'priority', 'quantity', 'status', 'urgency'].sort(),
+      [
+        'createdAt',
+        'details',
+        'expiresAt',
+        'foodType',
+        'id',
+        'location',
+        'preferredAt',
+        'priority',
+        'quantity',
+        'recipientName',
+        'status',
+        'urgency',
+      ].sort(),
     );
+    expect(result[0]).toMatchObject({
+      recipientName: 'Kamala Perera',
+      details: 'Kitchen supply fell through, needed tonight.',
+    });
+  });
+
+  it('names an organisation recipient from its profile', async () => {
+    mockFindAll([
+      doc({
+        urgency: 'NORMAL',
+        recipient: { _id: 'user3', fullName: null },
+      }),
+    ]);
+    const profiles = jest
+      .spyOn(RecipientProfile, 'find')
+      .mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
+        { userId: 'user3', organizationName: 'Hope Haven Shelter' },
+      ]) }) });
+
+    const result = await getOpenRequests();
+
+    expect(result[0].recipientName).toBe('Hope Haven Shelter');
+    expect(profiles).toHaveBeenCalledWith({ userId: { $in: ['user3'] } });
+  });
+
+  it('falls back to a generic label when the account carries no name', async () => {
+    mockFindAll([doc({ recipient: { _id: 'user4', fullName: '' } })]);
+    jest.spyOn(RecipientProfile, 'find').mockReturnValue({
+      select: () => ({ lean: () => Promise.resolve([]) }),
+    });
+
+    const result = await getOpenRequests();
+
+    expect(result[0].recipientName).toBe('A ResQMeal recipient');
   });
 });
 

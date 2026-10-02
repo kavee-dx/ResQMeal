@@ -31,6 +31,8 @@ import {
 
 import { colors, fonts } from "../styles/kaveesha-theme";
 
+import RecipientAskPanel from "../components/dushani-recipientAskPanel";
+
 type Donation = {
   _id?: string;
   id?: string;
@@ -1677,29 +1679,9 @@ export default function DonationDetailScreen() {
                 in-app chat.
               </Text>
 
-              <View
-                style={
-                  styles.featureInfoBoxGreen
-                }
-              >
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={18}
-                  color={
-                    colors.success
-                  }
-                />
-
-                <Text
-                  style={
-                    styles.featureInfoText
-                  }
-                >
-                  Recipient request and
-                  chat functionality will
-                  connect here.
-                </Text>
-              </View>
+              {/* Sprint item 39 (Dushani): the real recipient asks for this
+                  donation replace the old placeholder text. */}
+              <RecipientAskPanel donationId={donationId} />
 
               <TouchableOpacity
                 style={

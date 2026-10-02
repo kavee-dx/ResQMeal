@@ -4,6 +4,7 @@ const FoodRequest = require('../../src/models/dushani-foodRequestModel');
 const Donation = require('../../src/models/kaveesha-Donation');
 const User = require('../../src/models/dushani-User');
 const DonorProfile = require('../../src/models/dushani-DonorProfile');
+const DonationRequest = require('../../src/models/dushani-donationRequestModel');
 
 const {
   browseDonations,
@@ -61,12 +62,13 @@ function chainable(value) {
   return chain;
 }
 
-function mockDb({ donations = [], requests: docs = [], users = [], profiles = [] }) {
+function mockDb({ donations = [], requests: docs = [], users = [], profiles = [], asked = [] }) {
   jest.spyOn(Donation, 'find').mockReturnValue(chainable(donations));
   jest.spyOn(FoodRequest, 'find').mockReturnValue(chainable(docs));
   jest.spyOn(User, 'findById').mockReturnValue(chainable(VIEWER));
   jest.spyOn(User, 'find').mockReturnValue(chainable(users));
   jest.spyOn(DonorProfile, 'find').mockReturnValue(chainable(profiles));
+  jest.spyOn(DonationRequest, 'find').mockReturnValue(chainable(asked));
 }
 
 const RICE = stub({ _id: 'donRice', foodType: 'Cooked rice', donor: 'donorA' });
@@ -127,6 +129,7 @@ describe('browse donations — the pool', () => {
     expect(Object.keys(result.donations[0]).sort()).toEqual(
       [
         'answering',
+        'asked',
         'distanceLabel',
         'distanceTier',
         'donationCode',
@@ -148,6 +151,19 @@ describe('browse donations — the pool', () => {
         'storageCondition',
       ].sort()
     );
+  });
+
+  it('marks the donations this recipient has already asked for', async () => {
+    mockDb({
+      donations: [RICE, BREAD],
+      users: [{ _id: 'donorA' }, { _id: 'donorB' }],
+      asked: [{ donation: 'donRice' }],
+    });
+
+    const result = await browseDonations({ recipientId: 'u1', now: NOW });
+    const byId = Object.fromEntries(result.donations.map((item) => [item.id, item.asked]));
+    expect(byId.donRice).toBe(true);
+    expect(byId.donBread).toBe(false);
   });
 
   it('groups food the way the request form words it', () => {

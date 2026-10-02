@@ -20,6 +20,10 @@ const {
   acceptFoodRequestHandler,
 } = require('../controllers/dushani-requestBoardController');
 const { browseDonationsHandler } = require('../controllers/dushani-browseDonationsController');
+const {
+  askForDonationHandler,
+  getDonationAsksHandler,
+} = require('../controllers/dushani-donationRequestController');
 
 // All recipient food-request endpoints require a logged-in user; requireAuth
 // attaches the decoded JWT payload ({ id, role }) to req.user.
@@ -43,8 +47,9 @@ router.get('/mine', getMyRequestsHandler);
 router.get('/history', getMyRequestHistoryHandler);
 
 // GET /api/recipient/food-requests/open
-// Sprint item 4 — the request board: every logged-in role can see what
-// recipients still need. Contact details are withheld until a donor commits.
+// Sprint item 4 — every logged-in role can see what recipients still need, with
+// the poster's name and their own note about the need. The phone number stays
+// withheld until a donor commits to the delivery.
 router.get('/open', getOpenRequestsHandler);
 
 // GET /api/recipient/food-requests/matches
@@ -59,6 +64,18 @@ router.get('/matches', getRecipientSuggestionsHandler);
 // that answer one of the recipient's own open requests ranked first (an urgent
 // request's matches above all). Donor contact details are never listed.
 router.get('/donations', browseDonationsHandler);
+
+// POST /api/recipient/food-requests/donation-requests
+// Sprint item 39 — a recipient asks the donor of a live donation for it. The ask
+// is its own document; the donor's donation is never written to. Asking twice
+// for the same donation edits the one ask instead of piling up duplicates.
+router.post('/donation-requests', askForDonationHandler);
+
+// GET /api/recipient/food-requests/donation-requests?donationId=
+// The other half: the donor who posted that donation reads who asked, newest
+// first, for the Recipient section of the donation detail page. Only names and
+// the need behind the ask come back — never a phone number or an email.
+router.get('/donation-requests', getDonationAsksHandler);
 
 // POST /api/recipient/food-requests/:id/accept
 // Only a donor can claim a request; the recipient's progress then reads

@@ -17,6 +17,9 @@ import { useIsWide } from '../hooks/dushani-useWideLayout';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
+import CancelRequestAction, {
+  CANCELABLE,
+} from '../components/dushani-cancelRequestAction';
 import {
   getMyFoodRequests,
   deleteFoodRequest,
@@ -399,6 +402,14 @@ export default function RequestStatusScreen({ navigation }: Props) {
                 </Text>
               </TouchableOpacity>
             )
+          ) : CANCELABLE.includes(item.status) ? (
+            // A donor is already on this one, so it is cancelled rather than
+            // deleted — and only after the recipient confirms it in place.
+            <CancelRequestAction
+              requestId={item._id}
+              status={item.status}
+              onDone={() => loadRequests(false)}
+            />
           ) : (
             <Text style={{ ...T.bodySmall, fontSize: 11, color: C.textMuted }}>
               Locked — a donor is handling this
@@ -645,6 +656,26 @@ export default function RequestStatusScreen({ navigation }: Props) {
               </View>
             )}
           </View>
+
+          {/* The list above only tells you what is running now; the history
+              screen is where the closed ones live. */}
+          <TouchableOpacity
+            onPress={() => navigation.navigate('RequestHistory')}
+            activeOpacity={0.88}
+            style={styles.historyLink}
+            accessibilityLabel="View request history"
+          >
+            <Ionicons
+              name="file-tray-full-outline"
+              size={17}
+              color={C.teal}
+              style={{ marginRight: Spacing.two }}
+            />
+            <Text style={{ ...T.labelStrong, fontSize: 13, color: C.teal, flex: 1 }}>
+              View my request history
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={C.teal} />
+          </TouchableOpacity>
 
           <Text style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, textAlign: 'center', marginTop: Spacing.three }}>
             Pull down to refresh
@@ -958,6 +989,17 @@ const styles = StyleSheet.create({
   tabCountActive: {
     backgroundColor: C.amber,
     borderColor: C.amber,
+  },
+  historyLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.white,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: C.tealSoft,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.three,
+    marginTop: Spacing.four,
   },
   viewProgressButton: {
     flexDirection: 'row',

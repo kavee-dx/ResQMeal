@@ -1,17 +1,28 @@
+const mongoose = require('mongoose');
 const FoodRequest = require('../models/dushani-foodRequestModel');
+const Donation = require('../models/kaveesha-Donation');
+const RecipientProfile = require('../models/dushani-RecipientProfile');
+const { heldDonationIds, isHeld } = require('./dushani-donationHoldService');
 
 // Sprint item 4 (board side) — a live request is public so any logged-in
 // person can see what recipients need, but the recipient's phone number is
 // only released to the donor who commits to delivering it.
 const PUBLIC_FIELDS =
-  'foodType quantity location urgency priority status createdAt expiresAt preferredAt';
+  'foodType quantity location details urgency priority status createdAt expiresAt preferredAt recipient';
 
-function toPublicView(request) {
+// The same statuses the recipient's own search treats as live food.
+const DONATION_POOL_STATUSES = ['active', 'expiring', 'pending'];
+
+function toPublicView(request, names) {
   return {
     id: request._id.toString(),
+    // Whoever reads the list needs to know whose kitchen or shelter they are
+    // answering, so the poster is named — but the number stays private.
+    recipientName: names.get(String(request.recipient?._id)) ?? 'A ResQMeal recipient',
     foodType: request.foodType,
     quantity: request.quantity,
     location: request.location,
+    details: request.details ?? '',
     urgency: request.urgency,
     priority: request.priority,
     status: request.status,
@@ -21,6 +32,35 @@ function toPublicView(request) {
   };
 }
 
+/**
+ * Individuals sign up with `fullName` on the account. Organisation recipients
+ * (charities, community centres, schools) keep their name on the role profile,
+ * so only those accounts need the second lookup.
+ */
+async function posterNames(recipients) {
+  const names = new Map();
+  const organisations = [];
+
+  for (const person of recipients) {
+    if (!person) continue;
+    const id = String(person._id);
+    if (person.fullName) names.set(id, person.fullName);
+    else organisations.push(id);
+  }
+
+  if (organisations.length) {
+    const profiles = await RecipientProfile.find({ userId: { $in: organisations } })
+      .select('userId organizationName')
+      .lean();
+
+    for (const profile of profiles) {
+      if (profile.organizationName) names.set(String(profile.userId), profile.organizationName);
+    }
+  }
+
+  return names;
+}
+
 async function getOpenRequests() {
   const requests = await FoodRequest.find({
     status: 'PENDING',
@@ -28,13 +68,16 @@ async function getOpenRequests() {
   })
     .sort({ createdAt: -1 })
     .select(PUBLIC_FIELDS)
+    .populate({ path: 'recipient', select: 'fullName' })
     .lean();
 
-  // Emergency requests go to the top of the board, newest first within a tier.
+  const names = await posterNames(requests.map((request) => request.recipient));
+
+  // Emergency requests go to the top of the list, newest first within a tier.
   return [
     ...requests.filter((request) => request.urgency === 'URGENT'),
     ...requests.filter((request) => request.urgency !== 'URGENT'),
-  ].map(toPublicView);
+  ].map((request) => toPublicView(request, names));
 }
 
 function fail(message, statusCode) {
@@ -44,12 +87,48 @@ function fail(message, statusCode) {
 }
 
 /**
+ * Sprint item 10 — the donation the donor says they will deliver with. Optional:
+ * a claim without one works exactly as before. It has to be the donor's own,
+ * still-live, and not already committed to another request, because the moment
+ * it is linked the donation leaves the pool every other recipient searches.
+ */
+async function resolveLinkedDonation({ donorId, donationId }) {
+  if (!donationId) return null;
+
+  if (!mongoose.isValidObjectId(donationId)) {
+    fail('That donation does not look right', 400);
+  }
+
+  const donation = await Donation.findOne({ _id: donationId, donor: donorId }).lean();
+  if (!donation) {
+    fail('Pick one of your own live donations to deliver this request', 400);
+  }
+
+  const stillEdible =
+    new Date(donation.expiryTime ?? 0).getTime() > Date.now() &&
+    DONATION_POOL_STATUSES.includes(donation.status);
+  if (!stillEdible) fail('That donation is no longer available', 409);
+
+  if (isHeld(donation._id, await heldDonationIds())) {
+    fail('That donation is already committed to another request', 409);
+  }
+
+  return {
+    id: `${donation._id}`,
+    foodType: donation.foodType,
+    numberOfPortions: Number(donation.numberOfPortions) || null,
+  };
+}
+
+/**
  * A donor claims an open request. The status filter makes the write atomic, so
  * two donors tapping Accept at the same moment cannot both take it.
  */
-async function acceptFoodRequest({ donorId, role, requestId }) {
+async function acceptFoodRequest({ donorId, role, requestId, donationId = null }) {
   if (!donorId || !requestId) fail('donorId and requestId are required', 400);
   if (role !== 'DONOR') fail('Only a donor can accept a food request', 403);
+
+  const linked = await resolveLinkedDonation({ donorId, donationId });
 
   const claimed = await FoodRequest.findOneAndUpdate(
     { _id: requestId, status: 'PENDING', expiresAt: { $gt: new Date() } },
@@ -58,6 +137,7 @@ async function acceptFoodRequest({ donorId, role, requestId }) {
         status: 'MATCHED',
         acceptedBy: donorId,
         acceptedAt: new Date(),
+        linkedDonation: linked?.id ?? null,
       },
     },
     { new: true },
@@ -76,6 +156,7 @@ async function acceptFoodRequest({ donorId, role, requestId }) {
       urgency: claimed.urgency,
       preferredAt: claimed.preferredAt ?? null,
       acceptedAt: claimed.acceptedAt,
+      linkedDonation: linked,
     };
   }
 

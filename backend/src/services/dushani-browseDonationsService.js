@@ -4,6 +4,8 @@ const User = require('../models/dushani-User');
 const DonorProfile = require('../models/dushani-DonorProfile');
 const { effectiveStatus } = require('./dushani-requestProgressService');
 const { MATCH_CRITERIA, rankDonations, foodTokens } = require('./dushani-matchRequestService');
+const { heldDonationIds, isHeld } = require('./dushani-donationHoldService');
+const { askedDonationIds } = require('./dushani-donationRequestService');
 
 // Sprint item 4 — Browse Donations. Donors post food; a recipient comes here to
 // search that live pool by food type, by how much they can carry, and by how far
@@ -160,7 +162,7 @@ async function browseDonations({
     throw error;
   }
 
-  const [viewer, donations, requests] = await Promise.all([
+  const [viewer, allDonations, requests, held, asked] = await Promise.all([
     User.findById(recipientId).select('district city').lean(),
     Donation.find({
       status: { $in: CANDIDATE_STATUSES },
@@ -170,7 +172,14 @@ async function browseDonations({
       .limit(CANDIDATE_LIMIT)
       .lean(),
     FoodRequest.find({ recipient: recipientId }).lean(),
+    heldDonationIds(),
+    askedDonationIds(recipientId),
   ]);
+
+  // Sprint item 10 — a donation a donor has committed to somebody's live
+  // request is not on the shelf any more, so it stays out of this list until
+  // that request is delivered or the recipient cancels it.
+  const donations = allDonations.filter((donation) => !isHeld(donation._id, held));
 
   const reference = viewer || { district: '', city: '' };
   const names = await donorNames(donations);
@@ -215,6 +224,9 @@ async function browseDonations({
     .map((donation) => ({
       ...donationView(donation, names[`${donation.donor}`] || 'A ResQMeal donor', reference, now),
       answering: bestByDonation[`${donation._id}`] || null,
+      // Sprint item 39 — the card shows whether this recipient has already put
+      // in an ask, so they do not have to remember which donations they tried.
+      asked: asked.has(`${donation._id}`),
     }))
     .filter((item) => {
       if (query) {

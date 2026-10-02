@@ -1,7 +1,7 @@
 // Sprint item 4 — Donation–Request Matching: the four criteria, the ranking,
 // and the two recipient endpoints that read them.
 const FoodRequest = require('../../src/models/dushani-foodRequestModel');
-const Donation = require('../../src/models/kaveesha-Donation.model');
+const Donation = require('../../src/models/kaveesha-Donation');
 const User = require('../../src/models/dushani-User');
 
 const {

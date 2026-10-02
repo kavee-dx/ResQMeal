@@ -1,9 +1,15 @@
+// backend/src/routes/amasha-campaignRoutes.js
+// Owner: Amasha
+
 const express = require("express");
 const router = express.Router();
 
 const { requireAuth } = require("../middleware/kaveesha-authMiddleware");
 const uploadCampaignImage = require("../middleware/amasha-uploadCampaignImage");
-const { createCampaign } = require("../controllers/amasha-campaignController");
+const {
+  createCampaign,
+  getMyCampaigns,
+} = require("../controllers/amasha-campaignController");
 const User = require("../models/dushani-User");
 
 // Set to false while testing if no admin has approved your NGO account yet
@@ -39,6 +45,9 @@ async function ngoOnly(req, res, next) {
     res.status(500).json({ success: false, message: "Something went wrong." });
   }
 }
+
+// GET /api/campaigns/me  — the logged-in NGO's published campaigns
+router.get("/me", requireAuth, ngoOnly, getMyCampaigns);
 
 // POST /api/campaigns
 router.post("/", requireAuth, ngoOnly, uploadCampaignImage, createCampaign);

@@ -78,4 +78,21 @@ async function createCampaign(req, res) {
   }
 }
 
-module.exports = { createCampaign };
+
+
+// GET /api/campaigns/me   (NGO only) — this NGO's published (active) campaigns, newest first
+async function getMyCampaigns(req, res) {
+  try {
+    const campaigns = await Campaign.find({ ngoId: req.user.id, status: "active" })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean();
+    return res.json({ success: true, campaigns });
+  } catch (error) {
+    console.error("getMyCampaigns failed:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Could not load campaigns. Please try again." });
+  }
+}
+module.exports = { createCampaign, getMyCampaigns };

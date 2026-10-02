@@ -55,6 +55,8 @@ app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
 app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
 app.use("/api/monitoring/map", require("./routes/amasha-mapRoutes"));
 app.use("/api/ngo/trends", require("./routes/amasha-TrendRoutes"));
+app.use("/api/volunteer-profile/delivery-preferences", 
+  require("./routes/dilshara-deliveryPreferences.routes"));
 app.use("/api/campaigns", require("./routes/amasha-campaignRoutes"));
 app.use("/api/notifications", require("./routes/amasha-notificationRoutes"));
 app.use(

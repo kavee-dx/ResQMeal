@@ -30,10 +30,13 @@ import OnboardingScreen from "../screens/kaveesha-OnboardingScreen";
 import AvailableFoodScreen from "../screens/dushani-availableFoodScreen";
 import FoodRequestScreen from "../screens/dushani-foodRequestScreen";
 import RequestStatusScreen from "../screens/dushani-requestStatusScreen";
-import VolunteerAvailabilityScreen from "../screens/dilshara-volunteerAvailabilityScreen"; // NEW
+import VolunteerAvailabilityScreen from "../screens/dilshara-volunteerAvailabilityScreen";
+import VolunteerDeliveryPreferencesScreen from "../screens/dilshara-volunteerDeliveryPreferencesScreen"; // NEW
 import FoodRescueRequestsScreen from "../screens/kaveesha-FoodRescueRequestsScreen";
 import NGOCommunitiesScreen from "../screens/kaveesha-NGOCommunitiesScreen";
 import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
+import RequestBoardScreen from "../screens/dushani-requestBoardScreen";
+import AssignmentStatusScreen from "../screens/dilshara-AssignmentStatusScreen";
 import RequestHistoryScreen from "../screens/dushani-requestHistoryScreen";
 import AssignmentStatusScreen from "../screens/dilshara-AssignmentStatusScreen"; // NEW
 import RecipientSuggestionsScreen from "../screens/dilshara-recipientSuggestionsScreen";
@@ -111,13 +114,19 @@ export default function AppNavigator({ initialAuth }: Props) {
           component={PrivacySettingsScreen}
         />
 
-        {/* NEW — volunteer availability screen */}
+        {/* Volunteer availability screen (kept) */}
         <Stack.Screen
           name="VolunteerAvailability"
           component={VolunteerAvailabilityScreen}
         />
 
-        {/* NEW — volunteer assignment status screen */}
+        {/* NEW — volunteer availability + delivery preferences (RESQ-270) */}
+        <Stack.Screen
+          name="VolunteerDeliveryPreferences"
+          component={VolunteerDeliveryPreferencesScreen}
+        />
+
+        {/* Volunteer assignment status screen */}
         <Stack.Screen
           name="AssignmentStatus"
           component={AssignmentStatusScreen}
@@ -160,48 +169,25 @@ export default function AppNavigator({ initialAuth }: Props) {
         />
 
         {/* Donor */}
-        <Stack.Screen
-  name="CreateDonation"
-  component={CreateDonationScreen}
-/>
+        <Stack.Screen name="CreateDonation" component={CreateDonationScreen} />
 
-<Stack.Screen
-  name="MyDonations"
-  component={MyDonationsScreen}
-/>
+        <Stack.Screen name="MyDonations" component={MyDonationsScreen} />
 
-<Stack.Screen
-  name="DonationDetail"
-  component={DonationDetailScreen}
-/>
+        <Stack.Screen name="DonationDetail" component={DonationDetailScreen} />
 
-<Stack.Screen
-  name="EditDonation"
-  component={EditDonationScreen}
-/>
+        <Stack.Screen name="EditDonation" component={EditDonationScreen} />
 
         {/* Recipient */}
-
         <Stack.Screen name="AvailableFood" component={AvailableFoodScreen} />
         <Stack.Screen name="FoodRequest" component={FoodRequestScreen} />
         <Stack.Screen name="RequestStatus" component={RequestStatusScreen} />
         <Stack.Screen name="RequestProgress" component={RequestProgressScreen} />
         <Stack.Screen name="RequestHistory" component={RequestHistoryScreen} />
 
-        
-
-        
-
         {/* Admin */}
-        <Stack.Screen
-          name="AdminLogin"
-          component={AdminLoginScreen}
-        />
+        <Stack.Screen name="AdminLogin" component={AdminLoginScreen} />
 
-        <Stack.Screen
-          name="AdminDashboard"
-          component={AdminDashboardScreen}
-        />
+        <Stack.Screen name="AdminDashboard" component={AdminDashboardScreen} />
 
         <Stack.Screen
           name="RegistrationPending"
@@ -211,9 +197,9 @@ export default function AppNavigator({ initialAuth }: Props) {
 
         {/* Recipient Suggestions */}
         <Stack.Screen
-  name="RecipientSuggestions"
-  component={RecipientSuggestionsScreen}
-/>
+          name="RecipientSuggestions"
+          component={RecipientSuggestionsScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

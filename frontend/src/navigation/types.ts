@@ -46,7 +46,10 @@ export type RootStackParamList = {
   // volunteer availability screen
   VolunteerAvailability: undefined;
 
-  // NEW — volunteer assignment status screen
+  // volunteer availability + delivery preferences (RESQ-270)
+  VolunteerDeliveryPreferences: undefined;
+
+  // volunteer assignment status screen
   AssignmentStatus: undefined;
 
   AdminLogin: undefined;
@@ -56,7 +59,6 @@ export type RootStackParamList = {
   MyDonations: undefined;
   DonationDetail: { donationId: string };
   EditDonation: { donationId: string };
-  
 
   FoodRescueRequests: undefined;
   NGOCommunities: undefined;
@@ -69,7 +71,7 @@ export type RootStackParamList = {
   RequestHistory: undefined;
 
   // Recipient suggestions
-    RecipientSuggestions: { donationId: string };
+  RecipientSuggestions: { donationId: string };
 };
 
 export type HomeRouteName =
@@ -95,6 +97,7 @@ const ROLE_MENUS: Record<Role, MenuItem[]> = {
   VOLUNTEER: [
     { key: "home", label: "Home", screen: "VolunteerHome" },
     { key: "availability", label: "Availability", screen: "VolunteerAvailability" },
+    { key: "preferences", label: "Delivery Preferences", screen: "VolunteerDeliveryPreferences" },
     { key: "assignment", label: "My Assignment", screen: "AssignmentStatus" },
   ],
 };

@@ -16,7 +16,9 @@ const getDonationsRoute = require("./routes/kaveesha-getDonations.route");
 const updateDonationRoute = require("./routes/kaveesha-updateDonation.route");
 const deleteDonationRoute = require("./routes/kaveesha-deleteDonation.route");
 const foodRequestRoutes = require("./routes/dushani-foodRequestRoutes");
-const { expireOverdueDonations } = require("./services/kaveesha-donationExpiryService");
+const {
+  expireOverdueDonations,
+} = require("./services/kaveesha-donationExpiryService");
 const volunteerAvailabilityRoutes = require("./routes/dilshara-volunteerAvailability.routes");
 const assignmentRoutes = require("./routes/dilshara-assignmentRoutes");
 const recipientSuggestionRoutes = require("./routes/dilshara-recipientSuggestion.routes");
@@ -51,8 +53,13 @@ app.use("/api/assignments", assignmentRoutes);
 app.use("/api/recipient-suggestions", recipientSuggestionRoutes);
 app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
 app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
-app.use('/api/monitoring/map', require('./routes/amasha-mapRoutes'));
+app.use("/api/monitoring/map", require("./routes/amasha-mapRoutes"));
 app.use("/api/ngo/trends", require("./routes/amasha-TrendRoutes"));
+app.use("/api/campaigns", require("./routes/amasha-campaignRoutes"));
+app.use(
+  "/uploads",
+  express.static(require("path").join(__dirname, "..", "uploads")),
+);
 app.get("/api/test", (req, res) => {
   res.json({
     message: "Frontend connected to backend successfully",
@@ -64,9 +71,7 @@ cron.schedule("*/15 * * * *", async () => {
     const result = await expireOverdueDonations();
 
     if (result.success && result.modifiedCount > 0) {
-      console.log(
-        `Expired ${result.modifiedCount} donation(s).`
-      );
+      console.log(`Expired ${result.modifiedCount} donation(s).`);
     }
   } catch (err) {
     console.error("Donation expiry job failed:", err);
@@ -78,15 +83,12 @@ expireOverdueDonations()
   .then((result) => {
     if (result.success && result.modifiedCount > 0) {
       console.log(
-        `Initial expiry check: expired ${result.modifiedCount} donation(s).`
+        `Initial expiry check: expired ${result.modifiedCount} donation(s).`,
       );
     }
   })
   .catch((err) => {
-    console.error(
-      "Initial donation expiry check failed:",
-      err
-    );
+    console.error("Initial donation expiry check failed:", err);
   });
 
 module.exports = app;

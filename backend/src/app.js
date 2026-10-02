@@ -56,6 +56,7 @@ app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
 app.use("/api/monitoring/map", require("./routes/amasha-mapRoutes"));
 app.use("/api/ngo/trends", require("./routes/amasha-TrendRoutes"));
 app.use("/api/campaigns", require("./routes/amasha-campaignRoutes"));
+app.use("/api/notifications", require("./routes/amasha-notificationRoutes"));
 app.use(
   "/uploads",
   express.static(require("path").join(__dirname, "..", "uploads")),

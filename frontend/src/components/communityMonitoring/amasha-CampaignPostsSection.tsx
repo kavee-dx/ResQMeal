@@ -3,6 +3,8 @@ import {
   View,
   Text,
   Image,
+  Modal,
+  Alert,
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
@@ -11,6 +13,7 @@ import {
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import api from '@/services/api';
 import { CAMPAIGN_CATEGORIES, CampaignPost } from '@/types/amasha-campaign';
+import AmashaCampaignPostForm from './amasha-CampaignPostForm';
 
 // Images are saved as relative paths, so put the server address in front.
 // If your API base URL ends in /api, that part is removed.
@@ -30,6 +33,8 @@ export default function AmashaCampaignPostsSection() {
   const [campaigns, setCampaigns] = useState<CampaignPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [editing, setEditing] = useState<CampaignPost | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,6 +53,37 @@ export default function AmashaCampaignPostsSection() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const handleSaved = (updated: CampaignPost) => {
+    setCampaigns((list) => list.map((c) => (c._id === updated._id ? updated : c)));
+    setEditing(null);
+  };
+
+  const confirmDelete = (c: CampaignPost) => {
+    Alert.alert(
+      'Delete this campaign?',
+      `"${c.title}" will be removed for everyone. This can't be undone.`,
+      [
+        { text: 'Keep campaign', style: 'cancel' },
+        { text: 'Delete campaign', style: 'destructive', onPress: () => remove(c) },
+      ]
+    );
+  };
+
+  const remove = async (c: CampaignPost) => {
+    setDeletingId(c._id);
+    try {
+      await api.delete(`/campaigns/${c._id}`);
+      setCampaigns((list) => list.filter((x) => x._id !== c._id));
+    } catch (err: any) {
+      Alert.alert(
+        'Could not delete campaign',
+        err?.response?.data?.message ?? 'Check your connection and try again.'
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <View style={styles.section}>
@@ -71,8 +107,9 @@ export default function AmashaCampaignPostsSection() {
       ) : (
         campaigns.map((c) => {
           const ended = new Date(c.endDate).getTime() < Date.now();
+          const deleting = deletingId === c._id;
           return (
-            <View key={c._id} style={styles.card}>
+            <View key={c._id} style={[styles.card, deleting && styles.cardDeleting]}>
               {c.imageUrl ? (
                 <Image source={{ uri: serverRoot + c.imageUrl }} style={styles.image} />
               ) : null}
@@ -101,11 +138,50 @@ export default function AmashaCampaignPostsSection() {
                 {c.targetMeals ? (
                   <Text style={styles.meta}>Target: {c.targetMeals} meals</Text>
                 ) : null}
+
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => setEditing(c)}
+                    disabled={deleting}
+                    accessibilityLabel={`Edit ${c.title}`}
+                  >
+                    <Text style={styles.actionText}>Edit</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.deleteButton]}
+                    onPress={() => confirmDelete(c)}
+                    disabled={deleting}
+                    accessibilityLabel={`Delete ${c.title}`}
+                  >
+                    {deleting ? (
+                      <ActivityIndicator size="small" color={colors.error} />
+                    ) : (
+                      <Text style={styles.deleteText}>Delete</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           );
         })
       )}
+
+      <Modal
+        visible={!!editing}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setEditing(null)}
+      >
+        {editing ? (
+          <AmashaCampaignPostForm
+            key={editing._id}
+            campaign={editing}
+            onSaved={handleSaved}
+            onCancel={() => setEditing(null)}
+          />
+        ) : null}
+      </Modal>
     </View>
   );
 }
@@ -132,6 +208,7 @@ const makeStyles = (c: (typeof Colors)['light'] | (typeof Colors)['dark']) =>
       overflow: 'hidden',
       ...Shadows.card,
     },
+    cardDeleting: { opacity: 0.5 },
     image: { width: '100%', aspectRatio: 16 / 9, backgroundColor: c.backgroundElement },
     body: { padding: Spacing.three, gap: Spacing.one },
     tagRow: { flexDirection: 'row', gap: Spacing.two, marginBottom: Spacing.one },
@@ -147,4 +224,21 @@ const makeStyles = (c: (typeof Colors)['light'] | (typeof Colors)['dark']) =>
     title: { ...Typography.h3, color: c.text },
     description: { ...Typography.body, color: c.textSecondary },
     meta: { ...Typography.bodySmall, color: c.textMuted },
+    actions: {
+      flexDirection: 'row',
+      gap: Spacing.two,
+      marginTop: Spacing.three,
+    },
+    actionButton: {
+      flex: 1,
+      minHeight: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    actionText: { ...Typography.buttonSmall, color: c.primary },
+    deleteButton: { borderColor: c.error },
+    deleteText: { ...Typography.buttonSmall, color: c.error },
   });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import {
   CAMPAIGN_CATEGORIES,
   CampaignFormErrors,
   CampaignFormValues,
+  CampaignPost,
 } from '@/types/amasha-campaign';
 
 const C = Colors.light; // FormTheme in theme.ts is also light-only
@@ -26,6 +27,9 @@ const C = Colors.light; // FormTheme in theme.ts is also light-only
 const TITLE_MAX = 100;
 const DESC_MAX = 1000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Saved images are relative paths, so put the server address in front.
+const serverRoot = (api.defaults.baseURL ?? '').replace(/\/api\/?$/, '');
 
 const emptyForm: CampaignFormValues = {
   title: '',
@@ -39,12 +43,35 @@ const emptyForm: CampaignFormValues = {
   imageUri: null,
 };
 
+// Turns a saved campaign into the text-based values the form works with
+const toFormValues = (c: CampaignPost): CampaignFormValues => ({
+  title: c.title,
+  description: c.description,
+  category: c.category,
+  location: c.location,
+  startDate: c.startDate.slice(0, 10),
+  endDate: c.endDate.slice(0, 10),
+  targetMeals: c.targetMeals ? String(c.targetMeals) : '',
+  contactPhone: c.contactPhone,
+  imageUri: c.imageUrl ? serverRoot + c.imageUrl : null,
+});
+
 interface Props {
+  /** Pass a campaign to edit it. Leave out to create a new one. */
+  campaign?: CampaignPost;
   onCreated?: (campaign: unknown) => void;
+  onSaved?: (campaign: CampaignPost) => void;
+  onCancel?: () => void;
 }
 
-export default function AmashaCampaignPostForm({ onCreated }: Props) {
-  const [form, setForm] = useState<CampaignFormValues>(emptyForm);
+export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, onCancel }: Props) {
+  const isEditing = !!campaign;
+  const initialForm = useMemo(
+    () => (campaign ? toFormValues(campaign) : emptyForm),
+    [campaign]
+  );
+
+  const [form, setForm] = useState<CampaignFormValues>(initialForm);
   const [errors, setErrors] = useState<CampaignFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
@@ -120,7 +147,9 @@ export default function AmashaCampaignPostForm({ onCreated }: Props) {
       if (form.targetMeals) data.append('targetMeals', form.targetMeals);
       data.append('contactPhone', form.contactPhone.trim());
 
-      if (form.imageUri) {
+      // A new image is only uploaded when it differs from the one already saved
+      const hasNewImage = !!form.imageUri && form.imageUri !== initialForm.imageUri;
+      if (hasNewImage && form.imageUri) {
         const name = form.imageUri.split('/').pop() ?? 'campaign.jpg';
         const ext = /\.(\w+)$/.exec(name)?.[1]?.toLowerCase() ?? 'jpg';
         data.append('image', {
@@ -128,19 +157,25 @@ export default function AmashaCampaignPostForm({ onCreated }: Props) {
           name,
           type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
         } as any);
+      } else if (isEditing && !form.imageUri && initialForm.imageUri) {
+        data.append('removeImage', 'true');
       }
 
-      // Assumed endpoint; the JWT is attached by the existing API client
-      const res = await api.post('/campaigns', data, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
 
-      setForm(emptyForm);
-      Alert.alert('Campaign posted', 'Your campaign is now live.');
-      onCreated?.(res.data);
+      if (campaign) {
+        const res = await api.put(`/campaigns/${campaign._id}`, data, config);
+        Alert.alert('Campaign updated', 'Your changes are live.');
+        onSaved?.(res.data.campaign);
+      } else {
+        const res = await api.post('/campaigns', data, config);
+        setForm(emptyForm);
+        Alert.alert('Campaign posted', 'Your campaign is now live.');
+        onCreated?.(res.data);
+      }
     } catch (err: any) {
       Alert.alert(
-        'Could not post campaign',
+        isEditing ? 'Could not update campaign' : 'Could not post campaign',
         err?.response?.data?.message ?? 'Check your connection and try again.'
       );
     } finally {
@@ -154,7 +189,7 @@ export default function AmashaCampaignPostForm({ onCreated }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.heading}>New campaign post</Text>
+        <Text style={styles.heading}>{isEditing ? 'Edit campaign' : 'New campaign post'}</Text>
 
         <Field label="Title" error={errors.title} counter={`${form.title.length}/${TITLE_MAX}`}>
           <TextInput
@@ -213,7 +248,7 @@ export default function AmashaCampaignPostForm({ onCreated }: Props) {
           <View style={styles.half}>
             <Field label="Start date" error={errors.startDate}>
               <TextInput
-            {...fieldProps('startDate')}
+                {...fieldProps('startDate')}
                 value={form.startDate}
                 onChangeText={(v) => set('startDate', v)}
                 placeholder="YYYY-MM-DD"
@@ -225,7 +260,7 @@ export default function AmashaCampaignPostForm({ onCreated }: Props) {
           <View style={styles.half}>
             <Field label="End date" error={errors.endDate}>
               <TextInput
-            {...fieldProps('endDate')}
+                {...fieldProps('endDate')}
                 value={form.endDate}
                 onChangeText={(v) => set('endDate', v)}
                 placeholder="YYYY-MM-DD"
@@ -284,9 +319,15 @@ export default function AmashaCampaignPostForm({ onCreated }: Props) {
           {submitting ? (
             <ActivityIndicator color={C.textOnPrimary} />
           ) : (
-            <Text style={styles.submitText}>Post campaign</Text>
+            <Text style={styles.submitText}>{isEditing ? 'Save changes' : 'Post campaign'}</Text>
           )}
         </TouchableOpacity>
+
+        {onCancel ? (
+          <TouchableOpacity style={styles.cancel} onPress={onCancel} disabled={submitting}>
+            <Text style={styles.link}>Cancel</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -379,4 +420,5 @@ const styles = StyleSheet.create({
   },
   submitDisabled: { opacity: 0.6 },
   submitText: { ...Typography.button, color: C.textOnPrimary },
+  cancel: { alignItems: 'center', paddingVertical: Spacing.three },
 });

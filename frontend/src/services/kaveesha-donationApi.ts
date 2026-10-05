@@ -1161,6 +1161,114 @@ export async function cancelDonation(
   );
 }
 
+// ================================================================
+// DONOR EXPIRY NOTIFICATIONS
+// ================================================================
+
+export type ExpiryAlertType =
+  | 'EXPIRING_6_HOURS'
+  | 'EXPIRING_2_HOURS'
+  | 'EXPIRING_30_MINUTES';
+
+export interface ExpiryAlertDonation {
+  _id: string;
+  foodType?: string;
+  foodName?: string;
+  status?: string;
+  availabilityEnd?: string;
+  expiryTime?: string;
+}
+
+export interface ExpiryAlert {
+  _id: string;
+  donation: ExpiryAlertDonation | null;
+  donor: string;
+  type: ExpiryAlertType;
+  title: string;
+  message: string;
+  read: boolean;
+  pushNotificationSent: boolean;
+  triggeredAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Get expiry notifications for the logged-in donor.
+ */
+export async function getExpiryAlerts(
+  options?: {
+    unreadOnly?: boolean;
+    limit?: number;
+  },
+): Promise<ExpiryAlert[]> {
+  const params: Record<string, unknown> = {};
+
+  if (options?.unreadOnly) {
+    params.unread = 'true';
+  }
+
+  if (options?.limit) {
+    params.limit = options.limit;
+  }
+
+  const response =
+    await api.get<
+      ApiResponse<ExpiryAlert[]>
+    >(
+      '/donor/expiry-alerts',
+      {
+        params,
+      },
+    );
+
+  return response.data.data ?? [];
+}
+
+/**
+ * Get unread expiry notification count.
+ */
+export async function getUnreadExpiryAlertCount(): Promise<number> {
+  const response =
+    await api.get<
+      ApiResponse<{ count: number }>
+    >(
+      '/donor/expiry-alerts/unread-count',
+    );
+
+  return response.data.data?.count ?? 0;
+}
+
+/**
+ * Mark one expiry notification as read.
+ */
+export async function markExpiryAlertAsRead(
+  alertId: string,
+): Promise<ExpiryAlert> {
+  const response =
+    await api.patch<
+      ApiResponse<ExpiryAlert>
+    >(
+      `/donor/expiry-alerts/${alertId}/read`,
+    );
+
+  return response.data.data;
+}
+
+/**
+ * Mark all expiry notifications as read.
+ */
+export async function markAllExpiryAlertsAsRead(): Promise<number> {
+  const response =
+    await api.patch<
+      ApiResponse<{ modifiedCount: number }>
+    >(
+      '/donor/expiry-alerts/read-all',
+    );
+
+  return response.data.data?.modifiedCount ?? 0;
+}
+
 export default {
   createDonation,
   getMyDonations,
@@ -1169,4 +1277,9 @@ export default {
   updateDonation,
   deleteDonation,
   cancelDonation,
+
+  getExpiryAlerts,
+  getUnreadExpiryAlertCount,
+  markExpiryAlertAsRead,
+  markAllExpiryAlertsAsRead,
 };

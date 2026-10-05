@@ -36,6 +36,37 @@ const userSchema = new Schema(
     city: { type: String, required: true, trim: true },
     profilePicture: { type: String, trim: true },
 
+    expoPushTokens: [
+  {
+    token: {
+      type: String,
+      trim: true,
+    },
+
+    deviceId: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    platform: {
+      type: String,
+      enum: ["android", "ios"],
+      default: null,
+    },
+
+    enabled: {
+      type: Boolean,
+      default: true,
+    },
+
+    lastRegisteredAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+],
+
     // --- Account verification (Task 04) ---
     isVerified: { type: Boolean, default: false },
     verificationCode: { type: String, select: false },

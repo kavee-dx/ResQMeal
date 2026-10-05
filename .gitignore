@@ -33,3 +33,6 @@ backend/src/uploads/*
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# Firebase configuration
+frontend/google-services.json

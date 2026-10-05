@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ActivityIndicator,
@@ -23,10 +18,7 @@ import {
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
-import {
-  useFocusEffect,
-  useNavigation,
-} from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 
 import { getDonations } from "../services/kaveesha-donationApi";
 
@@ -159,9 +151,7 @@ function getStatusConfig(status: DonationStatus) {
 |--------------------------------------------------------------------------
 */
 
-function getPriorityConfig(
-  priority?: DonationPriority
-) {
+function getPriorityConfig(priority?: DonationPriority) {
   switch (priority) {
     case "high":
       return {
@@ -242,9 +232,7 @@ function formatDateTime(date?: string) {
   const dateText = formatDate(date);
   const timeText = formatTime(date);
 
-  return timeText
-    ? `${dateText} • ${timeText}`
-    : dateText;
+  return timeText ? `${dateText} • ${timeText}` : dateText;
 }
 
 /*
@@ -259,9 +247,7 @@ function formatDateTime(date?: string) {
 */
 
 function getExpiryDate(donation: Donation) {
-  const value =
-    donation.availabilityEnd ||
-    donation.expiryTime;
+  const value = donation.availabilityEnd || donation.expiryTime;
 
   if (!value) {
     return null;
@@ -276,20 +262,14 @@ function getExpiryDate(donation: Donation) {
   return timestamp;
 }
 
-function getHoursUntilExpiry(
-  donation: Donation,
-  currentTime = Date.now()
-) {
+function getHoursUntilExpiry(donation: Donation, currentTime = Date.now()) {
   const expiry = getExpiryDate(donation);
 
   if (expiry === null) {
     return null;
   }
 
-  return (
-    (expiry - currentTime) /
-    (1000 * 60 * 60)
-  );
+  return (expiry - currentTime) / (1000 * 60 * 60);
 }
 
 /*
@@ -303,14 +283,8 @@ function getHoursUntilExpiry(
 |
 */
 
-function isExpiringSoon(
-  donation: Donation,
-  currentTime = Date.now()
-) {
-  const hours = getHoursUntilExpiry(
-    donation,
-    currentTime
-  );
+function isExpiringSoon(donation: Donation, currentTime = Date.now()) {
+  const hours = getHoursUntilExpiry(donation, currentTime);
 
   if (hours === null) {
     return false;
@@ -333,10 +307,7 @@ function isExpiringSoon(
 |
 */
 
-function getExpiryInfo(
-  donation: Donation,
-  currentTime = Date.now()
-) {
+function getExpiryInfo(donation: Donation, currentTime = Date.now()) {
   const expiry = getExpiryDate(donation);
 
   if (expiry === null) {
@@ -348,8 +319,7 @@ function getExpiryInfo(
     };
   }
 
-  const remainingMs =
-    expiry - currentTime;
+  const remainingMs = expiry - currentTime;
 
   if (remainingMs <= 0) {
     return {
@@ -360,16 +330,11 @@ function getExpiryInfo(
     };
   }
 
-  const totalMinutes = Math.ceil(
-    remainingMs / (1000 * 60)
-  );
+  const totalMinutes = Math.ceil(remainingMs / (1000 * 60));
 
-  const totalHours = Math.floor(
-    totalMinutes / 60
-  );
+  const totalHours = Math.floor(totalMinutes / 60);
 
-  const minutes =
-    totalMinutes % 60;
+  const minutes = totalMinutes % 60;
 
   /*
   |--------------------------------------------------------------------------
@@ -378,15 +343,10 @@ function getExpiryInfo(
   */
 
   if (totalMinutes > 24 * 60) {
-    const days = Math.floor(
-      totalMinutes / (24 * 60)
-    );
+    const days = Math.floor(totalMinutes / (24 * 60));
 
     return {
-      text:
-        days === 1
-          ? "1 day remaining"
-          : `${days} days remaining`,
+      text: days === 1 ? "1 day remaining" : `${days} days remaining`,
       color: COLORS.teal,
       background: COLORS.softBlue,
       icon: "calendar-outline" as const,
@@ -409,17 +369,9 @@ function getExpiryInfo(
 
   if (totalHours > 0) {
     return {
-      text: `Expires in ${totalHours}h ${minutes
-        .toString()
-        .padStart(2, "0")}m`,
-      color:
-        totalHours <= 6
-          ? COLORS.danger
-          : COLORS.orange,
-      background:
-        totalHours <= 6
-          ? COLORS.softDanger
-          : COLORS.softOrange,
+      text: `Expires in ${totalHours}h ${minutes.toString().padStart(2, "0")}m`,
+      color: totalHours <= 6 ? COLORS.danger : COLORS.orange,
+      background: totalHours <= 6 ? COLORS.softDanger : COLORS.softOrange,
       icon:
         totalHours <= 6
           ? ("flame-outline" as const)
@@ -447,33 +399,26 @@ function getExpiryInfo(
 |--------------------------------------------------------------------------
 */
 
-const PRIORITY_ORDER: Record<
-  DonationPriority,
-  number
-> = {
+const PRIORITY_ORDER: Record<DonationPriority, number> = {
   high: 3,
   medium: 2,
   low: 1,
 };
 
-function getTimestamp(
-  value?: string
-) {
+function getTimestamp(value?: string) {
   if (!value) {
     return 0;
   }
 
   const time = new Date(value).getTime();
 
-  return Number.isNaN(time)
-    ? 0
-    : time;
+  return Number.isNaN(time) ? 0 : time;
 }
 
 function sortDonations(
   donations: Donation[],
   status: "all" | DonationStatus,
-  currentTime = Date.now()
+  currentTime = Date.now(),
 ) {
   const copy = [...donations];
 
@@ -490,44 +435,23 @@ function sortDonations(
 
   if (status === "pending") {
     return copy.sort((a, b) => {
-      const expiringA =
-        isExpiringSoon(
-          a,
-          currentTime
-        )
-          ? 1
-          : 0;
+      const expiringA = isExpiringSoon(a, currentTime) ? 1 : 0;
 
-      const expiringB =
-        isExpiringSoon(
-          b,
-          currentTime
-        )
-          ? 1
-          : 0;
+      const expiringB = isExpiringSoon(b, currentTime) ? 1 : 0;
 
       if (expiringA !== expiringB) {
         return expiringB - expiringA;
       }
 
-      const priorityA =
-        PRIORITY_ORDER[
-          a.priority || "low"
-        ];
+      const priorityA = PRIORITY_ORDER[a.priority || "low"];
 
-      const priorityB =
-        PRIORITY_ORDER[
-          b.priority || "low"
-        ];
+      const priorityB = PRIORITY_ORDER[b.priority || "low"];
 
       if (priorityA !== priorityB) {
         return priorityB - priorityA;
       }
 
-      return (
-        getTimestamp(b.createdAt) -
-        getTimestamp(a.createdAt)
-      );
+      return getTimestamp(b.createdAt) - getTimestamp(a.createdAt);
     });
   }
 
@@ -543,44 +467,23 @@ function sortDonations(
 
   if (status === "active") {
     return copy.sort((a, b) => {
-      const expiringA =
-        isExpiringSoon(
-          a,
-          currentTime
-        )
-          ? 1
-          : 0;
+      const expiringA = isExpiringSoon(a, currentTime) ? 1 : 0;
 
-      const expiringB =
-        isExpiringSoon(
-          b,
-          currentTime
-        )
-          ? 1
-          : 0;
+      const expiringB = isExpiringSoon(b, currentTime) ? 1 : 0;
 
       if (expiringA !== expiringB) {
         return expiringB - expiringA;
       }
 
-      const priorityA =
-        PRIORITY_ORDER[
-          a.priority || "low"
-        ];
+      const priorityA = PRIORITY_ORDER[a.priority || "low"];
 
-      const priorityB =
-        PRIORITY_ORDER[
-          b.priority || "low"
-        ];
+      const priorityB = PRIORITY_ORDER[b.priority || "low"];
 
       if (priorityA !== priorityB) {
         return priorityB - priorityA;
       }
 
-      return (
-        getTimestamp(b.createdAt) -
-        getTimestamp(a.createdAt)
-      );
+      return getTimestamp(b.createdAt) - getTimestamp(a.createdAt);
     });
   }
 
@@ -596,44 +499,23 @@ function sortDonations(
 
   if (status === "all") {
     return copy.sort((a, b) => {
-      const expiringA =
-        isExpiringSoon(
-          a,
-          currentTime
-        )
-          ? 1
-          : 0;
+      const expiringA = isExpiringSoon(a, currentTime) ? 1 : 0;
 
-      const expiringB =
-        isExpiringSoon(
-          b,
-          currentTime
-        )
-          ? 1
-          : 0;
+      const expiringB = isExpiringSoon(b, currentTime) ? 1 : 0;
 
       if (expiringA !== expiringB) {
         return expiringB - expiringA;
       }
 
-      const priorityA =
-        PRIORITY_ORDER[
-          a.priority || "low"
-        ];
+      const priorityA = PRIORITY_ORDER[a.priority || "low"];
 
-      const priorityB =
-        PRIORITY_ORDER[
-          b.priority || "low"
-        ];
+      const priorityB = PRIORITY_ORDER[b.priority || "low"];
 
       if (priorityA !== priorityB) {
         return priorityB - priorityA;
       }
 
-      return (
-        getTimestamp(b.createdAt) -
-        getTimestamp(a.createdAt)
-      );
+      return getTimestamp(b.createdAt) - getTimestamp(a.createdAt);
     });
   }
 
@@ -644,9 +526,7 @@ function sortDonations(
   */
 
   return copy.sort(
-    (a, b) =>
-      getTimestamp(b.updatedAt) -
-      getTimestamp(a.updatedAt)
+    (a, b) => getTimestamp(b.updatedAt) - getTimestamp(a.updatedAt),
   );
 }
 
@@ -657,47 +537,29 @@ function sortDonations(
 */
 
 export default function MyDonationsScreen() {
-  const navigation =
-    useNavigation<any>();
+  const navigation = useNavigation<any>();
 
-  const { width } =
-    useWindowDimensions();
+  const { width } = useWindowDimensions();
 
-  const isDesktop =
-    width >= 1100;
+  const isDesktop = width >= 1100;
 
-  const isTablet =
-    width >= 700 &&
-    width < 1100;
+  const isTablet = width >= 700 && width < 1100;
 
-  const horizontalPadding =
-    isDesktop
-      ? 36
-      : isTablet
-      ? 24
-      : 16;
+  const horizontalPadding = isDesktop ? 36 : isTablet ? 24 : 16;
 
-  const [
-    selectedFilter,
-    setSelectedFilter,
-  ] = useState<
-    "all" | DonationStatus
-  >("all");
+  const [selectedFilter, setSelectedFilter] = useState<"all" | DonationStatus>(
+    "all",
+  );
 
-  const [donations, setDonations] =
-    useState<Donation[]>([]);
+  const [donations, setDonations] = useState<Donation[]>([]);
 
-  const [searchText, setSearchText] =
-    useState("");
+  const [searchText, setSearchText] = useState("");
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [refreshing, setRefreshing] =
-    useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   /*
   |--------------------------------------------------------------------------
@@ -716,14 +578,12 @@ export default function MyDonationsScreen() {
   |
   */
 
-  const [currentTime, setCurrentTime] =
-    useState(() => Date.now());
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
-    const interval =
-      setInterval(() => {
-        setCurrentTime(Date.now());
-      }, 1000);
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 1000);
 
     return () => {
       clearInterval(interval);
@@ -736,43 +596,34 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const loadDonations =
-    useCallback(
-      async (
-        showLoader = true
-      ) => {
-        try {
-          if (showLoader) {
-            setLoading(true);
-          }
-
-          setError(null);
-
-          const result =
-            await getDonations(
-              selectedFilter
-            );
-
-          setDonations(result);
-        } catch (err: any) {
-          console.error(
-            "Failed to load donations:",
-            err
-          );
-
-          setError(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Unable to load your donations."
-          );
-        } finally {
-          if (showLoader) {
-            setLoading(false);
-          }
+  const loadDonations = useCallback(
+    async (showLoader = true) => {
+      try {
+        if (showLoader) {
+          setLoading(true);
         }
-      },
-      [selectedFilter]
-    );
+
+        setError(null);
+
+        const result = await getDonations(selectedFilter);
+
+        setDonations(result);
+      } catch (err: any) {
+        console.error("Failed to load donations:", err);
+
+        setError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Unable to load your donations.",
+        );
+      } finally {
+        if (showLoader) {
+          setLoading(false);
+        }
+      }
+    },
+    [selectedFilter],
+  );
 
   /*
   |--------------------------------------------------------------------------
@@ -783,7 +634,7 @@ export default function MyDonationsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadDonations();
-    }, [loadDonations])
+    }, [loadDonations]),
   );
 
   /*
@@ -792,32 +643,22 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const handleRefresh =
-    useCallback(async () => {
-      try {
-        setRefreshing(true);
-        setError(null);
+  const handleRefresh = useCallback(async () => {
+    try {
+      setRefreshing(true);
+      setError(null);
 
-        const result =
-          await getDonations(
-            selectedFilter
-          );
+      const result = await getDonations(selectedFilter);
 
-        setDonations(result);
-      } catch (err: any) {
-        console.error(
-          "Refresh donations error:",
-          err
-        );
+      setDonations(result);
+    } catch (err: any) {
+      console.error("Refresh donations error:", err);
 
-        setError(
-          err?.response?.data?.message ||
-            "Unable to refresh donations."
-        );
-      } finally {
-        setRefreshing(false);
-      }
-    }, [selectedFilter]);
+      setError(err?.response?.data?.message || "Unable to refresh donations.");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [selectedFilter]);
 
   /*
   |--------------------------------------------------------------------------
@@ -825,50 +666,32 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const filteredDonations =
-    useMemo(() => {
-      const query =
-        searchText
-          .trim()
-          .toLowerCase();
+  const filteredDonations = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
 
-      const searched =
-        query.length === 0
-          ? donations
-          : donations.filter(
-              (donation) => {
-                const values = [
-                  donation.foodType,
-                  donation.foodName,
-                  donation.foodCategory,
-                  donation.category,
-                  donation.donationCode,
-                  donation.pickupAddress,
-                  donation.pickupDistrict,
-                ];
+    const searched =
+      query.length === 0
+        ? donations
+        : donations.filter((donation) => {
+            const values = [
+              donation.foodType,
+              donation.foodName,
+              donation.foodCategory,
+              donation.category,
+              donation.donationCode,
+              donation.pickupAddress,
+              donation.pickupDistrict,
+            ];
 
-                return values.some(
-                  (value) =>
-                    String(
-                      value || ""
-                    )
-                      .toLowerCase()
-                      .includes(query)
-                );
-              }
+            return values.some((value) =>
+              String(value || "")
+                .toLowerCase()
+                .includes(query),
             );
+          });
 
-      return sortDonations(
-        searched,
-        selectedFilter,
-        currentTime
-      );
-    }, [
-      donations,
-      searchText,
-      selectedFilter,
-      currentTime,
-    ]);
+    return sortDonations(searched, selectedFilter, currentTime);
+  }, [donations, searchText, selectedFilter, currentTime]);
 
   /*
   |--------------------------------------------------------------------------
@@ -877,44 +700,26 @@ export default function MyDonationsScreen() {
   */
 
   const stats = useMemo(() => {
-    const pendingDonations =
-      donations.filter(
-        (item) =>
-          item.status === "pending"
-      );
+    const pendingDonations = donations.filter(
+      (item) => item.status === "pending",
+    );
 
-    const expiringPending =
-      pendingDonations.filter(
-        (item) =>
-          isExpiringSoon(
-            item,
-            currentTime
-          )
-      );
+    const expiringPending = pendingDonations.filter((item) =>
+      isExpiringSoon(item, currentTime),
+    );
 
     return {
       total: donations.length,
 
-      active: donations.filter(
-        (item) =>
-          item.status === "active"
-      ).length,
+      active: donations.filter((item) => item.status === "active").length,
 
-      pending:
-        pendingDonations.length,
+      pending: pendingDonations.length,
 
-      completed: donations.filter(
-        (item) =>
-          item.status === "completed"
-      ).length,
+      completed: donations.filter((item) => item.status === "completed").length,
 
-      expiringPending:
-        expiringPending.length,
+      expiringPending: expiringPending.length,
     };
-  }, [
-    donations,
-    currentTime,
-  ]);
+  }, [donations, currentTime]);
 
   /*
   |--------------------------------------------------------------------------
@@ -922,17 +727,10 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const openDonation = (
-    donation: Donation
-  ) => {
-    navigation.navigate(
-      "DonationDetail",
-      {
-        donationId:
-          donation.id ||
-          donation._id,
-      }
-    );
+  const openDonation = (donation: Donation) => {
+    navigation.navigate("DonationDetail", {
+      donationId: donation.id || donation._id,
+    });
   };
 
   /*
@@ -941,27 +739,19 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const renderStatusBadge = (
-    status: DonationStatus
-  ) => {
-    const config =
-      getStatusConfig(status);
+  const renderStatusBadge = (status: DonationStatus) => {
+    const config = getStatusConfig(status);
 
     return (
       <View
         style={[
           styles.statusBadge,
           {
-            backgroundColor:
-              config.background,
+            backgroundColor: config.background,
           },
         ]}
       >
-        <Ionicons
-          name={config.icon}
-          size={14}
-          color={config.color}
-        />
+        <Ionicons name={config.icon} size={14} color={config.color} />
 
         <Text
           style={[
@@ -983,15 +773,8 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const renderExpiringBadge = (
-    donation: Donation
-  ) => {
-    if (
-      !isExpiringSoon(
-        donation,
-        currentTime
-      )
-    ) {
+  const renderExpiringBadge = (donation: Donation) => {
+    if (!isExpiringSoon(donation, currentTime)) {
       return null;
     }
 
@@ -1003,34 +786,15 @@ export default function MyDonationsScreen() {
     | their actual expired status.
     */
 
-    if (
-      donation.status !==
-        "pending" &&
-      donation.status !==
-        "active"
-    ) {
+    if (donation.status !== "pending" && donation.status !== "active") {
       return null;
     }
 
     return (
-      <View
-        style={
-          styles.expiringBadge
-        }
-      >
-        <Ionicons
-          name="time-outline"
-          size={13}
-          color={COLORS.orange}
-        />
+      <View style={styles.expiringBadge}>
+        <Ionicons name="time-outline" size={13} color={COLORS.orange} />
 
-        <Text
-          style={
-            styles.expiringBadgeText
-          }
-        >
-          EXPIRING SOON
-        </Text>
+        <Text style={styles.expiringBadgeText}>EXPIRING SOON</Text>
       </View>
     );
   };
@@ -1041,27 +805,19 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const renderPriorityBadge = (
-    priority?: DonationPriority
-  ) => {
-    const config =
-      getPriorityConfig(priority);
+  const renderPriorityBadge = (priority?: DonationPriority) => {
+    const config = getPriorityConfig(priority);
 
     return (
       <View
         style={[
           styles.priorityBadge,
           {
-            backgroundColor:
-              config.background,
+            backgroundColor: config.background,
           },
         ]}
       >
-        <Ionicons
-          name={config.icon}
-          size={13}
-          color={config.color}
-        />
+        <Ionicons name={config.icon} size={13} color={config.color} />
 
         <Text
           style={[
@@ -1083,50 +839,26 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  const renderDonationCard = ({
-    item,
-  }: {
-    item: Donation;
-  }) => {
-    const expiry =
-      getExpiryInfo(
-        item,
-        currentTime
-      );
+  const renderDonationCard = ({ item }: { item: Donation }) => {
+    const expiry = getExpiryInfo(item, currentTime);
 
-    const statusConfig =
-      getStatusConfig(item.status);
+    const statusConfig = getStatusConfig(item.status);
 
-    const expiring =
-      isExpiringSoon(
-        item,
-        currentTime
-      );
+    const expiring = isExpiringSoon(item, currentTime);
 
-    const expiryDate =
-      item.availabilityEnd ||
-      item.expiryTime;
+    const expiryDate = item.availabilityEnd || item.expiryTime;
 
     return (
       <Pressable
-        onPress={() =>
-          openDonation(item)
-        }
-        style={({ pressed }) => [
-          styles.card,
-          pressed &&
-            styles.cardPressed,
-        ]}
+        onPress={() => openDonation(item)}
+        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       >
         {/* Top accent */}
         <View
           style={[
             styles.cardAccent,
             {
-              backgroundColor:
-                expiring
-                  ? COLORS.orange
-                  : statusConfig.color,
+              backgroundColor: expiring ? COLORS.orange : statusConfig.color,
             },
           ]}
         />
@@ -1141,11 +873,7 @@ export default function MyDonationsScreen() {
             resizeMode="cover"
           />
         ) : (
-          <View
-            style={
-              styles.foodImageFallback
-            }
-          >
+          <View style={styles.foodImageFallback}>
             <Ionicons
               name="restaurant-outline"
               size={42}
@@ -1154,149 +882,60 @@ export default function MyDonationsScreen() {
           </View>
         )}
 
-        <View
-          style={
-            styles.cardContent
-          }
-        >
+        <View style={styles.cardContent}>
           {/* Header */}
-          <View
-            style={
-              styles.cardHeader
-            }
-          >
-            <View
-              style={
-                styles.cardHeaderLeft
-              }
-            >
-              <View
-                style={
-                  styles.titleContainer
-                }
-              >
-                <Text
-                  style={
-                    styles.foodTitle
-                  }
-                  numberOfLines={1}
-                >
-                  {item.foodType ||
-                    item.foodName ||
-                    "Food Donation"}
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <View style={styles.titleContainer}>
+                <Text style={styles.foodTitle} numberOfLines={1}>
+                  {item.foodType || item.foodName || "Food Donation"}
                 </Text>
 
-                <Text
-                  style={
-                    styles.categoryText
-                  }
-                  numberOfLines={1}
-                >
-                  {item.foodCategory ||
-                    item.category ||
-                    "Food donation"}
+                <Text style={styles.categoryText} numberOfLines={1}>
+                  {item.foodCategory || item.category || "Food donation"}
                 </Text>
               </View>
             </View>
 
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={
-                COLORS.muted
-              }
-            />
+            <Ionicons name="chevron-forward" size={20} color={COLORS.muted} />
           </View>
 
           {/* Badges */}
-          <View
-            style={
-              styles.badgeRow
-            }
-          >
-            {renderStatusBadge(
-              item.status
-            )}
+          <View style={styles.badgeRow}>
+            {renderStatusBadge(item.status)}
 
-            {renderExpiringBadge(
-              item
-            )}
+            {renderExpiringBadge(item)}
 
-            {renderPriorityBadge(
-              item.priority
-            )}
+            {renderPriorityBadge(item.priority)}
 
-            {item.donationType ===
-              "URGENT" && (
-              <View
-                style={
-                  styles.urgentBadge
-                }
-              >
-                <Ionicons
-                  name="flash"
-                  size={13}
-                  color={
-                    COLORS.white
-                  }
-                />
+            {item.donationType === "URGENT" && (
+              <View style={styles.urgentBadge}>
+                <Ionicons name="flash" size={13} color={COLORS.white} />
 
-                <Text
-                  style={
-                    styles.urgentBadgeText
-                  }
-                >
-                  URGENT
-                </Text>
+                <Text style={styles.urgentBadgeText}>URGENT</Text>
               </View>
             )}
           </View>
 
           {/* Expiring notice */}
           {expiring &&
-            (item.status ===
-              "pending" ||
-              item.status ===
-                "active") && (
-              <View
-                style={
-                  styles.expiringNotice
-                }
-              >
-                <View
-                  style={
-                    styles.expiringNoticeIcon
-                  }
-                >
+            (item.status === "pending" || item.status === "active") && (
+              <View style={styles.expiringNotice}>
+                <View style={styles.expiringNoticeIcon}>
                   <Ionicons
                     name="notifications-outline"
                     size={16}
-                    color={
-                      COLORS.orange
-                    }
+                    color={COLORS.orange}
                   />
                 </View>
 
-                <View
-                  style={
-                    styles.expiringNoticeContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.expiringNoticeTitle
-                    }
-                  >
+                <View style={styles.expiringNoticeContent}>
+                  <Text style={styles.expiringNoticeTitle}>
                     Donation is expiring soon
                   </Text>
 
-                  <Text
-                    style={
-                      styles.expiringNoticeText
-                    }
-                  >
-                    {item.status ===
-                    "pending"
+                  <Text style={styles.expiringNoticeText}>
+                    {item.status === "pending"
                       ? "Recipient matching should be completed before the availability period ends."
                       : "Rescue should be completed before the availability period ends."}
                   </Text>
@@ -1305,88 +944,31 @@ export default function MyDonationsScreen() {
             )}
 
           {/* Main information */}
-          <View
-            style={
-              styles.infoGrid
-            }
-          >
-            <View
-              style={
-                styles.infoItem
-              }
-            >
-              <View
-                style={
-                  styles.infoIconBox
-                }
-              >
-                <Ionicons
-                  name="scale-outline"
-                  size={17}
-                  color={
-                    COLORS.teal
-                  }
-                />
+          <View style={styles.infoGrid}>
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconBox}>
+                <Ionicons name="scale-outline" size={17} color={COLORS.teal} />
               </View>
 
               <View>
-                <Text
-                  style={
-                    styles.infoLabel
-                  }
-                >
-                  Quantity
-                </Text>
+                <Text style={styles.infoLabel}>Quantity</Text>
 
-                <Text
-                  style={
-                    styles.infoValue
-                  }
-                  numberOfLines={1}
-                >
-                  {item.quantity}{" "}
-                  {item.quantityUnit ||
-                    "units"}
+                <Text style={styles.infoValue} numberOfLines={1}>
+                  {item.quantity} {item.quantityUnit || "units"}
                 </Text>
               </View>
             </View>
 
-            <View
-              style={
-                styles.infoItem
-              }
-            >
-              <View
-                style={
-                  styles.infoIconBox
-                }
-              >
-                <Ionicons
-                  name="people-outline"
-                  size={17}
-                  color={
-                    COLORS.teal
-                  }
-                />
+            <View style={styles.infoItem}>
+              <View style={styles.infoIconBox}>
+                <Ionicons name="people-outline" size={17} color={COLORS.teal} />
               </View>
 
               <View>
-                <Text
-                  style={
-                    styles.infoLabel
-                  }
-                >
-                  Portions
-                </Text>
+                <Text style={styles.infoLabel}>Portions</Text>
 
-                <Text
-                  style={
-                    styles.infoValue
-                  }
-                >
-                  {item.numberOfPortions ??
-                    item.portions ??
-                    0}
+                <Text style={styles.infoValue}>
+                  {item.numberOfPortions ?? item.portions ?? 0}
                 </Text>
               </View>
             </View>
@@ -1397,74 +979,41 @@ export default function MyDonationsScreen() {
             style={[
               styles.expiryRow,
               {
-                backgroundColor:
-                  expiry.background,
+                backgroundColor: expiry.background,
               },
             ]}
           >
-            <View
-              style={
-                styles.expiryLeft
-              }
-            >
-              <Ionicons
-                name={expiry.icon}
-                size={17}
-                color={
-                  expiry.color
-                }
-              />
+            <View style={styles.expiryLeft}>
+              <Ionicons name={expiry.icon} size={17} color={expiry.color} />
 
-              <View
-                style={
-                  styles.expiryDetails
-                }
-              >
+              <View style={styles.expiryDetails}>
                 <Text
                   style={[
                     styles.expiryLabel,
                     {
-                      color:
-                        expiry.color,
+                      color: expiry.color,
                     },
                   ]}
                 >
                   Available Until
                 </Text>
 
-                <Text
-                  style={
-                    styles.expiryDate
-                  }
-                >
-                  {formatDateTime(
-                    expiryDate
-                  )}
+                <Text style={styles.expiryDate}>
+                  {formatDateTime(expiryDate)}
                 </Text>
               </View>
             </View>
 
-            <View
-              style={
-                styles.expiryRight
-              }
-            >
+            <View style={styles.expiryRight}>
               {expiring && (
-                <Text
-                  style={
-                    styles.expiringSmallLabel
-                  }
-                >
-                  EXPIRING
-                </Text>
+                <Text style={styles.expiringSmallLabel}>EXPIRING</Text>
               )}
 
               <Text
                 style={[
                   styles.expiryRemaining,
                   {
-                    color:
-                      expiry.color,
+                    color: expiry.color,
                   },
                 ]}
               >
@@ -1477,25 +1026,14 @@ export default function MyDonationsScreen() {
           {(item.pickupLocation ||
             item.pickupAddress ||
             item.pickupDistrict) && (
-            <View
-              style={
-                styles.locationRow
-              }
-            >
+            <View style={styles.locationRow}>
               <Ionicons
                 name="location-outline"
                 size={17}
-                color={
-                  COLORS.muted
-                }
+                color={COLORS.muted}
               />
 
-              <Text
-                style={
-                  styles.locationText
-                }
-                numberOfLines={1}
-              >
+              <Text style={styles.locationText} numberOfLines={1}>
                 {item.pickupLocation ||
                   item.pickupAddress ||
                   item.pickupDistrict}
@@ -1504,50 +1042,17 @@ export default function MyDonationsScreen() {
           )}
 
           {/* Footer */}
-          <View
-            style={
-              styles.cardFooter
-            }
-          >
+          <View style={styles.cardFooter}>
             <View>
-              <Text
-                style={
-                  styles.codeLabel
-                }
-              >
-                Donation Code
-              </Text>
+              <Text style={styles.codeLabel}>Donation Code</Text>
 
-              <Text
-                style={
-                  styles.codeValue
-                }
-              >
-                {item.donationCode ||
-                  "—"}
-              </Text>
+              <Text style={styles.codeValue}>{item.donationCode || "—"}</Text>
             </View>
 
-            <View
-              style={
-                styles.viewDetails
-              }
-            >
-              <Text
-                style={
-                  styles.viewDetailsText
-                }
-              >
-                View details
-              </Text>
+            <View style={styles.viewDetails}>
+              <Text style={styles.viewDetailsText}>View details</Text>
 
-              <Ionicons
-                name="arrow-forward"
-                size={16}
-                color={
-                  COLORS.navy
-                }
-              />
+              <Ionicons name="arrow-forward" size={16} color={COLORS.navy} />
             </View>
           </View>
         </View>
@@ -1566,86 +1071,39 @@ export default function MyDonationsScreen() {
       style={[
         styles.headerWrapper,
         {
-          paddingHorizontal:
-            horizontalPadding,
+          paddingHorizontal: horizontalPadding,
         },
       ]}
     >
-      <View
-        style={
-          styles.headerInner
-        }
-      >
+      <View style={styles.headerInner}>
         <View>
-          <View
-            style={
-              styles.titleRow
-            }
-          >
+          <View style={styles.titleRow}>
             <Pressable
-              onPress={() =>
-                navigation.goBack()
-              }
-              style={
-                styles.backButton
-              }
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
             >
-              <Ionicons
-                name="arrow-back"
-                size={20}
-                color={
-                  COLORS.navy
-                }
-              />
+              <Ionicons name="arrow-back" size={20} color={COLORS.navy} />
             </Pressable>
 
-            <Text
-              style={
-                styles.pageTitle
-              }
-            >
-              My Donations
-            </Text>
+            <Text style={styles.pageTitle}>My Donations</Text>
           </View>
 
-          <Text
-            style={
-              styles.pageSubtitle
-            }
-          >
-            Manage and track the food you've
-            shared.
+          <Text style={styles.pageSubtitle}>
+            Manage and track the food you've shared.
           </Text>
         </View>
 
         <Pressable
-          onPress={() =>
-            navigation.navigate(
-              "CreateDonation"
-            )
-          }
+          onPress={() => navigation.navigate("CreateDonation")}
           style={({ pressed }) => [
             styles.createButton,
-            pressed &&
-              styles.createButtonPressed,
+            pressed && styles.createButtonPressed,
           ]}
         >
-          <Ionicons
-            name="add"
-            size={20}
-            color={
-              COLORS.white
-            }
-          />
+          <Ionicons name="add" size={20} color={COLORS.white} />
 
           {isDesktop && (
-            <Text
-              style={
-                styles.createButtonText
-              }
-            >
-              New Donation
-            </Text>
+            <Text style={styles.createButtonText}>New Donation</Text>
           )}
         </Pressable>
       </View>
@@ -1663,8 +1121,7 @@ export default function MyDonationsScreen() {
       style={[
         styles.statsGrid,
         {
-          paddingHorizontal:
-            horizontalPadding,
+          paddingHorizontal: horizontalPadding,
         },
       ]}
     >
@@ -1673,9 +1130,7 @@ export default function MyDonationsScreen() {
         label="Total"
         value={stats.total}
         color={COLORS.navy}
-        background={
-          COLORS.softBlue
-        }
+        background={COLORS.softBlue}
       />
 
       <StatCard
@@ -1683,9 +1138,7 @@ export default function MyDonationsScreen() {
         label="Active"
         value={stats.active}
         color={COLORS.success}
-        background={
-          COLORS.softSuccess
-        }
+        background={COLORS.softSuccess}
       />
 
       <StatCard
@@ -1693,9 +1146,7 @@ export default function MyDonationsScreen() {
         label="Pending"
         value={stats.pending}
         color={COLORS.warning}
-        background={
-          COLORS.softWarning
-        }
+        background={COLORS.softWarning}
       />
 
       <StatCard
@@ -1703,9 +1154,7 @@ export default function MyDonationsScreen() {
         label="Completed"
         value={stats.completed}
         color={COLORS.teal}
-        background={
-          COLORS.softBlue
-        }
+        background={COLORS.softBlue}
       />
     </View>
   );
@@ -1721,53 +1170,34 @@ export default function MyDonationsScreen() {
       style={[
         styles.filterWrapper,
         {
-          paddingHorizontal:
-            horizontalPadding,
+          paddingHorizontal: horizontalPadding,
         },
       ]}
     >
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.filterScrollContent
-        }
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterScrollContent}
       >
-        {FILTERS.map(
-          (filter) => {
-            const active =
-              selectedFilter ===
-              filter.key;
+        {FILTERS.map((filter) => {
+          const active = selectedFilter === filter.key;
 
-            return (
-              <Pressable
-                key={filter.key}
-                onPress={() => {
-                  setSelectedFilter(
-                    filter.key
-                  );
-                }}
-                style={[
-                  styles.filterChip,
-                  active &&
-                    styles.filterChipActive,
-                ]}
+          return (
+            <Pressable
+              key={filter.key}
+              onPress={() => {
+                setSelectedFilter(filter.key);
+              }}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+            >
+              <Text
+                style={[styles.filterText, active && styles.filterTextActive]}
               >
-                <Text
-                  style={[
-                    styles.filterText,
-                    active &&
-                      styles.filterTextActive,
-                  ]}
-                >
-                  {filter.label}
-                </Text>
-              </Pressable>
-            );
-          }
-        )}
+                {filter.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -1783,56 +1213,28 @@ export default function MyDonationsScreen() {
       style={[
         styles.searchWrapper,
         {
-          paddingHorizontal:
-            horizontalPadding,
+          paddingHorizontal: horizontalPadding,
         },
       ]}
     >
-      <View
-        style={
-          styles.searchBox
-        }
-      >
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color={
-            COLORS.muted
-          }
-        />
+      <View style={styles.searchBox}>
+        <Ionicons name="search-outline" size={20} color={COLORS.muted} />
 
         <TextInput
           value={searchText}
-          onChangeText={
-            setSearchText
-          }
+          onChangeText={setSearchText}
           placeholder="Search food, category or donation code..."
-          placeholderTextColor={
-            COLORS.muted
-          }
-          style={
-            styles.searchInput
-          }
+          placeholderTextColor={COLORS.muted}
+          style={styles.searchInput}
           returnKeyType="search"
         />
 
-        {searchText.length >
-          0 && (
+        {searchText.length > 0 && (
           <Pressable
-            onPress={() =>
-              setSearchText("")
-            }
-            style={
-              styles.clearSearch
-            }
+            onPress={() => setSearchText("")}
+            style={styles.clearSearch}
           >
-            <Ionicons
-              name="close-circle"
-              size={19}
-              color={
-                COLORS.muted
-              }
-            />
+            <Ionicons name="close-circle" size={19} color={COLORS.muted} />
           </Pressable>
         )}
       </View>
@@ -1846,101 +1248,54 @@ export default function MyDonationsScreen() {
   */
 
   const renderEmpty = () => {
-    const hasSearch =
-      searchText.trim().length >
-      0;
+    const hasSearch = searchText.trim().length > 0;
 
     const filterLabel =
-      FILTERS.find(
-        (filter) =>
-          filter.key ===
-          selectedFilter
-      )?.label || "All";
+      FILTERS.find((filter) => filter.key === selectedFilter)?.label || "All";
 
     return (
       <View
         style={[
           styles.emptyCard,
           {
-            marginHorizontal:
-              horizontalPadding,
+            marginHorizontal: horizontalPadding,
           },
         ]}
       >
-        <View
-          style={
-            styles.emptyIcon
-          }
-        >
+        <View style={styles.emptyIcon}>
           <Ionicons
-            name={
-              hasSearch
-                ? "search-outline"
-                : "restaurant-outline"
-            }
+            name={hasSearch ? "search-outline" : "restaurant-outline"}
             size={32}
-            color={
-              COLORS.orange
-            }
+            color={COLORS.orange}
           />
         </View>
 
-        <Text
-          style={
-            styles.emptyTitle
-          }
-        >
+        <Text style={styles.emptyTitle}>
           {hasSearch
             ? "No donations found"
-            : selectedFilter ===
-              "all"
-            ? "No donations yet"
-            : `No ${filterLabel.toLowerCase()} donations`}
+            : selectedFilter === "all"
+              ? "No donations yet"
+              : `No ${filterLabel.toLowerCase()} donations`}
         </Text>
 
-        <Text
-          style={
-            styles.emptyDescription
-          }
-        >
+        <Text style={styles.emptyDescription}>
           {hasSearch
             ? "Try a different food name, category, or donation code."
-            : selectedFilter ===
-              "all"
-            ? "Your posted food donations will appear here."
-            : `There are currently no donations in the ${filterLabel.toLowerCase()} category.`}
+            : selectedFilter === "all"
+              ? "Your posted food donations will appear here."
+              : `There are currently no donations in the ${filterLabel.toLowerCase()} category.`}
         </Text>
 
-        {!hasSearch &&
-          selectedFilter ===
-            "all" && (
-            <Pressable
-              onPress={() =>
-                navigation.navigate(
-                  "CreateDonation"
-                )
-              }
-              style={
-                styles.emptyButton
-              }
-            >
-              <Ionicons
-                name="add"
-                size={18}
-                color={
-                  COLORS.white
-                }
-              />
+        {!hasSearch && selectedFilter === "all" && (
+          <Pressable
+            onPress={() => navigation.navigate("CreateDonation")}
+            style={styles.emptyButton}
+          >
+            <Ionicons name="add" size={18} color={COLORS.white} />
 
-              <Text
-                style={
-                  styles.emptyButtonText
-                }
-              >
-                Create Donation
-              </Text>
-            </Pressable>
-          )}
+            <Text style={styles.emptyButtonText}>Create Donation</Text>
+          </Pressable>
+        )}
       </View>
     );
   };
@@ -1956,62 +1311,26 @@ export default function MyDonationsScreen() {
       style={[
         styles.errorCard,
         {
-          marginHorizontal:
-            horizontalPadding,
+          marginHorizontal: horizontalPadding,
         },
       ]}
     >
-      <View
-        style={
-          styles.errorIcon
-        }
-      >
+      <View style={styles.errorIcon}>
         <Ionicons
           name="cloud-offline-outline"
           size={25}
-          color={
-            COLORS.danger
-          }
+          color={COLORS.danger}
         />
       </View>
 
-      <View
-        style={
-          styles.errorContent
-        }
-      >
-        <Text
-          style={
-            styles.errorTitle
-          }
-        >
-          Couldn't load donations
-        </Text>
+      <View style={styles.errorContent}>
+        <Text style={styles.errorTitle}>Couldn't load donations</Text>
 
-        <Text
-          style={
-            styles.errorText
-          }
-        >
-          {error}
-        </Text>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
 
-      <Pressable
-        onPress={() =>
-          loadDonations()
-        }
-        style={
-          styles.retryButton
-        }
-      >
-        <Text
-          style={
-            styles.retryButtonText
-          }
-        >
-          Retry
-        </Text>
+      <Pressable onPress={() => loadDonations()} style={styles.retryButton}>
+        <Text style={styles.retryButtonText}>Retry</Text>
       </Pressable>
     </View>
   );
@@ -2022,69 +1341,34 @@ export default function MyDonationsScreen() {
   |--------------------------------------------------------------------------
   */
 
-  if (
-    loading &&
-    donations.length === 0
-  ) {
+  if (loading && donations.length === 0) {
     return (
-      <SafeAreaView
-        style={
-          styles.safeArea
-        }
-      >
+      <SafeAreaView style={styles.safeArea}>
         <StatusBar
           barStyle="dark-content"
-          backgroundColor={
-            COLORS.background
-          }
+          backgroundColor={COLORS.background}
         />
 
         {renderHeader()}
 
-        <View
-          style={
-            styles.loadingContainer
-          }
-        >
-          <View
-            style={
-              styles.loadingIcon
-            }
-          >
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingIcon}>
             <Ionicons
               name="restaurant-outline"
               size={28}
-              color={
-                COLORS.orange
-              }
+              color={COLORS.orange}
             />
           </View>
 
           <ActivityIndicator
             size="small"
-            color={
-              COLORS.navy
-            }
-            style={
-              styles.loadingSpinner
-            }
+            color={COLORS.navy}
+            style={styles.loadingSpinner}
           />
 
-          <Text
-            style={
-              styles.loadingTitle
-            }
-          >
-            Loading your donations
-          </Text>
+          <Text style={styles.loadingTitle}>Loading your donations</Text>
 
-          <Text
-            style={
-              styles.loadingText
-            }
-          >
-            Please wait a moment...
-          </Text>
+          <Text style={styles.loadingText}>Please wait a moment...</Text>
         </View>
       </SafeAreaView>
     );
@@ -2097,77 +1381,34 @@ export default function MyDonationsScreen() {
   */
 
   return (
-    <SafeAreaView
-      style={
-        styles.safeArea
-      }
-    >
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={
-          COLORS.background
-        }
-      />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <FlatList
-        key={
-          isDesktop
-            ? "desktop"
-            : isTablet
-            ? "tablet"
-            : "mobile"
-        }
-        data={
-          filteredDonations
-        }
-        renderItem={
-          renderDonationCard
-        }
-        extraData={
-          currentTime
-        }
-        keyExtractor={(
-          item,
-          index
-        ) =>
+        key={isDesktop ? "desktop" : isTablet ? "tablet" : "mobile"}
+        data={filteredDonations}
+        renderItem={renderDonationCard}
+        extraData={currentTime}
+        keyExtractor={(item, index) =>
           String(
-            item.id ||
-              item._id ||
-              item.donationCode ||
-              `donation-${index}`
+            item.id || item._id || item.donationCode || `donation-${index}`,
           )
         }
-        numColumns={
-          isDesktop
-            ? 3
-            : isTablet
-            ? 2
-            : 1
-        }
+        numColumns={isDesktop ? 3 : isTablet ? 2 : 1}
         columnWrapperStyle={
-          isDesktop ||
-          isTablet
-            ? styles.columnWrapper
-            : undefined
+          isDesktop || isTablet ? styles.columnWrapper : undefined
         }
         contentContainerStyle={[
           styles.listContent,
           {
-            paddingBottom:
-              40,
+            paddingBottom: 40,
           },
         ]}
         refreshControl={
           <RefreshControl
-            refreshing={
-              refreshing
-            }
-            onRefresh={
-              handleRefresh
-            }
-            tintColor={
-              COLORS.navy
-            }
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.navy}
           />
         }
         ListHeaderComponent={
@@ -2177,69 +1418,39 @@ export default function MyDonationsScreen() {
             {renderFilters()}
             {renderSearch()}
 
-            {error &&
-              renderError()}
+            {error && renderError()}
 
             <View
               style={[
                 styles.resultsHeader,
                 {
-                  paddingHorizontal:
-                    horizontalPadding,
+                  paddingHorizontal: horizontalPadding,
                 },
               ]}
             >
               <View>
-                <Text
-                  style={
-                    styles.resultsTitle
-                  }
-                >
-                  {FILTERS.find(
-                    (filter) =>
-                      filter.key ===
-                      selectedFilter
-                  )?.label ||
-                    "Donations"}
+                <Text style={styles.resultsTitle}>
+                  {FILTERS.find((filter) => filter.key === selectedFilter)
+                    ?.label || "Donations"}
                 </Text>
 
-                <Text
-                  style={
-                    styles.resultsSubtitle
-                  }
-                >
+                <Text style={styles.resultsSubtitle}>
                   {filteredDonations.length}{" "}
-                  {filteredDonations.length ===
-                  1
-                    ? "donation"
-                    : "donations"}
+                  {filteredDonations.length === 1 ? "donation" : "donations"}
                 </Text>
               </View>
 
-              {(selectedFilter ===
-                "all" ||
-                selectedFilter ===
-                  "pending" ||
-                selectedFilter ===
-                  "active") && (
-                <View
-                  style={
-                    styles.sortHint
-                  }
-                >
+              {(selectedFilter === "all" ||
+                selectedFilter === "pending" ||
+                selectedFilter === "active") && (
+                <View style={styles.sortHint}>
                   <Ionicons
                     name="flash-outline"
                     size={15}
-                    color={
-                      COLORS.orange
-                    }
+                    color={COLORS.orange}
                   />
 
-                  <Text
-                    style={
-                      styles.sortHintText
-                    }
-                  >
+                  <Text style={styles.sortHintText}>
                     Expiring & priority first
                   </Text>
                 </View>
@@ -2247,12 +1458,8 @@ export default function MyDonationsScreen() {
             </View>
           </View>
         }
-        ListEmptyComponent={
-          renderEmpty()
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
+        ListEmptyComponent={renderEmpty()}
+        showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
   );
@@ -2278,45 +1485,22 @@ function StatCard({
   background: string;
 }) {
   return (
-    <View
-      style={styles.statCard}
-    >
+    <View style={styles.statCard}>
       <View
         style={[
           styles.statIcon,
           {
-            backgroundColor:
-              background,
+            backgroundColor: background,
           },
         ]}
       >
-        <Ionicons
-          name={icon}
-          size={21}
-          color={color}
-        />
+        <Ionicons name={icon} size={21} color={color} />
       </View>
 
-      <View
-        style={
-          styles.statTextContainer
-        }
-      >
-        <Text
-          style={
-            styles.statValue
-          }
-        >
-          {value}
-        </Text>
+      <View style={styles.statTextContainer}>
+        <Text style={styles.statValue}>{value}</Text>
 
-        <Text
-          style={
-            styles.statLabel
-          }
-        >
-          {label}
-        </Text>
+        <Text style={styles.statLabel}>{label}</Text>
       </View>
     </View>
   );
@@ -2331,8 +1515,7 @@ function StatCard({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor:
-      COLORS.background,
+    backgroundColor: COLORS.background,
   },
 
   /*
@@ -2353,8 +1536,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     gap: 16,
   },
 
@@ -2369,11 +1551,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor:
-      COLORS.border,
+    borderColor: COLORS.border,
     marginRight: 12,
   },
 
@@ -2396,12 +1576,10 @@ const styles = StyleSheet.create({
     minHeight: 46,
     paddingHorizontal: 18,
     borderRadius: 13,
-    backgroundColor:
-      COLORS.navy,
+    backgroundColor: COLORS.navy,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
     gap: 7,
 
     ...Platform.select({
@@ -2446,12 +1624,10 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: 180,
     minHeight: 82,
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor:
-      COLORS.border,
+    borderColor: COLORS.border,
     padding: 15,
     flexDirection: "row",
     alignItems: "center",
@@ -2462,8 +1638,7 @@ const styles = StyleSheet.create({
     height: 46,
     borderRadius: 14,
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
   },
 
   statTextContainer: {
@@ -2506,20 +1681,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: "center",
-    justifyContent:
-      "center",
-    backgroundColor:
-      COLORS.white,
+    justifyContent: "center",
+    backgroundColor: COLORS.white,
     borderWidth: 1,
-    borderColor:
-      COLORS.border,
+    borderColor: COLORS.border,
   },
 
   filterChipActive: {
-    backgroundColor:
-      COLORS.navy,
-    borderColor:
-      COLORS.navy,
+    backgroundColor: COLORS.navy,
+    borderColor: COLORS.navy,
   },
 
   filterText: {
@@ -2547,12 +1717,10 @@ const styles = StyleSheet.create({
 
   searchBox: {
     height: 48,
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
     borderRadius: 13,
     borderWidth: 1,
-    borderColor:
-      COLORS.border,
+    borderColor: COLORS.border,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,
@@ -2564,8 +1732,7 @@ const styles = StyleSheet.create({
     marginLeft: 9,
     color: COLORS.text,
     fontSize: 14,
-    outlineStyle:
-      "none" as any,
+    outlineStyle: "none" as any,
   } as any,
 
   clearSearch: {
@@ -2584,8 +1751,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     marginTop: 24,
     marginBottom: 13,
   },
@@ -2609,8 +1775,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderRadius: 9,
-    backgroundColor:
-      COLORS.softOrange,
+    backgroundColor: COLORS.softOrange,
   },
 
   sortHintText: {
@@ -2648,12 +1813,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     marginBottom: 16,
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
     borderRadius: 18,
     borderWidth: 1,
-    borderColor:
-      COLORS.border,
+    borderColor: COLORS.border,
     overflow: "hidden",
 
     ...Platform.select({
@@ -2680,18 +1843,15 @@ const styles = StyleSheet.create({
   foodImage: {
     width: "100%",
     height: 250,
-    backgroundColor:
-      COLORS.softOrange,
+    backgroundColor: COLORS.softOrange,
   },
 
   foodImageFallback: {
     width: "100%",
     height: 250,
-    backgroundColor:
-      COLORS.softOrange,
+    backgroundColor: COLORS.softOrange,
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
   },
 
   cardContent: {
@@ -2701,8 +1861,7 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
   },
 
   cardHeaderLeft: {
@@ -2767,11 +1926,9 @@ const styles = StyleSheet.create({
     minHeight: 27,
     paddingHorizontal: 9,
     borderRadius: 8,
-    backgroundColor:
-      COLORS.softOrange,
+    backgroundColor: COLORS.softOrange,
     borderWidth: 1,
-    borderColor:
-      "#FFD7AD",
+    borderColor: "#FFD7AD",
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
@@ -2801,8 +1958,7 @@ const styles = StyleSheet.create({
     minHeight: 27,
     paddingHorizontal: 9,
     borderRadius: 8,
-    backgroundColor:
-      COLORS.orange,
+    backgroundColor: COLORS.orange,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
@@ -2824,11 +1980,9 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 11,
     borderRadius: 12,
-    backgroundColor:
-      "#FFF8ED",
+    backgroundColor: "#FFF8ED",
     borderWidth: 1,
-    borderColor:
-      "#FFE0B8",
+    borderColor: "#FFE0B8",
     flexDirection: "row",
     alignItems: "center",
   },
@@ -2837,11 +1991,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor:
-      COLORS.softOrange,
+    backgroundColor: COLORS.softOrange,
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
   },
 
   expiringNoticeContent: {
@@ -2873,8 +2025,7 @@ const styles = StyleSheet.create({
     marginTop: 17,
     paddingTop: 15,
     borderTopWidth: 1,
-    borderTopColor:
-      COLORS.border,
+    borderTopColor: COLORS.border,
     gap: 20,
   },
 
@@ -2888,11 +2039,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor:
-      COLORS.softBlue,
+    backgroundColor: COLORS.softBlue,
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
     marginRight: 9,
   },
 
@@ -2923,8 +2072,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
   },
 
   expiryLeft: {
@@ -2942,8 +2090,7 @@ const styles = StyleSheet.create({
   expiryLabel: {
     fontSize: 9,
     fontWeight: "800",
-    textTransform:
-      "uppercase",
+    textTransform: "uppercase",
     letterSpacing: 0.4,
     marginLeft: 8,
   },
@@ -3004,19 +2151,16 @@ const styles = StyleSheet.create({
     marginTop: 15,
     paddingTop: 13,
     borderTopWidth: 1,
-    borderTopColor:
-      COLORS.border,
+    borderTopColor: COLORS.border,
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
   },
 
   codeLabel: {
     fontSize: 9,
     color: COLORS.muted,
-    textTransform:
-      "uppercase",
+    textTransform: "uppercase",
     letterSpacing: 0.4,
     fontWeight: "700",
   },
@@ -3057,11 +2201,9 @@ const styles = StyleSheet.create({
     width: 62,
     height: 62,
     borderRadius: 20,
-    backgroundColor:
-      COLORS.softOrange,
+    backgroundColor: COLORS.softOrange,
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
   },
 
   loadingSpinner: {
@@ -3094,12 +2236,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 25,
     paddingVertical: 38,
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor:
-      COLORS.border,
+    borderColor: COLORS.border,
     alignItems: "center",
   },
 
@@ -3107,11 +2247,9 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 22,
-    backgroundColor:
-      COLORS.softOrange,
+    backgroundColor: COLORS.softOrange,
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
   },
 
   emptyTitle: {
@@ -3136,8 +2274,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
     paddingHorizontal: 17,
     borderRadius: 12,
-    backgroundColor:
-      COLORS.navy,
+    backgroundColor: COLORS.navy,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
@@ -3162,11 +2299,9 @@ const styles = StyleSheet.create({
     marginTop: 15,
     padding: 13,
     borderRadius: 14,
-    backgroundColor:
-      COLORS.softDanger,
+    backgroundColor: COLORS.softDanger,
     borderWidth: 1,
-    borderColor:
-      "#F3C7C7",
+    borderColor: "#F3C7C7",
     flexDirection: "row",
     alignItems: "center",
   },
@@ -3175,11 +2310,9 @@ const styles = StyleSheet.create({
     width: 43,
     height: 43,
     borderRadius: 13,
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
     alignItems: "center",
-    justifyContent:
-      "center",
+    justifyContent: "center",
   },
 
   errorContent: {
@@ -3203,8 +2336,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     borderRadius: 9,
-    backgroundColor:
-      COLORS.white,
+    backgroundColor: COLORS.white,
   },
 
   retryButtonText: {

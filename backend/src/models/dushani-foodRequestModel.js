@@ -62,6 +62,14 @@ const FoodRequestSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // The donation the claiming donor said they will deliver with (sprint item
+    // 10). It is held out of the pool other recipients search for as long as
+    // this request is live, and goes back to it if the recipient cancels.
+    linkedDonation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Donation',
+      default: null,
+    },
     // When the food left the donor and when it was handed over, so each stage
     // of the progress timeline can report its own moment instead of reusing
     // the document's single updatedAt.
@@ -70,6 +78,12 @@ const FoodRequestSchema = new mongoose.Schema(
       default: null,
     },
     fulfilledAt: {
+      type: Date,
+      default: null,
+    },
+    // The moment the recipient called the request off, so a cancelled timeline
+    // row can show its own time instead of the document's last write.
+    cancelledAt: {
       type: Date,
       default: null,
     },

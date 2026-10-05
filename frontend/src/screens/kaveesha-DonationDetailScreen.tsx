@@ -31,6 +31,8 @@ import {
 
 import { colors, fonts } from "../styles/kaveesha-theme";
 
+import RecipientAskPanel from "../components/dushani-recipientAskPanel";
+
 type Donation = {
   _id?: string;
   id?: string;
@@ -934,6 +936,30 @@ export default function DonationDetailScreen() {
     donation.status ===
       "expired";
 
+  /*
+   * Recipients can only be suggested while the donation is still
+   * open and not past its expiry.
+   */
+  const canSuggestRecipients =
+    (donation.status === "pending" ||
+      donation.status === "active") &&
+    !expiryCountdown.expired;
+
+  const openRecipientSuggestions = () => {
+    const id = getDonationId(donation);
+
+    if (!id || !canSuggestRecipients) {
+      return;
+    }
+
+    navigation.navigate(
+      "RecipientSuggestions",
+      {
+        donationId: id,
+      },
+    );
+  };
+
   const openEdit = () => {
     const id =
       getDonationId(donation);
@@ -1535,32 +1561,49 @@ export default function DonationDetailScreen() {
 
               <TouchableOpacity
                 style={
-                  styles.featureDisabledButton
+                  canSuggestRecipients
+                    ? styles.featureActiveButton
+                    : styles.featureDisabledButton
                 }
-                disabled
-                activeOpacity={1}
+                onPress={
+                  openRecipientSuggestions
+                }
+                disabled={
+                  !canSuggestRecipients
+                }
+                activeOpacity={0.85}
               >
                 <Ionicons
                   name="people-outline"
                   size={17}
                   color={
-                    colors.textMuted
+                    canSuggestRecipients
+                      ? "#FFFFFF"
+                      : colors.textMuted
                   }
                 />
 
                 <Text
                   style={
-                    styles.featureDisabledButtonText
+                    canSuggestRecipients
+                      ? styles.featureActiveButtonText
+                      : styles.featureDisabledButtonText
                   }
                 >
-                  View AI Matches
+                  View Recipients
                 </Text>
 
                 <Ionicons
-                  name="lock-closed-outline"
+                  name={
+                    canSuggestRecipients
+                      ? "chevron-forward"
+                      : "lock-closed-outline"
+                  }
                   size={14}
                   color={
-                    colors.textMuted
+                    canSuggestRecipients
+                      ? "#FFFFFF"
+                      : colors.textMuted
                   }
                 />
               </TouchableOpacity>
@@ -1636,29 +1679,9 @@ export default function DonationDetailScreen() {
                 in-app chat.
               </Text>
 
-              <View
-                style={
-                  styles.featureInfoBoxGreen
-                }
-              >
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={18}
-                  color={
-                    colors.success
-                  }
-                />
-
-                <Text
-                  style={
-                    styles.featureInfoText
-                  }
-                >
-                  Recipient request and
-                  chat functionality will
-                  connect here.
-                </Text>
-              </View>
+              {/* Sprint item 39 (Dushani): the real recipient asks for this
+                  donation replace the old placeholder text. */}
+              <RecipientAskPanel donationId={donationId} />
 
               <TouchableOpacity
                 style={
@@ -3932,6 +3955,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color:
       colors.textMuted,
+  },
+
+  featureActiveButton: {
+    minHeight: 44,
+    marginTop: 12,
+    borderRadius: 12,
+    backgroundColor:
+      colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  featureActiveButtonText: {
+    fontFamily:
+      fonts.bodyBold,
+    fontSize: 11,
+    color: "#FFFFFF",
   },
 
   /* Tracking */

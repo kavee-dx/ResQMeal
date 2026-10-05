@@ -1,13 +1,14 @@
-// Retrieval and status-update endpoints for the volunteer's Assignment.
-// Owner: Dilshara
 
 const Assignment = require("../models/dilshara-Assignment");
-const { findAndAssignVolunteer } = require("../services/dilshara-assignmentAllocation.service");
 
-const ACTIVE_STATUSES = ["ASSIGNED", "ACCEPTED", "PICKING_UP", "IN_TRANSIT"];
+const ACTIVE_STATUSES = [
+  "ASSIGNED",
+  "ACCEPTED",
+  "PICKING_UP",
+  "IN_TRANSIT",
+];
 
-// Only these forward transitions are allowed — prevents skipping steps
-// or moving backward.
+// Only forward transitions are allowed.
 const VALID_TRANSITIONS = {
   ASSIGNED: ["ACCEPTED", "CANCELLED"],
   ACCEPTED: ["PICKING_UP", "CANCELLED"],
@@ -34,13 +35,22 @@ exports.getCurrentAssignment = async (req, res) => {
     }).populate("donationId");
 
     if (!assignment) {
-      return res.status(200).json({ success: true, assignment: null });
+      return res.status(200).json({
+        success: true,
+        assignment: null,
+      });
     }
 
-    return res.status(200).json({ success: true, assignment });
+    return res.status(200).json({
+      success: true,
+      assignment,
+    });
   } catch (err) {
     console.error("getCurrentAssignment error:", err);
-    return res.status(500).json({ success: false, message: "Could not load assignment." });
+    return res.status(500).json({
+      success: false,
+      message: "Could not load assignment.",
+    });
   }
 };
 
@@ -51,15 +61,23 @@ exports.updateAssignmentStatus = async (req, res) => {
     const { status: nextStatus } = req.body;
 
     const assignment = await Assignment.findById(id);
+
     if (!assignment) {
-      return res.status(404).json({ success: false, message: "Assignment not found." });
+      return res.status(404).json({
+        success: false,
+        message: "Assignment not found.",
+      });
     }
 
     if (String(assignment.volunteerId) !== String(req.user.id)) {
-      return res.status(403).json({ success: false, message: "This assignment isn't yours." });
+      return res.status(403).json({
+        success: false,
+        message: "This assignment isn't yours.",
+      });
     }
 
     const allowedNext = VALID_TRANSITIONS[assignment.status] || [];
+
     if (!allowedNext.includes(nextStatus)) {
       return res.status(400).json({
         success: false,
@@ -68,25 +86,41 @@ exports.updateAssignmentStatus = async (req, res) => {
     }
 
     assignment.status = nextStatus;
+
     const timestampField = STATUS_TIMESTAMP_FIELD[nextStatus];
-    if (timestampField) assignment[timestampField] = new Date();
+
+    if (timestampField) {
+      assignment[timestampField] = new Date();
+    }
 
     await assignment.save();
 
-    return res.status(200).json({ success: true, assignment });
+    return res.status(200).json({
+      success: true,
+      assignment,
+    });
   } catch (err) {
     console.error("updateAssignmentStatus error:", err);
-    return res.status(500).json({ success: false, message: "Could not update status." });
+    return res.status(500).json({
+      success: false,
+      message: "Could not update status.",
+    });
   }
 };
+
 // RESQ-203
 exports.getAssignmentProgressForDonation = async (req, res) => {
   try {
     const { donationId } = req.params;
-    const assignment = await Assignment.findOne({ donationId }).sort({ createdAt: -1 });
+
+    const assignment = await Assignment.findOne({ donationId })
+      .sort({ createdAt: -1 });
 
     if (!assignment) {
-      return res.status(200).json({ success: true, progress: null });
+      return res.status(200).json({
+        success: true,
+        progress: null,
+      });
     }
 
     return res.status(200).json({
@@ -102,16 +136,23 @@ exports.getAssignmentProgressForDonation = async (req, res) => {
     });
   } catch (err) {
     console.error("getAssignmentProgressForDonation error:", err);
-    return res.status(500).json({ success: false, message: "Could not load progress." });
+    return res.status(500).json({
+      success: false,
+      message: "Could not load progress.",
+    });
   }
 };
-// TEMPORARY — lets you demo the Assignment flow before the donor
-// request + AI matching flow exists. Remove once that's wired up.
+
+// TEMPORARY TEST ENDPOINT
 exports.createTestAssignment = async (req, res) => {
   try {
     const { donationId } = req.body;
+
     if (!donationId) {
-      return res.status(400).json({ success: false, message: "donationId is required." });
+      return res.status(400).json({
+        success: false,
+        message: "donationId is required.",
+      });
     }
 
     const assignment = await Assignment.create({
@@ -120,9 +161,49 @@ exports.createTestAssignment = async (req, res) => {
       status: "ASSIGNED",
     });
 
-    return res.status(201).json({ success: true, assignment });
+    return res.status(201).json({
+      success: true,
+      assignment,
+    });
   } catch (err) {
     console.error("createTestAssignment error:", err);
-    return res.status(500).json({ success: false, message: "Could not create test assignment." });
+    return res.status(500).json({
+      success: false,
+      message: "Could not create test assignment.",
+    });
+  }
+};
+
+// Dashboard totals
+exports.getAssignmentSummary = async (req, res) => {
+  try {
+    const delivered = await Assignment.find({
+      volunteerId: req.user.id,
+      status: "DELIVERED",
+    }).select("acceptedAt deliveredAt");
+
+    const totalMs = delivered.reduce((sum, a) => {
+      if (!a.acceptedAt || !a.deliveredAt) return sum;
+
+      return sum + (
+        a.deliveredAt.getTime() - a.acceptedAt.getTime()
+      );
+    }, 0);
+
+    return res.status(200).json({
+      success: true,
+      summary: {
+        completedCount: delivered.length,
+        hoursContributed: Math.round(
+          (totalMs / 3600000) * 10
+        ) / 10,
+      },
+    });
+  } catch (err) {
+    console.error("getAssignmentSummary error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Could not load summary.",
+    });
   }
 };

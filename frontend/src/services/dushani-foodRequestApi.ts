@@ -33,14 +33,28 @@ export interface FoodRequest {
   preferredAt?: string | null;
   expiresAt?: string;
   createdAt: string;
+  updatedAt?: string;
+  // Each stage stamps its own moment, so a past request can say when it ended
+  // instead of falling back to the document's last write.
+  acceptedAt?: string | null;
+  dispatchedAt?: string | null;
+  fulfilledAt?: string | null;
+  cancelledAt?: string | null;
 }
 
-/** A live request as it appears on the board — no recipient contact details. */
+/**
+ * A live request as other people see it. Everything a helper needs to decide
+ * whether they can answer it is here — including who posted it and their own
+ * note about the need — except the phone number, which only the donor who
+ * claims the request receives.
+ */
 export interface OpenFoodRequest {
   id: string;
+  recipientName: string;
   foodType: string;
   quantity: string;
   location: string;
+  details: string;
   urgency: FoodRequestUrgency;
   priority: 'HIGH' | 'NORMAL';
   status: FoodRequestStatus;
@@ -88,6 +102,25 @@ export async function createEmergencyFoodRequest(
 export async function getMyFoodRequests(): Promise<FoodRequest[]> {
   const response = await api.get<FoodRequest[]>(
     '/recipient/food-requests/mine',
+  );
+  return response.data;
+}
+
+/**
+ * A closed request: delivered, never claimed or called off. The server works
+ * out when it stopped being live, so the history does not have to guess the
+ * date from whichever stage timestamps happen to be filled in.
+ */
+export interface FoodRequestHistoryRow extends FoodRequest {
+  closedAt: string | null;
+}
+
+// GET /api/recipient/food-requests/history
+export async function getMyRequestHistory(): Promise<
+  FoodRequestHistoryRow[]
+> {
+  const response = await api.get<FoodRequestHistoryRow[]>(
+    '/recipient/food-requests/history',
   );
   return response.data;
 }
@@ -192,6 +225,22 @@ export async function deleteFoodRequest(requestId: string) {
   return response.data;
 }
 
+// POST /api/recipient/food-requests/:id/cancel
+// Task 09 — the recipient calls off a request a donor has already accepted.
+export interface CancelledFoodRequest {
+  id: string;
+  status: FoodRequestStatus;
+}
+
+export async function cancelFoodRequest(
+  requestId: string,
+): Promise<CancelledFoodRequest> {
+  const response = await api.post<CancelledFoodRequest>(
+    `/recipient/food-requests/${requestId}/cancel`,
+  );
+  return response.data;
+}
+
 /** One of the four criteria the matcher scores a donation on. */
 export interface MatchCriterion {
   key: 'foodType' | 'quantity' | 'proximity' | 'urgency';
@@ -291,6 +340,8 @@ export interface BrowseDonation {
   inOwnDistrict: boolean;
   donorName: string;
   answering: DonationAnswer | null;
+  /** This recipient has already put in an ask for it. */
+  asked: boolean;
 }
 
 export interface DonationFilters {
@@ -337,6 +388,73 @@ export async function browseDonations(
   const response = await api.get<DonationBrowse>(
     '/recipient/food-requests/donations',
     { params },
+  );
+  return response.data;
+}
+
+/** The receipt a recipient gets back after asking a donor for a donation. */
+export interface DonationAskReceipt {
+  id: string;
+  donationId: string;
+  requestId: string | null;
+  note: string;
+  askedAt: string;
+}
+
+// POST /api/recipient/food-requests/donation-requests
+// Ask the donor of one live donation for it. The ask is its own record — the
+// donor's donation is never changed — so the donor sees it on their donation
+// page and can then accept the request through the flow that already exists.
+// Asking twice for the same donation edits the one ask instead of duplicating.
+export async function askForDonation({
+  donationId,
+  requestId = null,
+  note = '',
+}: {
+  donationId: string;
+  requestId?: string | null;
+  note?: string;
+}): Promise<DonationAskReceipt> {
+  const response = await api.post<DonationAskReceipt>('/recipient/food-requests/donation-requests', {
+    donationId,
+    requestId,
+    note,
+  });
+  return response.data;
+}
+
+/** One recipient's ask, as the donor who posted the donation reads it. */
+export interface DonationAsk {
+  id: string;
+  recipientId: string;
+  recipientName: string;
+  /** The recipient's own words, e.g. how many people they feed. */
+  note: string;
+  askedAt: string;
+  requestId: string | null;
+  need: string;
+  quantity: string;
+  area: string;
+  urgency: FoodRequestUrgency;
+  neededBy: string | null;
+  /** False once the request behind the ask has been filled, closed or withdrawn. */
+  stillWaiting: boolean;
+}
+
+export interface DonationAsks {
+  donationId: string;
+  donationCode: string | null;
+  count: number;
+  requests: DonationAsk[];
+}
+
+// GET /api/recipient/food-requests/donation-requests?donationId=
+// Only the donor who posted that donation can read it; anyone else gets a 404.
+// Recipient contact details are never in the payload.
+export async function getDonationAsks(donationId: string): Promise<DonationAsks> {
+  const response = await api.get<DonationAsks>(
+    '/recipient/food-requests/donation-requests',
+    { params: { donationId } },
   );
   return response.data;
 }

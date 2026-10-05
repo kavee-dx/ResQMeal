@@ -31,6 +31,10 @@ const {
   expireOverdueDonations,
 } = require("./services/kaveesha-donationExpiryService");
 
+const {
+  expireOverdueDonations,
+} = require("./services/kaveesha-donationExpiryService");
+const recipientSuggestionRoutes = require("./routes/dilshara-recipientSuggestion.routes");
 const app = express();
 
 /*
@@ -93,115 +97,28 @@ app.use("/api/admin", adminRoutes);
 
 app.use("/api/profile", profileRoutes);
 app.use("/api/upload", uploadRoutes);
+// Donor Donation Routes
+app.use("/api/donor/donations", createDonationRoute);
+app.use("/api/donor/donations", getDonationsRoute);
+app.use("/api/donor/donations", updateDonationRoute);
+app.use("/api/donor/donations", deleteDonationRoute);
 
-/*
-|--------------------------------------------------------------------------
-| Donor Donation Routes
-|--------------------------------------------------------------------------
-*/
-
+app.use("/api/recipient/food-requests", foodRequestRoutes);
+app.use("/api/volunteer-profile", volunteerAvailabilityRoutes);
+app.use("/api/assignments", assignmentRoutes);
+app.use("/api/recipient-suggestions", recipientSuggestionRoutes);
+app.use("/api/donations", require("./routes/kaveesha-donationAnalysisRoutes"));
+app.use("/api/voice", require("./routes/kaveesha-voiceAssistantRoutes"));
+app.use("/api/monitoring/map", require("./routes/amasha-mapRoutes"));
+app.use("/api/ngo/trends", require("./routes/amasha-TrendRoutes"));
+app.use("/api/volunteer-profile/delivery-preferences", 
+  require("./routes/dilshara-deliveryPreferences.routes"));
+app.use("/api/campaigns", require("./routes/amasha-campaignRoutes"));
+app.use("/api/notifications", require("./routes/amasha-notificationRoutes"));
 app.use(
-  "/api/donor/donations",
-  createDonationRoute
+  "/uploads",
+  express.static(require("path").join(__dirname, "..", "uploads")),
 );
-
-app.use(
-  "/api/donor/donations",
-  getDonationsRoute
-);
-
-app.use(
-  "/api/donor/donations",
-  updateDonationRoute
-);
-
-app.use(
-  "/api/donor/donations",
-  deleteDonationRoute
-);
-
-app.use(
-  "/api/donor/expiry-alerts",
-  expiryAlertRoutes
-);
-
-/*
-|--------------------------------------------------------------------------
-| Recipient Routes
-|--------------------------------------------------------------------------
-*/
-
-app.use(
-  "/api/recipient/food-requests",
-  foodRequestRoutes
-);
-
-/*
-|--------------------------------------------------------------------------
-| Volunteer Routes
-|--------------------------------------------------------------------------
-*/
-
-app.use(
-  "/api/volunteer-profile",
-  volunteerAvailabilityRoutes
-);
-
-app.use(
-  "/api/assignments",
-  assignmentRoutes
-);
-
-/*
-|--------------------------------------------------------------------------
-| Donation AI / Analysis Routes
-|--------------------------------------------------------------------------
-*/
-
-app.use(
-  "/api/donations",
-  require("./routes/kaveesha-donationAnalysisRoutes")
-);
-
-/*
-|--------------------------------------------------------------------------
-| Voice Assistant Routes
-|--------------------------------------------------------------------------
-*/
-
-app.use(
-  "/api/voice",
-  require("./routes/kaveesha-voiceAssistantRoutes")
-);
-
-/*
-|--------------------------------------------------------------------------
-| Map Monitoring Routes
-|--------------------------------------------------------------------------
-*/
-
-app.use(
-  "/api/monitoring/map",
-  require("./routes/amasha-mapRoutes")
-);
-
-/*
-|--------------------------------------------------------------------------
-| NGO Trend Routes
-|--------------------------------------------------------------------------
-*/
-
-app.use(
-  "/api/ngo/trends",
-  require("./routes/amasha-TrendRoutes")
-);
-
-/*
-|--------------------------------------------------------------------------
-| API Test
-|--------------------------------------------------------------------------
-*/
-
 app.get("/api/test", (req, res) => {
   res.json({
     message:
@@ -245,6 +162,8 @@ cron.schedule("* * * * *", async () => {
       console.log(
         `[Expiry Alert Job] Created ${alertResult.createdCount} alert(s).`
       );
+    if (result.success && result.modifiedCount > 0) {
+      console.log(`Expired ${result.modifiedCount} donation(s).`);
     }
 
     /*

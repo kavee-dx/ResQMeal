@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 /**
  *
- * Only the three SERVICE modules are auto-mocked here — and only because the
+ * Only the four SERVICE modules below are auto-mocked here — and only because the
  * controllers destructure their functions at load time
  * (`const { createFoodRequest } = require('../services/...')`), so a
  * jest.mock() declared at the top of the file (hoisted before any requires)
@@ -19,22 +19,31 @@ const mongoose = require('mongoose');
 jest.mock('../../src/services/dushani-createFoodRequestService');
 jest.mock('../../src/services/dushani-requestStatusService');
 jest.mock('../../src/services/dushani-deleteFoodRequestService');
+jest.mock('../../src/services/dushani-cancelFoodRequestService');
+jest.mock('../../src/services/dushani-requestHistoryService');
 
 const FoodRequest = require('../../src/models/dushani-foodRequestModel');
+const RecipientProfile = require('../../src/models/dushani-RecipientProfile');
 
 // Auto-mocked versions — this is what the controllers under test actually call.
 const mockedCreateService = require('../../src/services/dushani-createFoodRequestService');
 const mockedStatusService = require('../../src/services/dushani-requestStatusService');
 const mockedDeleteService = require('../../src/services/dushani-deleteFoodRequestService');
+const mockedCancelService = require('../../src/services/dushani-cancelFoodRequestService');
+const mockedHistoryService = require('../../src/services/dushani-requestHistoryService');
 
 // Real, unmocked implementations — used to test the service layer itself.
 const { createFoodRequest } = jest.requireActual('../../src/services/dushani-createFoodRequestService');
 const { getRequestsByRecipient } = jest.requireActual('../../src/services/dushani-requestStatusService');
 const { deleteFoodRequest } = jest.requireActual('../../src/services/dushani-deleteFoodRequestService');
+const { cancelFoodRequest } = jest.requireActual('../../src/services/dushani-cancelFoodRequestService');
+const { getRequestHistory } = jest.requireActual('../../src/services/dushani-requestHistoryService');
 
 const { createFoodRequestHandler } = require('../../src/controllers/dushani-createFoodRequestController');
 const { getMyRequestsHandler } = require('../../src/controllers/dushani-requestStatusController');
 const { deleteFoodRequestHandler } = require('../../src/controllers/dushani-deleteFoodRequestController');
+const { cancelFoodRequestHandler } = require('../../src/controllers/dushani-cancelFoodRequestController');
+const { getMyRequestHistoryHandler } = require('../../src/controllers/dushani-requestHistoryController');
 
 function mockResponse() {
   const res = {};
@@ -571,10 +580,11 @@ describe('getOpenRequests (sprint item 4)', () => {
 
   function mockFindAll(docs) {
     const lean = jest.fn().mockResolvedValue(docs);
-    const select = jest.fn().mockReturnValue({ lean });
+    const populate = jest.fn().mockReturnValue({ lean });
+    const select = jest.fn().mockReturnValue({ populate });
     const sort = jest.fn().mockReturnValue({ select });
     const find = jest.spyOn(FoodRequest, 'find').mockReturnValue({ sort });
-    return { find, sort, select, lean };
+    return { find, sort, select, populate, lean };
   }
 
   it('lists only live pending requests', async () => {
@@ -585,20 +595,77 @@ describe('getOpenRequests (sprint item 4)', () => {
     expect(query.status).toBe('PENDING');
     expect(query.expiresAt.$gt.getTime()).toBeLessThanOrEqual(Date.now());
     expect(spies.sort).toHaveBeenCalledWith({ createdAt: -1 });
+    expect(spies.populate).toHaveBeenCalledWith({ path: 'recipient', select: 'fullName' });
   });
 
-  it('puts emergency requests first and hides contact details', async () => {
+  it('puts emergency requests first and shows the post without the phone number', async () => {
     mockFindAll([
-      doc({ _id: { toString: () => 'normal1' }, urgency: 'NORMAL' }),
-      doc({ _id: { toString: () => 'urgent1' }, urgency: 'URGENT' }),
+      doc({
+        _id: { toString: () => 'normal1' },
+        urgency: 'NORMAL',
+        recipient: { _id: 'user1', fullName: 'Dushani Naveendhya' },
+      }),
+      doc({
+        _id: { toString: () => 'urgent1' },
+        urgency: 'URGENT',
+        details: 'Kitchen supply fell through, needed tonight.',
+        recipient: { _id: 'user2', fullName: 'Kamala Perera' },
+      }),
     ]);
 
     const result = await getOpenRequests();
 
     expect(result.map((request) => request.id)).toEqual(['urgent1', 'normal1']);
     expect(Object.keys(result[0]).sort()).toEqual(
-      ['createdAt', 'expiresAt', 'foodType', 'id', 'location', 'preferredAt', 'priority', 'quantity', 'status', 'urgency'].sort(),
+      [
+        'createdAt',
+        'details',
+        'expiresAt',
+        'foodType',
+        'id',
+        'location',
+        'preferredAt',
+        'priority',
+        'quantity',
+        'recipientName',
+        'status',
+        'urgency',
+      ].sort(),
     );
+    expect(result[0]).toMatchObject({
+      recipientName: 'Kamala Perera',
+      details: 'Kitchen supply fell through, needed tonight.',
+    });
+  });
+
+  it('names an organisation recipient from its profile', async () => {
+    mockFindAll([
+      doc({
+        urgency: 'NORMAL',
+        recipient: { _id: 'user3', fullName: null },
+      }),
+    ]);
+    const profiles = jest
+      .spyOn(RecipientProfile, 'find')
+      .mockReturnValue({ select: () => ({ lean: () => Promise.resolve([
+        { userId: 'user3', organizationName: 'Hope Haven Shelter' },
+      ]) }) });
+
+    const result = await getOpenRequests();
+
+    expect(result[0].recipientName).toBe('Hope Haven Shelter');
+    expect(profiles).toHaveBeenCalledWith({ userId: { $in: ['user3'] } });
+  });
+
+  it('falls back to a generic label when the account carries no name', async () => {
+    mockFindAll([doc({ recipient: { _id: 'user4', fullName: '' } })]);
+    jest.spyOn(RecipientProfile, 'find').mockReturnValue({
+      select: () => ({ lean: () => Promise.resolve([]) }),
+    });
+
+    const result = await getOpenRequests();
+
+    expect(result[0].recipientName).toBe('A ResQMeal recipient');
   });
 });
 
@@ -972,5 +1039,604 @@ describe('updateFoodRequestStatus (sprint item 4)', () => {
     await expect(
       updateFoodRequestStatus({ actorId: 'donor1', role: 'DONOR', requestId: null, status: 'DISPATCHED' }),
     ).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 09 (backend) — cancelling a request, real implementation
+// ---------------------------------------------------------------------------
+describe('cancelFoodRequest (sprint item 09)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  it('stamps cancelledAt on the model as null until the request is called off', () => {
+    const pending = new FoodRequest({
+      recipient: 'recipient1',
+      foodType: 'Rice',
+      quantity: '5 kg',
+      location: 'Colombo 05',
+    });
+    expect(pending.cancelledAt).toBeNull();
+  });
+
+  it.each(['PENDING', 'MATCHED', 'DISPATCHED'])(
+    'cancels a live %s request and stamps the moment',
+    async (status) => {
+      mockFound(doc({ status, expiresAt: future }));
+      const write = jest
+        .spyOn(FoodRequest, 'findOneAndUpdate')
+        .mockResolvedValue(doc({ status: 'CANCELLED', expiresAt: future }));
+
+      await expect(cancelFoodRequest('recipient1', 'req1')).resolves.toMatchObject({
+        id: 'req1',
+        status: 'CANCELLED',
+      });
+
+      const [query, update] = write.mock.calls[0];
+      expect(query).toMatchObject({
+        _id: 'req1',
+        recipient: 'recipient1',
+        status: { $in: ['PENDING', 'MATCHED', 'DISPATCHED'] },
+      });
+      expect(update.$set.status).toBe('CANCELLED');
+      expect(update.$set.cancelledAt).toBeInstanceOf(Date);
+    },
+  );
+
+  it('keeps the donor who had claimed the request visible', async () => {
+    const found = doc({ status: 'MATCHED', acceptedBy: 'donor1', expiresAt: future });
+    mockFound(found);
+    jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'CANCELLED', acceptedBy: 'donor1', expiresAt: future }));
+
+    await cancelFoodRequest('recipient1', 'req1');
+
+    // Releasing the donation itself is the next sprint item, so the claim is
+    // left on the document for it to read.
+    const [, update] = FoodRequest.findOneAndUpdate.mock.calls[0];
+    expect(update.$set).not.toHaveProperty('acceptedBy');
+    expect(found.acceptedBy).toBe('donor1');
+  });
+
+  it('scopes the lookup to the owning recipient', async () => {
+    const spy = mockFound(null);
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 404,
+    });
+    expect(spy).toHaveBeenCalledWith({ _id: 'req1', recipient: 'recipient1' });
+  });
+
+  it('409s a request that is already cancelled', async () => {
+    mockFound(doc({ status: 'CANCELLED', expiresAt: future }));
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request is already cancelled',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('409s a request the food was already delivered for', async () => {
+    mockFound(doc({ status: 'FULFILLED', expiresAt: future }));
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'The food has already been delivered — there is nothing to cancel',
+    });
+  });
+
+  it('409s a waiting request whose expiry has passed', async () => {
+    mockFound(
+      doc({ status: 'PENDING', expiresAt: new Date('2020-01-01T00:00:00.000Z') }),
+    );
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request has already expired',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('409s when a donor claimed the request in the same moment', async () => {
+    mockFound(doc({ status: 'PENDING', expiresAt: future }));
+    jest.spyOn(FoodRequest, 'findOneAndUpdate').mockResolvedValue(null);
+
+    await expect(cancelFoodRequest('recipient1', 'req1')).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'This request has moved on — refresh to see its latest status',
+    });
+  });
+
+  it('400s without a recipient or request id', async () => {
+    await expect(cancelFoodRequest(null, 'req1')).rejects.toMatchObject({ statusCode: 400 });
+    await expect(cancelFoodRequest('recipient1', null)).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it('puts the cancelled moment on the progress timeline', async () => {
+    const cancelledAt = new Date('2026-09-24T08:15:00.000Z');
+    mockFound(
+      doc({
+        status: 'CANCELLED',
+        cancelledAt,
+        updatedAt: new Date('2026-09-24T09:40:00.000Z'),
+        expiresAt: future,
+      }),
+    );
+
+    const { progress, timeline } = await getRequestProgress('recipient1', 'req1');
+
+    expect(progress).toMatchObject({ outcome: 'stopped', stageLabel: 'Request cancelled' });
+    const last = timeline[timeline.length - 1];
+    expect(last).toMatchObject({ key: 'CANCELLED', state: 'stopped' });
+    expect(last.at).toEqual(cancelledAt);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 09 (backend) — cancel controller, service auto-mocked
+// ---------------------------------------------------------------------------
+describe('dushani-cancelFoodRequestController (sprint item 09)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('reports success with the cancelled id', async () => {
+    mockedCancelService.cancelFoodRequest.mockResolvedValue({
+      id: 'req1',
+      status: 'CANCELLED',
+    });
+    const req = { params: { id: 'req1' }, user: { id: 'user1' } };
+    const res = mockResponse();
+
+    await cancelFoodRequestHandler(req, res);
+
+    expect(mockedCancelService.cancelFoodRequest).toHaveBeenCalledWith('user1', 'req1');
+    expect(res.status).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      id: 'req1',
+      status: 'CANCELLED',
+    });
+  });
+
+  it('maps the 404 for a request the caller does not own', async () => {
+    mockedCancelService.cancelFoodRequest.mockRejectedValue(
+      Object.assign(new Error('Food request not found'), { statusCode: 404 }),
+    );
+    const req = { params: { id: 'req1' }, user: { id: 'user1' } };
+    const res = mockResponse();
+
+    await cancelFoodRequestHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Food request not found' });
+  });
+
+  it('sends an unexpected failure as 500', async () => {
+    mockedCancelService.cancelFoodRequest.mockRejectedValue(new Error('mongo is down'));
+    const req = { params: { id: 'req1' }, user: { id: 'user1' } };
+    const res = mockResponse();
+
+    await cancelFoodRequestHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 10 (backend) — the donation a claim holds, and its release
+// ---------------------------------------------------------------------------
+const Donation = require('../../src/models/kaveesha-Donation');
+const { heldDonationIds } = require('../../src/services/dushani-donationHoldService');
+const { loadCandidates } = require('../../src/services/dushani-matchRequestService');
+
+// Mongoose queries here are all terminal-`.lean()` chains, so one self-returning
+// step covers find/sort/limit/select whatever the service happens to call.
+function chainQuery(docs) {
+  const step = {};
+  ['sort', 'limit', 'select'].forEach((method) => {
+    step[method] = jest.fn(() => step);
+  });
+  step.lean = jest.fn(() => Promise.resolve(docs));
+  return step;
+}
+
+const poolExpiry = new Date(Date.now() + 6 * 60 * 60 * 1000);
+// Real ObjectId values: the services validate the id before they query, so a
+// made-up string would be rejected as malformed rather than tested.
+const DON_ID = new mongoose.Types.ObjectId();
+const DON2_ID = new mongoose.Types.ObjectId();
+
+function donorDonation(overrides) {
+  return {
+    _id: DON_ID,
+    donor: 'donor1',
+    foodType: 'Cooked Rice',
+    numberOfPortions: 40,
+    quantity: 10,
+    status: 'active',
+    expiryTime: poolExpiry,
+    ...overrides,
+  };
+}
+
+// The hold lookup runs on every accept; the default is an empty pool of holders.
+function mockHolders(rows = []) {
+  return jest
+    .spyOn(FoodRequest, 'find')
+    .mockImplementation((query) =>
+      chainQuery(query && query.status ? rows : [])
+    );
+}
+
+describe('acceptFoodRequest with a donation (sprint item 10)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('records which of the donor’s own donations will deliver the request', async () => {
+    mockHolders();
+    jest
+      .spyOn(Donation, 'findOne')
+      .mockReturnValue(chainQuery(donorDonation()));
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'MATCHED' }));
+
+    const result = await acceptFoodRequest({
+      donorId: 'donor1',
+      role: 'DONOR',
+      requestId: 'req1',
+      donationId: `${DON_ID}`,
+    });
+
+    const [query, update] = write.mock.calls[0];
+    expect(query).toMatchObject({ _id: 'req1', status: 'PENDING' });
+    expect(update.$set.linkedDonation).toBe(`${DON_ID}`);
+    expect(result.linkedDonation).toEqual({
+      id: `${DON_ID}`,
+      foodType: 'Cooked Rice',
+      numberOfPortions: 40,
+    });
+  });
+
+  it('still claims without naming a donation', async () => {
+    const findOne = jest.spyOn(Donation, 'findOne');
+    mockHolders();
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'MATCHED' }));
+
+    const result = await acceptFoodRequest({
+      donorId: 'donor1',
+      role: 'DONOR',
+      requestId: 'req1',
+    });
+
+    expect(findOne).not.toHaveBeenCalled();
+    expect(write.mock.calls[0][1].$set.linkedDonation).toBeNull();
+    expect(result.linkedDonation).toBeNull();
+  });
+
+  it('400s a donation that is not the donor’s own', async () => {
+    mockHolders();
+    jest.spyOn(Donation, 'findOne').mockReturnValue(chainQuery(null));
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        donationId: `${DON_ID}`,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Pick one of your own live donations to deliver this request',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('400s an id that is not a donation at all', async () => {
+    const findOne = jest.spyOn(Donation, 'findOne');
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        donationId: 'not-an-id',
+      }),
+    ).rejects.toMatchObject({ statusCode: 400, message: 'That donation does not look right' });
+    expect(findOne).not.toHaveBeenCalled();
+  });
+
+  it('409s a donation that has already gone', async () => {
+    mockHolders();
+    jest
+      .spyOn(Donation, 'findOne')
+      .mockReturnValue(chainQuery(donorDonation({ status: 'completed' })));
+
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req1',
+        donationId: `${DON_ID}`,
+      }),
+    ).rejects.toMatchObject({ statusCode: 409, message: 'That donation is no longer available' });
+  });
+
+  it('409s a donation another request is already holding', async () => {
+    mockHolders([{ linkedDonation: DON_ID }]);
+    jest.spyOn(Donation, 'findOne').mockReturnValue(chainQuery(donorDonation()));
+    const write = jest.spyOn(FoodRequest, 'findOneAndUpdate');
+
+    await expect(
+      acceptFoodRequest({
+        donorId: 'donor1',
+        role: 'DONOR',
+        requestId: 'req2',
+        donationId: `${DON_ID}`,
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: 'That donation is already committed to another request',
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+});
+
+describe('the donation pool around a held donation (sprint item 10)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('holds every donation committed to a live request', async () => {
+    const find = jest
+      .spyOn(FoodRequest, 'find')
+      .mockReturnValue(chainQuery([{ linkedDonation: DON_ID }]));
+
+    const held = await heldDonationIds();
+
+    const query = find.mock.calls[0][0];
+    expect(query.status.$in).toEqual(['MATCHED', 'DISPATCHED', 'FULFILLED']);
+    expect(query.linkedDonation).toEqual({ $ne: null });
+    expect(held.has(`${DON_ID}`)).toBe(true);
+  });
+
+  it('takes the committed donation out of the pool other recipients search', async () => {
+    mockHolders([{ linkedDonation: DON_ID }]);
+    jest
+      .spyOn(Donation, 'find')
+      .mockReturnValue(chainQuery([donorDonation(), donorDonation({ _id: DON2_ID })]));
+
+    const pool = await loadCandidates(Date.now());
+
+    expect(pool.map((donation) => `${donation._id}`)).toEqual([`${DON2_ID}`]);
+  });
+
+  it('lists it again once nothing holds it', async () => {
+    mockHolders([]);
+    jest
+      .spyOn(Donation, 'find')
+      .mockReturnValue(chainQuery([donorDonation(), donorDonation({ _id: DON2_ID })]));
+
+    const pool = await loadCandidates(Date.now());
+
+    expect(pool.map((donation) => `${donation._id}`)).toEqual([`${DON_ID}`, `${DON2_ID}`]);
+  });
+});
+
+describe('cancelFoodRequest releases the donation (sprint item 10)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('reports the donation that went back to the pool', async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    mockFound(
+      doc({ status: 'MATCHED', acceptedBy: 'donor1', linkedDonation: DON_ID, expiresAt: future }),
+    );
+    jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(
+        doc({ status: 'CANCELLED', acceptedBy: 'donor1', linkedDonation: DON_ID, expiresAt: future }),
+      );
+    jest
+      .spyOn(Donation, 'findById')
+      .mockReturnValue(chainQuery(donorDonation()));
+
+    const result = await cancelFoodRequest('recipient1', 'req1');
+
+    expect(result).toMatchObject({ id: 'req1', status: 'CANCELLED' });
+    expect(result.releasedDonation).toEqual({
+      id: `${DON_ID}`,
+      foodType: 'Cooked Rice',
+      numberOfPortions: 40,
+    });
+  });
+
+  it('releases nothing when the donor never named a donation', async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    mockFound(doc({ status: 'PENDING', expiresAt: future }));
+    jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'CANCELLED', expiresAt: future }));
+    const findById = jest.spyOn(Donation, 'findById');
+
+    const result = await cancelFoodRequest('recipient1', 'req1');
+
+    expect(findById).not.toHaveBeenCalled();
+    expect(result.releasedDonation).toBeNull();
+  });
+
+  it('keeps the link on the cancelled request as the record of what was released', async () => {
+    const future = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    mockFound(doc({ status: 'MATCHED', linkedDonation: DON_ID, expiresAt: future }));
+    const write = jest
+      .spyOn(FoodRequest, 'findOneAndUpdate')
+      .mockResolvedValue(doc({ status: 'CANCELLED', linkedDonation: DON_ID, expiresAt: future }));
+    jest.spyOn(Donation, 'findById').mockReturnValue(chainQuery(donorDonation()));
+
+    await cancelFoodRequest('recipient1', 'req1');
+
+    // The pool exclusion is read from the request's status, so CANCELLED alone
+    // frees the donation — the link itself stays for the history screens.
+    expect(write.mock.calls[0][1].$set).not.toHaveProperty('linkedDonation');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint item 12 — Historical Request Retrieval
+// ---------------------------------------------------------------------------
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+const posted = new Date('2026-09-10T08:00:00.000Z');
+
+function historyDoc(overrides) {
+  return {
+    _id: new mongoose.Types.ObjectId(),
+    recipient: 'recipient1',
+    foodType: 'Cooked Rice',
+    quantity: '10 packets',
+    location: 'Colombo 05',
+    urgency: 'NORMAL',
+    status: 'FULFILLED',
+    createdAt: posted,
+    updatedAt: new Date(posted.getTime() + HOUR),
+    // Still open by default, so a PENDING fixture is not silently read as
+    // expired just because the posting date sits in the past.
+    expiresAt: new Date(Date.now() + 24 * HOUR),
+    acceptedAt: null,
+    dispatchedAt: null,
+    fulfilledAt: null,
+    cancelledAt: null,
+    ...overrides,
+  };
+}
+
+function mockHistoryFind(rows) {
+  const find = jest.spyOn(FoodRequest, 'find').mockReturnValue(chainQuery(rows));
+  return find;
+}
+
+describe('getRequestHistory (sprint item 12)', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('reads only the caller’s own requests', async () => {
+    const find = mockHistoryFind([]);
+
+    await getRequestHistory('recipient1');
+
+    expect(find.mock.calls[0][0]).toEqual({ recipient: 'recipient1' });
+  });
+
+  it('keeps just the requests that can no longer be answered', async () => {
+    mockHistoryFind([
+      historyDoc({ _id: 'live1', status: 'PENDING' }),
+      historyDoc({ _id: 'live2', status: 'DISPATCHED' }),
+      historyDoc({ _id: 'got', status: 'FULFILLED', fulfilledAt: new Date(Date.now() - 30 * DAY) }),
+      historyDoc({ _id: 'off', status: 'CANCELLED', cancelledAt: new Date(Date.now() - 5 * DAY) }),
+      historyDoc({ _id: 'missed', status: 'PENDING', expiresAt: new Date(Date.now() - DAY) }),
+    ]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    // Newest closure first, and the dead PENDING row joins it as EXPIRED.
+    expect(rows.map((row) => row._id)).toEqual(['missed', 'off', 'got']);
+    expect(rows.map((row) => row.status)).toEqual(['EXPIRED', 'CANCELLED', 'FULFILLED']);
+  });
+
+  it('says when each outcome actually ended', async () => {
+    const fulfilledAt = new Date('2026-09-12T15:00:00.000Z');
+    const cancelledAt = new Date('2026-09-12T09:00:00.000Z');
+    const expiredAt = new Date('2026-09-12T12:00:00.000Z');
+    mockHistoryFind([
+      historyDoc({ _id: 'got', status: 'FULFILLED', fulfilledAt }),
+      historyDoc({ _id: 'off', status: 'CANCELLED', cancelledAt }),
+      historyDoc({ _id: 'missed', status: 'EXPIRED', expiresAt: expiredAt }),
+    ]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    const closedAt = Object.fromEntries(
+      rows.map((row) => [row._id, new Date(row.closedAt).getTime()]),
+    );
+    expect(closedAt).toEqual({
+      got: fulfilledAt.getTime(),
+      off: cancelledAt.getTime(),
+      missed: expiredAt.getTime(),
+    });
+  });
+
+  it('falls back to the last write for a request that closed before stages stamped', async () => {
+    const written = new Date('2026-09-11T10:00:00.000Z');
+    mockHistoryFind([historyDoc({ _id: 'old', status: 'FULFILLED', fulfilledAt: null, updatedAt: written })]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    expect(`${rows[0].closedAt}`).toBe(`${written}`);
+  });
+
+  it('lists the most recently closed first, not the most recently posted', async () => {
+    mockHistoryFind([
+      historyDoc({ _id: 'posted-later', createdAt: new Date('2026-09-20T08:00:00.000Z'), cancelledAt: new Date('2026-09-20T09:00:00.000Z'), status: 'CANCELLED' }),
+      historyDoc({ _id: 'posted-earlier', createdAt: posted, fulfilledAt: new Date('2026-09-28T09:00:00.000Z') }),
+    ]);
+
+    const rows = await getRequestHistory('recipient1');
+
+    expect(rows.map((row) => row._id)).toEqual(['posted-earlier', 'posted-later']);
+  });
+
+  it('returns an empty history instead of failing', async () => {
+    mockHistoryFind([historyDoc({ _id: 'live', status: 'PENDING' })]);
+
+    await expect(getRequestHistory('recipient1')).resolves.toEqual([]);
+  });
+
+  it('refuses to read the whole collection without a recipient', async () => {
+    const find = mockHistoryFind([]);
+
+    await expect(getRequestHistory()).rejects.toMatchObject({ statusCode: 400 });
+    expect(find).not.toHaveBeenCalled();
+  });
+});
+
+describe('dushani-requestHistoryController (sprint item 12)', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('passes the logged-in recipient to the lookup and lists what it found', async () => {
+    const rows = [{ _id: 'req1', status: 'CANCELLED', closedAt: new Date() }];
+    mockedHistoryService.getRequestHistory.mockResolvedValue(rows);
+    const res = mockResponse();
+
+    await getMyRequestHistoryHandler({ user: { id: 'recipient1', role: 'RECIPIENT' } }, res);
+
+    expect(mockedHistoryService.getRequestHistory).toHaveBeenCalledWith('recipient1');
+    expect(res.json).toHaveBeenCalledWith(rows);
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it('answers an anonymous call with a missing id instead of a crash', async () => {
+    mockedHistoryService.getRequestHistory.mockRejectedValue(
+      Object.assign(new Error('recipientId is required'), { statusCode: 400 }),
+    );
+    const res = mockResponse();
+
+    await getMyRequestHistoryHandler({}, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'recipientId is required' }),
+    );
+  });
+
+  it('reports a failed lookup with the server message', async () => {
+    mockedHistoryService.getRequestHistory.mockRejectedValue(new Error('mongo is down'));
+    const res = mockResponse();
+
+    await getMyRequestHistoryHandler({ user: { id: 'recipient1' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'mongo is down' }),
+    );
   });
 });

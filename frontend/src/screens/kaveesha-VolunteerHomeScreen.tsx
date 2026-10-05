@@ -1,113 +1,193 @@
-import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Alert } from "react-native";
+import React, { useCallback, useState } from "react";
+import { View, Text, ScrollView, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors, Radius, Spacing, Shadows } from "@/constants/theme";
 import { useAppTypography } from "../hooks/kaveesha-useAppTypography";
+import { useVolunteerNavigation } from "../hooks/dilshara-useVolunteerNavigation";
 import type { RootStackParamList } from "../navigation/types";
+import {
+  getCurrentAssignment,
+  getAssignmentSummary,
+} from "@/services/dilshara-assignmentService";
+import type { AssignmentSummary } from "@/services/dilshara-assignmentService";
 
-import HomeHeader from "../components/kaveesha-HomeHeader";
-import StatCard from "../components/kaveesha-StatCard";
-import LogoutButton from "../components/kaveesha-LogoutButton";
+import VolunteerHeroBanner from "../components/dilshara-VolunteerHeroBanner";
+import VolunteerStatCard from "../components/dilshara-VolunteerStatCard";
+import VolunteerBottomNav from "../components/dilshara-VolunteerBottomNav";
+import VolunteerDrawer from "../components/dilshara-VolunteerDrawer";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VolunteerHome">;
 
-const ACCENT = "#F97316";
-
-export default function VolunteerHomeScreen({ navigation, route }: Props) {
+export default function VolunteerHomeScreen({ route }: Props) {
   const theme = Colors.light;
   const T = useAppTypography();
+  const insets = useSafeAreaInsets();
+  const { goTo } = useVolunteerNavigation();
   const { fullName } = route.params;
 
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: theme.background }}
-      contentContainerStyle={{
-        paddingHorizontal: Spacing.four,
-        paddingTop: Spacing.six,
-        paddingBottom: Spacing.seven,
-      }}
-      showsVerticalScrollIndicator={false}
-    >
+  const displayName = fullName.trim() || "Volunteer";
 
-      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-        
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // null = not loaded (or unavailable) -> shown as "–", never as a fake number.
+  const [assignedCount, setAssignedCount] = useState<number | null>(null);
+  const [summary, setSummary] = useState<AssignmentSummary | null>(null);
+
+  // Refetched every time Home regains focus, so the numbers stay correct
+  // after accepting/completing a delivery and coming back.
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+
+      getCurrentAssignment()
+        .then((assignment) => {
+          if (active) setAssignedCount(assignment ? 1 : 0);
+        })
+        .catch(() => {
+          // Summary stat only — fail quietly on the dashboard.
+        });
+
+      getAssignmentSummary()
+        .then((result) => {
+          if (active) setSummary(result);
+        })
+        .catch(() => {
+          if (active) setSummary(null);
+        });
+
+      return () => {
+        active = false;
+      };
+    }, [])
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: Spacing.four,
+          paddingTop: insets.top + Spacing.three,
+          paddingBottom: Spacing.four,
+        }}
+      >
+        {/* Header */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginBottom: Spacing.four }}>
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 24,
+              backgroundColor: theme.secondarySoft,
+              alignItems: "center",
+              justifyContent: "center",
+              marginRight: Spacing.three,
+            }}
+          >
+            <Ionicons name="person-outline" size={22} color={theme.secondary} />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text style={{ ...T.bodySmall, color: theme.textSecondary }}>Welcome back,</Text>
+            <Text
+              numberOfLines={1}
+              style={{ ...T.h1, fontSize: 20, lineHeight: 26, color: theme.text }}
+            >
+              {displayName}
+            </Text>
+            <Text style={{ ...T.bodySmall, color: theme.textMuted }}>Volunteer</Text>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => setDrawerOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+            hitSlop={8}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: theme.surface,
+              borderWidth: 1,
+              borderColor: theme.borderLight,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Ionicons name="menu-outline" size={24} color={theme.text} />
+          </TouchableOpacity>
+        </View>
+
+        <VolunteerHeroBanner />
+
+        <Text style={{ ...T.label, fontSize: 15, color: theme.text, marginBottom: Spacing.three }}>
+          Your Activity
+        </Text>
+
+        <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" }}>
+          <VolunteerStatCard
+            icon="navigate-outline"
+            label="Assigned Deliveries"
+            value={assignedCount === null ? "–" : String(assignedCount)}
+            onPress={() => goTo("assignments")}
+          />
+          <VolunteerStatCard
+            icon="hourglass-outline"
+            label="Hours Contributed"
+            value={summary ? String(summary.hoursContributed) : "–"}
+          />
+          <VolunteerStatCard
+            icon="checkmark-circle-outline"
+            label="Completed Deliveries"
+            value={summary ? String(summary.completedCount) : "–"}
+          />
+          <VolunteerStatCard
+            icon="options-outline"
+            label="Delivery Preferences"
+            value="Manage"
+            smallValue
+            onPress={() => goTo("preferences")}
+          />
+        </View>
 
         <TouchableOpacity
-          onPress={() => navigation.navigate("Profile")}
-          style={{ marginRight: Spacing.two, padding: 6 }}
+          onPress={() => goTo("assignments")}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="View my assignments"
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 54,
+            borderRadius: Radius.md,
+            backgroundColor: theme.primary,
+            marginTop: Spacing.two,
+            ...Shadows.button,
+          }}
         >
-          <Ionicons name="person-circle-outline" size={28} color={ACCENT} />
+          <Ionicons
+            name="navigate-outline"
+            size={20}
+            color={theme.textOnPrimary}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={{ ...T.button, color: theme.textOnPrimary }}>View My Assignments</Text>
         </TouchableOpacity>
+      </ScrollView>
 
-        <LogoutButton navigation={navigation} compact />
-      </View>
+      <VolunteerBottomNav active="home" />
 
-
-
-      <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
-        <View style={{ flex: 1 }}>
-          <HomeHeader fullName={fullName} roleLabel="Volunteer" accentColor={ACCENT} />
-        </View>
-        <LogoutButton navigation={navigation} compact />
-      </View>
-
-      <View
-        style={{
-          backgroundColor: ACCENT,
-          borderRadius: Radius.xl,
-          padding: Spacing.four,
-          marginTop: Spacing.five,
-          marginBottom: Spacing.five,
-          ...Shadows.card,
-        }}
-      >
-        <Ionicons name="bicycle-outline" size={26} color="#fff" />
-        <Text style={{ ...T.h1, color: "#fff", marginTop: Spacing.two, fontSize: 20 }}>
-          Your help matters
-        </Text>
-        <Text style={{ ...T.bodySmall, color: "#FFEEDD", marginTop: 4 }}>
-          Thanks for volunteering your time to move food from donors to those who need it.
-        </Text>
-      </View>
-
-      <Text style={{ ...T.label, color: theme.text, marginBottom: Spacing.three }}>
-        Your Activity
-      </Text>
-
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-        }}
-      >
-        <StatCard icon="navigate-outline" label="Assigned Deliveries" value="0" accentColor={ACCENT} />
-        <StatCard icon="hourglass-outline" label="Hours Contributed" value="0" accentColor={ACCENT} />
-        <StatCard icon="checkmark-circle-outline" label="Completed Tasks" value="0" accentColor={ACCENT} />
-        <StatCard icon="calendar-outline" label="Upcoming Pickups" value="0" accentColor={ACCENT} />
-      </View>
-
-      <TouchableOpacity
-        onPress={() =>
-          Alert.alert("Coming soon", "Assignment tracking will be available in a future update.")
-        }
-        activeOpacity={0.85}
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: 54,
-          borderRadius: Radius.md,
-          backgroundColor: theme.primary,
-          marginTop: Spacing.two,
-          ...Shadows.button,
-        }}
-      >
-        <Ionicons name="navigate-outline" size={20} color={theme.textOnPrimary} style={{ marginRight: 8 }} />
-        <Text style={{ ...T.button, color: theme.textOnPrimary }}>View Assignments</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      <VolunteerDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        fullName={fullName}
+        active="home"
+      />
+    </View>
   );
 }

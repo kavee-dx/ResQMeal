@@ -17,6 +17,7 @@ import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import { useIsWide } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
+import CancelRequestAction from '../components/dushani-cancelRequestAction';
 import {
   getFoodRequestProgress,
   updateFoodRequestStatus,
@@ -332,6 +333,14 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
                     </View>
                   )}
 
+                  {/* Task 08 — the recipient can also call this request off from
+                      here, while a donor is still handling it. */}
+                  <CancelRequestAction
+                    requestId={request.id}
+                    status={request.status}
+                    layout="panel"
+                    onDone={() => load(false)}
+                  />
                   </View>
 
                   <View style={wide ? styles.sideColumn : undefined}>

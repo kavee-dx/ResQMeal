@@ -68,7 +68,7 @@ export type RootStackParamList = {
   FoodRequest: { urgency?: "URGENT" | "NORMAL" } | undefined;
   RequestStatus: undefined;
   RequestProgress: { requestId: string };
-  RequestBoard: undefined;
+  RequestHistory: undefined;
 
   // Recipient suggestions
   RecipientSuggestions: { donationId: string };

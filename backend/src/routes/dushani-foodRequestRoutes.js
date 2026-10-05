@@ -6,8 +6,10 @@ const {
   createEmergencyFoodRequestHandler,
 } = require('../controllers/dushani-createFoodRequestController');
 const { getMyRequestsHandler } = require('../controllers/dushani-requestStatusController');
+const { getMyRequestHistoryHandler } = require('../controllers/dushani-requestHistoryController');
 const { getRequestProgressHandler } = require('../controllers/dushani-requestProgressController');
 const { deleteFoodRequestHandler } = require('../controllers/dushani-deleteFoodRequestController');
+const { cancelFoodRequestHandler } = require('../controllers/dushani-cancelFoodRequestController');
 const { updateFoodRequestStatusHandler } = require('../controllers/dushani-updateRequestStatusController');
 const {
   getRequestMatchesHandler,
@@ -18,6 +20,10 @@ const {
   acceptFoodRequestHandler,
 } = require('../controllers/dushani-requestBoardController');
 const { browseDonationsHandler } = require('../controllers/dushani-browseDonationsController');
+const {
+  askForDonationHandler,
+  getDonationAsksHandler,
+} = require('../controllers/dushani-donationRequestController');
 
 // All recipient food-request endpoints require a logged-in user; requireAuth
 // attaches the decoded JWT payload ({ id, role }) to req.user.
@@ -34,9 +40,16 @@ router.post('/emergency', createEmergencyFoodRequestHandler);
 // GET /api/recipient/food-requests/mine
 router.get('/mine', getMyRequestsHandler);
 
+// GET /api/recipient/food-requests/history
+// Sprint item 12 — Historical Request Retrieval: only the caller's requests
+// that can no longer be answered (delivered, never claimed, cancelled), newest
+// closure first, each carrying the moment it ended as closedAt.
+router.get('/history', getMyRequestHistoryHandler);
+
 // GET /api/recipient/food-requests/open
-// Sprint item 4 — the request board: every logged-in role can see what
-// recipients still need. Contact details are withheld until a donor commits.
+// Sprint item 4 — every logged-in role can see what recipients still need, with
+// the poster's name and their own note about the need. The phone number stays
+// withheld until a donor commits to the delivery.
 router.get('/open', getOpenRequestsHandler);
 
 // GET /api/recipient/food-requests/matches
@@ -52,6 +65,18 @@ router.get('/matches', getRecipientSuggestionsHandler);
 // request's matches above all). Donor contact details are never listed.
 router.get('/donations', browseDonationsHandler);
 
+// POST /api/recipient/food-requests/donation-requests
+// Sprint item 39 — a recipient asks the donor of a live donation for it. The ask
+// is its own document; the donor's donation is never written to. Asking twice
+// for the same donation edits the one ask instead of piling up duplicates.
+router.post('/donation-requests', askForDonationHandler);
+
+// GET /api/recipient/food-requests/donation-requests?donationId=
+// The other half: the donor who posted that donation reads who asked, newest
+// first, for the Recipient section of the donation detail page. Only names and
+// the need behind the ask come back — never a phone number or an email.
+router.get('/donation-requests', getDonationAsksHandler);
+
 // POST /api/recipient/food-requests/:id/accept
 // Only a donor can claim a request; the recipient's progress then reads
 // "Accepted by a donor".
@@ -62,6 +87,13 @@ router.post('/:id/accept', acceptFoodRequestHandler);
 // marks the delivery on the way, and donor, volunteer or recipient marks it
 // delivered. Forward-only.
 router.patch('/:id/status', updateFoodRequestStatusHandler);
+
+// POST /api/recipient/food-requests/:id/cancel
+// Sprint item 09 — the recipient calls their own request off. It works for a
+// request still waiting for a donor and for one a donor has already accepted or
+// dispatched; a delivered, expired or cancelled request is refused with 409.
+// Releasing anything the donor committed to is the next item.
+router.post('/:id/cancel', cancelFoodRequestHandler);
 
 // GET /api/recipient/food-requests/:id/matches
 // One of the caller's own requests with the donations scored against it.

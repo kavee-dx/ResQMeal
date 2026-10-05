@@ -36,7 +36,6 @@ export function useVolunteerNavigation() {
           break;
         }
         case "assignments":
-          
           navigation.navigate("AssignmentStatus");
           break;
         case "preferences":

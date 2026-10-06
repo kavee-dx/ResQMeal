@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { ScrollView, useColorScheme } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useColorScheme } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import CommunityStatsSection from "@/components/communityMonitoring/amasha-CommunityStatsSection";
 import DonationStatusSection from "@/components/communityMonitoring/amasha-DonationStatusSection";
 import RequestStatusSection from "@/components/communityMonitoring/amasha-RequestStatusSection";
-import { Colors, Spacing } from "@/constants/theme";
+import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import api from "@/services/api";
 import FoodRescueTrendsSection from "@/components/communityMonitoring/amasha-FoodRescueTrendsSection";
+import { RootStackParamList } from "@/navigation/types";
 
 interface CommunityStats {
   activeCampaigns: number;
@@ -18,6 +21,8 @@ interface CommunityStats {
 export default function NgoDashboardScreen() {
   const scheme = useColorScheme() ?? "light";
   const colors = Colors[scheme];
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [stats, setStats] = useState<CommunityStats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +46,17 @@ export default function NgoDashboardScreen() {
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ paddingBottom: Spacing.six }}
     >
+      <Pressable
+        style={[styles.mapButton, { backgroundColor: colors.primary }, Shadows.button]}
+        onPress={() => navigation.navigate("FoodRescueMap")}
+      >
+        <Text style={[Typography.button, { color: colors.textOnPrimary }]}>
+          Food Rescue Map
+        </Text>
+        <Text style={[Typography.bodySmall, { color: colors.textOnPrimary }]}>
+          View donors, available food, recipients and NGOs nearby
+        </Text>
+      </Pressable>
       <CommunityStatsSection stats={stats} loading={loading} />
       <RequestStatusSection />
       <DonationStatusSection />
@@ -48,3 +64,14 @@ export default function NgoDashboardScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  mapButton: {
+    marginHorizontal: Spacing.three,
+    marginTop: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: Radius.md,
+    gap: 2,
+    alignItems: "center",
+  },
+});

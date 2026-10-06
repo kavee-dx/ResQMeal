@@ -1,20 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useColorScheme } from 'react-native';
 import MapView, { Marker, UrlTile } from 'react-native-maps';
-import { theme } from '@/constants/theme';
+import { Colors } from '@/constants/theme';
 import { RescueLocation } from '@/types/amasha-map';
 import { useUserLocation } from './amasha-useUserLocation';
-
-// NOTE: swap these keys for whatever your actual theme.ts calls them —
-// this file doesn't add new colors, just reads existing ones.
-const markerColor: Record<string, string> = {
-  donor: theme.colors.primary,
-  available_food: theme.colors.success,
-  recipient: theme.colors.warning,
-  ngo: theme.colors.info,
-  pickup: theme.colors.secondary,
-  delivery: theme.colors.secondary,
-};
 
 interface Props {
   locations: RescueLocation[];
@@ -22,7 +11,18 @@ interface Props {
 }
 
 export default function AmashaBaseMap({ locations, onMarkerPress }: Props) {
+  const scheme = useColorScheme() ?? 'light';
+  const colors = Colors[scheme];
   const { region } = useUserLocation();
+
+  const markerColor: Record<string, string> = {
+    donor: colors.primary,
+    available_food: colors.success,
+    recipient: colors.warning,
+    ngo: colors.info,
+    pickup: colors.secondary,
+    delivery: colors.secondary,
+  };
 
   return (
     <View style={styles.container}>
@@ -48,7 +48,7 @@ export default function AmashaBaseMap({ locations, onMarkerPress }: Props) {
             coordinate={{ latitude: loc.latitude, longitude: loc.longitude }}
             title={loc.title}
             description={loc.description}
-            pinColor={markerColor[loc.type] ?? theme.colors.primary}
+            pinColor={markerColor[loc.type] ?? colors.primary}
             onPress={() => onMarkerPress?.(loc)}
           />
         ))}

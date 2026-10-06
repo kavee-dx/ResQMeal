@@ -38,6 +38,10 @@ import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
 import AssignmentStatusScreen from "../screens/dilshara-AssignmentStatusScreen";
 import RequestHistoryScreen from "../screens/dushani-requestHistoryScreen";
 import RecipientSuggestionsScreen from "../screens/dilshara-recipientSuggestionsScreen";
+// Community monitoring (adjust file names if yours differ)
+import MonitoringMapScreen from "../screens/amasha-MonitoringMapScreen";
+import NgoDashboardScreen from "../screens/amasha-NgoDashboardScreen";
+import FoodRescueMapScreen from "../screens/amasha-FoodRescueMapScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -164,6 +168,26 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen
           name="NGOCommunities"
           component={NGOCommunitiesScreen}
+        />
+
+        {/* Community Monitoring (NGO) */}
+        <Stack.Screen
+          name="MonitoringMap"
+          component={MonitoringMapScreen}
+          options={{ headerShown: true, title: "Monitoring Map" }}
+        />
+
+        {/* Food Rescue Map (all roles) */}
+        <Stack.Screen
+          name="FoodRescueMap"
+          component={FoodRescueMapScreen}
+          options={{ headerShown: true, title: "Food Rescue Map" }}
+        />
+
+        <Stack.Screen
+          name="NgoDashboard"
+          component={NgoDashboardScreen}
+          options={{ headerShown: true, title: "Community Dashboard" }}
         />
 
         {/* Donor */}

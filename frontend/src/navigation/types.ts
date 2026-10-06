@@ -63,6 +63,13 @@ export type RootStackParamList = {
   FoodRescueRequests: undefined;
   NGOCommunities: undefined;
 
+  // Community monitoring (NGO)
+  MonitoringMap: undefined;
+  NgoDashboard: undefined;
+
+  // Food rescue map — donors, available food, recipients and NGOs (all roles)
+  FoodRescueMap: undefined;
+
   // Recipient management
   AvailableFood: undefined;
   FoodRequest: { urgency?: "URGENT" | "NORMAL" } | undefined;

@@ -3,6 +3,7 @@ const path = require("path");
 const mongoose = require("mongoose");
 const Campaign = require("../models/amasha-Campaign");
 const { CAMPAIGN_CATEGORIES } = require("../models/amasha-Campaign");
+const NGOProfile = require("../models/dushani-NGOProfile");
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const PHONE_RE = /^\+?\d[\d\s-]{6,14}$/;
@@ -98,6 +99,43 @@ async function createCampaign(req, res) {
     return res
       .status(500)
       .json({ success: false, message: "Could not save the campaign. Please try again." });
+  }
+}
+
+// GET /api/campaigns   (any logged-in user) — active campaigns from all NGOs,
+// newest first, for the community feed shown on every home page.
+async function listCampaigns(req, res) {
+  try {
+    const campaigns = await Campaign.find({ status: "active" })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .populate("ngoId", "fullName")
+      .lean();
+
+    // NGO accounts keep their display name on the profile (organizationName),
+    // so fetch them all in one query instead of per campaign.
+    const ngoIds = [...new Set(campaigns.map((c) => String(c.ngoId?._id)))];
+    const profiles = ngoIds.length
+      ? await NGOProfile.find({ userId: { $in: ngoIds } })
+          .select("userId organizationName")
+          .lean()
+      : [];
+    const orgNames = new Map(
+      profiles.map((p) => [String(p.userId), p.organizationName])
+    );
+
+    const withNgoName = campaigns.map(({ ngoId, ...campaign }) => ({
+      ...campaign,
+      ngoName:
+        orgNames.get(String(ngoId?._id)) ?? ngoId?.fullName ?? "NGO",
+    }));
+
+    return res.json({ success: true, campaigns: withNgoName });
+  } catch (error) {
+    console.error("listCampaigns failed:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Could not load campaigns. Please try again." });
   }
 }
 
@@ -208,4 +246,10 @@ async function deleteCampaign(req, res) {
   }
 }
 
-module.exports = { createCampaign, getMyCampaigns, updateCampaign, deleteCampaign };
+module.exports = {
+  listCampaigns,
+  createCampaign,
+  getMyCampaigns,
+  updateCampaign,
+  deleteCampaign,
+};

@@ -4,6 +4,7 @@ const router = express.Router();
 const { requireAuth } = require("../middleware/kaveesha-authMiddleware");
 const uploadCampaignImage = require("../middleware/amasha-uploadCampaignImage");
 const {
+  listCampaigns,
   createCampaign,
   getMyCampaigns,
   updateCampaign,
@@ -44,6 +45,9 @@ async function ngoOnly(req, res, next) {
     res.status(500).json({ success: false, message: "Something went wrong." });
   }
 }
+
+// GET /api/campaigns  — community feed of active campaigns (all roles)
+router.get("/", requireAuth, listCampaigns);
 
 // GET /api/campaigns/me  — the logged-in NGO's published campaigns
 router.get("/me", requireAuth, ngoOnly, getMyCampaigns);

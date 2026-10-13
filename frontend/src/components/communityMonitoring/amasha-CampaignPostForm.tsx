@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -21,12 +21,12 @@ import {
   CampaignFormValues,
   CampaignPost,
 } from '@/types/amasha-campaign';
+import AmashaCampaignDatePicker from './amasha-CampaignDatePicker';
 
 const C = Colors.light; // FormTheme in theme.ts is also light-only
 
 const TITLE_MAX = 100;
 const DESC_MAX = 1000;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // Saved images are relative paths, so put the server address in front.
 const serverRoot = (api.defaults.baseURL ?? '').replace(/\/api\/?$/, '');
@@ -76,6 +76,10 @@ export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, o
   const [submitting, setSubmitting] = useState(false);
   const [focused, setFocused] = useState<string | null>(null);
 
+  // The browser's FormData can't take RN's {uri, name, type} object, so keep
+  // the picked File (expo-image-picker provides it on web) and append that.
+  const webFileRef = useRef<File | null>(null);
+
   const fieldProps = (key: keyof CampaignFormValues) => ({
     onFocus: () => setFocused(key),
     onBlur: () => setFocused(null),
@@ -104,7 +108,10 @@ export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, o
       aspect: [16, 9],
       quality: 0.7,
     });
-    if (!result.canceled) set('imageUri', result.assets[0].uri);
+    if (!result.canceled) {
+      webFileRef.current = result.assets[0].file ?? null;
+      set('imageUri', result.assets[0].uri);
+    }
   };
 
   const validate = (): boolean => {
@@ -118,8 +125,8 @@ export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, o
 
     if (!form.location.trim()) e.location = 'Enter where this campaign takes place.';
 
-    if (!DATE_RE.test(form.startDate)) e.startDate = 'Use the format YYYY-MM-DD.';
-    if (!DATE_RE.test(form.endDate)) e.endDate = 'Use the format YYYY-MM-DD.';
+    if (!form.startDate) e.startDate = 'Pick a start date.';
+    if (!form.endDate) e.endDate = 'Pick an end date.';
     if (!e.startDate && !e.endDate && form.endDate < form.startDate)
       e.endDate = 'End date must be on or after the start date.';
 
@@ -151,12 +158,17 @@ export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, o
       const hasNewImage = !!form.imageUri && form.imageUri !== initialForm.imageUri;
       if (hasNewImage && form.imageUri) {
         const name = form.imageUri.split('/').pop() ?? 'campaign.jpg';
-        const ext = /\.(\w+)$/.exec(name)?.[1]?.toLowerCase() ?? 'jpg';
-        data.append('image', {
-          uri: form.imageUri,
-          name,
-          type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-        } as any);
+        if (Platform.OS === 'web') {
+          const file = webFileRef.current ?? (await fetch(form.imageUri).then((r) => r.blob()));
+          data.append('image', file as any, webFileRef.current?.name ?? name);
+        } else {
+          const ext = /\.(\w+)$/.exec(name)?.[1]?.toLowerCase() ?? 'jpg';
+          data.append('image', {
+            uri: form.imageUri,
+            name,
+            type: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+          } as any);
+        }
       } else if (isEditing && !form.imageUri && initialForm.imageUri) {
         data.append('removeImage', 'true');
       }
@@ -170,6 +182,7 @@ export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, o
       } else {
         const res = await api.post('/campaigns', data, config);
         setForm(emptyForm);
+        webFileRef.current = null;
         Alert.alert('Campaign posted', 'Your campaign is now live.');
         onCreated?.(res.data);
       }
@@ -246,28 +259,21 @@ export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, o
 
         <View style={styles.row}>
           <View style={styles.half}>
-            <Field label="Start date" error={errors.startDate}>
-              <TextInput
-                {...fieldProps('startDate')}
-                value={form.startDate}
-                onChangeText={(v) => set('startDate', v)}
-                placeholder="YYYY-MM-DD"
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-              />
-            </Field>
+            <AmashaCampaignDatePicker
+              label="Start date"
+              value={form.startDate}
+              error={errors.startDate}
+              onChange={(v) => set('startDate', v)}
+            />
           </View>
           <View style={styles.half}>
-            <Field label="End date" error={errors.endDate}>
-              <TextInput
-                {...fieldProps('endDate')}
-                value={form.endDate}
-                onChangeText={(v) => set('endDate', v)}
-                placeholder="YYYY-MM-DD"
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-              />
-            </Field>
+            <AmashaCampaignDatePicker
+              label="End date"
+              value={form.endDate}
+              error={errors.endDate}
+              minDate={form.startDate || undefined}
+              onChange={(v) => set('endDate', v)}
+            />
           </View>
         </View>
 
@@ -299,7 +305,12 @@ export default function AmashaCampaignPostForm({ campaign, onCreated, onSaved, o
                 <TouchableOpacity onPress={pickImage}>
                   <Text style={styles.link}>Change image</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => set('imageUri', null)}>
+                <TouchableOpacity
+                  onPress={() => {
+                    webFileRef.current = null;
+                    set('imageUri', null);
+                  }}
+                >
                   <Text style={styles.link}>Remove</Text>
                 </TouchableOpacity>
               </View>

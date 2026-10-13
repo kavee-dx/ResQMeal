@@ -4,7 +4,6 @@ const { Schema } = mongoose;
 const CAMPAIGN_CATEGORIES = [
   "surplus_pickup",
   "food_drive",
-  "volunteer_call",
   "awareness",
 ];
 

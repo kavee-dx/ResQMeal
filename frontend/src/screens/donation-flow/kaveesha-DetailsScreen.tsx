@@ -59,31 +59,58 @@ type DropdownType =
   | null;
 
 const C = {
-  navy: '#023047',
-  navyDeep: '#011C2E',
-  teal: '#126782',
-  orange: '#FB8500',
-  amber: '#FFB703',
+  navy: '#082634',
+  navyDeep: '#04161F',
+  teal: '#0E6B80',
+  orange: '#F97316',
+  amber: '#F5A524',
 
-  background: '#F6F8FA',
+  background: '#F4F7F9',
   white: '#FFFFFF',
 
-  text: '#023047',
-  secondary: '#4D6470',
-  muted: '#8A9AA3',
+  text: '#082634',
+  secondary: '#4A616D',
+  muted: '#93A5AE',
 
-  border: '#D7E3E7',
-  softBlue: '#EAF2F5',
-  softOrange: '#FFF1E3',
+  border: '#E2ECEF',
+  softBlue: '#EDF4F7',
+  softOrange: '#FFF3E9',
 
-  success: '#3FA34D',
-  successSoft: '#EAF7ED',
+  success: '#2FA35B',
+  successSoft: '#EAF7EE',
 
   warning: '#D99100',
   warningSoft: '#FFF7DD',
 
-  danger: '#D64545',
-  dangerSoft: '#FBEAEA',
+  danger: '#DC4C4C',
+  dangerSoft: '#FBEBEB',
+};
+
+/* Premium typography — maps each declared font weight to a loaded Poppins cut,
+   applied automatically to every text style further below. */
+const FONT_BY_WEIGHT: Record<string, string> = {
+  '400': 'Poppins_400Regular',
+  '500': 'Poppins_500Medium',
+  '600': 'Poppins_600SemiBold',
+  '700': 'Poppins_600SemiBold',
+  '800': 'Poppins_700Bold',
+  '900': 'Poppins_700Bold',
+};
+
+const ELEV = {
+  shadowColor: '#082634',
+  shadowOpacity: 0.1,
+  shadowRadius: 22,
+  shadowOffset: { width: 0, height: 10 },
+  elevation: 6,
+};
+
+const ELEV_SOFT = {
+  shadowColor: '#082634',
+  shadowOpacity: 0.07,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 3,
 };
 
 const FOOD_CATEGORIES = [
@@ -4719,7 +4746,7 @@ export default function DetailsScreen({
    STYLES
    ============================================================ */
 
-const styles = StyleSheet.create({
+const baseStyles = {
   flex: {
     flex: 1,
   },
@@ -4756,6 +4783,7 @@ const styles = StyleSheet.create({
     borderColor: C.border,
     alignItems: 'center',
     justifyContent: 'center',
+    ...ELEV_SOFT,
   },
 
   headerCenter: {
@@ -4804,10 +4832,11 @@ const styles = StyleSheet.create({
 
   introCard: {
     flexDirection: 'row',
-    padding: 17,
-    borderRadius: 20,
+    padding: 18,
+    borderRadius: 22,
     backgroundColor: C.navy,
-    marginBottom: 15,
+    marginBottom: 16,
+    ...ELEV,
   },
 
   introIcon: {
@@ -4842,11 +4871,12 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: C.white,
-    borderRadius: 22,
-    padding: 17,
-    marginBottom: 15,
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E7EEF1',
+    borderColor: '#EEF3F5',
+    ...ELEV_SOFT,
   },
 
   sectionHeader: {
@@ -4902,14 +4932,14 @@ const styles = StyleSheet.create({
   },
 
   inputWrapper: {
-    minHeight: 50,
+    minHeight: 52,
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 14,
-    backgroundColor: '#FCFDFD',
+    borderRadius: 15,
+    backgroundColor: '#FBFCFE',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 13,
+    paddingHorizontal: 14,
     marginBottom: 14,
   },
 
@@ -4938,17 +4968,17 @@ const styles = StyleSheet.create({
     minHeight: 58,
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 15,
-    backgroundColor: '#FCFDFD',
+    borderRadius: 16,
+    backgroundColor: '#FBFCFE',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 11,
     marginBottom: 14,
   },
 
   selectFieldSelected: {
-    borderColor: '#F6C18D',
-    backgroundColor: '#FFFBF7',
+    borderColor: '#F7B26B',
+    backgroundColor: '#FFFBF6',
   },
 
   selectIcon: {
@@ -5062,18 +5092,18 @@ const styles = StyleSheet.create({
   dateField: {
     flex: 1,
     minHeight: 65,
-    borderRadius: 15,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: C.border,
-    backgroundColor: '#FCFDFD',
+    backgroundColor: '#FBFCFE',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 9,
   },
 
   dateFieldSelected: {
-    borderColor: '#F6C18D',
-    backgroundColor: '#FFFBF7',
+    borderColor: '#F7B26B',
+    backgroundColor: '#FFFBF6',
   },
 
   dateTimeIcon: {
@@ -5194,7 +5224,7 @@ const styles = StyleSheet.create({
 
   priorityUrgent: {
     backgroundColor: '#FFF9F3',
-    borderColor: '#F6C18D',
+    borderColor: '#F7B26B',
   },
 
   priorityNormal: {
@@ -5569,12 +5599,13 @@ const styles = StyleSheet.create({
   uploadAction: {
     marginTop: 13,
     backgroundColor: C.orange,
-    borderRadius: 13,
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    ...ELEV_SOFT,
   },
 
   uploadActionText: {
@@ -5767,26 +5798,27 @@ const styles = StyleSheet.create({
     minHeight: 125,
     borderWidth: 1,
     borderColor: C.border,
-    borderRadius: 15,
-    paddingHorizontal: 13,
-    paddingVertical: 13,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
     color: C.navy,
     fontSize: 13,
-    lineHeight: 19,
-    backgroundColor: '#FCFDFD',
+    lineHeight: 20,
+    backgroundColor: '#FBFCFE',
   },
 
   /* CONTINUE */
 
   continueButton: {
-    minHeight: 55,
-    borderRadius: 17,
+    minHeight: 56,
+    borderRadius: 18,
     backgroundColor: C.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
     marginTop: 2,
+    ...ELEV,
   },
 
   continueButtonDisabled: {
@@ -5838,8 +5870,9 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     maxHeight: '92%',
     backgroundColor: C.white,
-    borderRadius: 26,
-    padding: 20,
+    borderRadius: 28,
+    padding: 22,
+    ...ELEV,
   },
 
   modalHeader: {
@@ -5879,7 +5912,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     backgroundColor: C.softOrange,
     borderWidth: 1,
-    borderColor: '#F6C18D',
+    borderColor: '#F7B26B',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -5983,13 +6016,14 @@ const styles = StyleSheet.create({
   },
 
   confirmButton: {
-    height: 52,
-    borderRadius: 15,
+    height: 54,
+    borderRadius: 17,
     backgroundColor: C.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    ...ELEV,
   },
 
   confirmButtonText: {
@@ -6004,8 +6038,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 520,
     backgroundColor: C.white,
-    borderRadius: 26,
-    padding: 20,
+    borderRadius: 28,
+    padding: 22,
+    ...ELEV,
   },
 
   calendarHeader: {
@@ -6103,8 +6138,9 @@ const styles = StyleSheet.create({
     maxWidth: 560,
     maxHeight: '85%',
     backgroundColor: C.white,
-    borderRadius: 27,
-    padding: 18,
+    borderRadius: 28,
+    padding: 20,
+    ...ELEV,
   },
 
   dropdownHandle: {
@@ -6190,10 +6226,15 @@ const styles = StyleSheet.create({
 
   aiModalCard: {
     backgroundColor: C.background,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     maxHeight: '94%',
     overflow: 'hidden',
+    shadowColor: '#082634',
+    shadowOpacity: 0.18,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 24,
   },
 
   aiModalContent: {
@@ -6427,14 +6468,15 @@ const styles = StyleSheet.create({
   },
 
   runAiButton: {
-    height: 54,
-    borderRadius: 16,
+    height: 55,
+    borderRadius: 17,
     backgroundColor: C.orange,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     marginTop: 9,
+    ...ELEV,
   },
 
   runAiButtonDisabled: {
@@ -6459,4 +6501,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
   },
-});
+};
+
+/* Apply Poppins to every text style based on its declared weight, then
+   register the whole sheet once. This keeps the markup untouched while
+   giving the entire form consistent, refined typography. */
+function applyPremiumTypography(
+  defs: Record<string, any>,
+): Record<string, any> {
+  const enriched: Record<string, any> = {};
+
+  for (const key of Object.keys(defs)) {
+    const value = defs[key];
+
+    if (
+      value
+      && typeof value === 'object'
+      && value.fontSize !== undefined
+      && value.fontFamily === undefined
+    ) {
+      enriched[key] = {
+        ...value,
+        fontFamily:
+          FONT_BY_WEIGHT[String(value.fontWeight)]
+          ?? 'Poppins_400Regular',
+      };
+    } else {
+      enriched[key] = value;
+    }
+  }
+
+  return enriched;
+}
+
+const styles = StyleSheet.create(
+  applyPremiumTypography(baseStyles) as any,
+);

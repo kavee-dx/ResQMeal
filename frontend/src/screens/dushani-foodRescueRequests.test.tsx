@@ -145,16 +145,17 @@ it('lets a donor claim a post and then reveals the phone number', async () => {
   // fireEvent is async in testing-library 14, so the re-render only lands once
   // each press is awaited.
   await waitFor(() =>
-    expect(screen.getByText("I'll deliver this request")).toBeTruthy(),
+    expect(screen.getByText('Donate this Request')).toBeTruthy(),
   );
 
-  await fireEvent.press(screen.getByText("I'll deliver this request"));
+  await fireEvent.press(screen.getByText('Donate this Request'));
 
   await waitFor(() => expect(acceptFoodRequest).toHaveBeenCalledWith('req1'));
   expect(await screen.findByText('0771234567')).toBeTruthy();
   expect(screen.getByText('You accepted this request')).toBeTruthy();
-  // The claimed post leaves the open list behind it.
-  expect(screen.queryByText('View details')).toBeNull();
+  // The claimed post stays in the open list, and the panel offers the next step.
+  expect(screen.getByText('View details')).toBeTruthy();
+  expect(screen.getByText('Suggest volunteer')).toBeTruthy();
 });
 
 it('hides the claim button from a volunteer', async () => {
@@ -165,8 +166,14 @@ it('hides the claim button from a volunteer', async () => {
   await waitFor(() => expect(screen.getByText('Dushani Naveendhya')));
 
   fireEvent.press(screen.getByText('View details'));
-  await waitFor(() => expect(screen.getByText('Donate to this request')));
 
-  expect(screen.queryByText("I'll deliver this request")).toBeNull();
+  // The detail sheet repeats the card's note, so two copies means it is open.
+  await waitFor(() =>
+    expect(
+      screen.getAllByText('Four of us at home, no cooking gas left today.'),
+    ).toHaveLength(2),
+  );
+
+  expect(screen.queryByText('Donate this Request')).toBeNull();
   expect(acceptFoodRequest).not.toHaveBeenCalled();
 });

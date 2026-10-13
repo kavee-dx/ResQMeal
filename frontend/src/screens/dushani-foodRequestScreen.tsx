@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
+import { useBreakpoints } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import {
   createEmergencyFoodRequest,
@@ -212,6 +213,7 @@ function Backdrop() {
 export default function FoodRequestScreen({ navigation, route }: Props) {
   const T = useAppTypography();
   const displayName = useDisplayName();
+  const { isMobile } = useBreakpoints();
   const idRef = useRef(1);
 
   const [selected, setSelected] = useState<CategoryKey[]>([]);
@@ -458,7 +460,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -474,8 +476,8 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        <View style={styles.page}>
-          <View style={styles.card}>
+        <View style={[styles.page, isMobile && styles.pageMobile]}>
+          <View style={[styles.card, isMobile && styles.cardMobile]}>
             <View style={styles.cardIntro}>
               <View style={styles.heroIcon}>
                 <Ionicons name="restaurant" size={24} color={C.white} />
@@ -496,7 +498,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
               title="What food do you need?"
               subtitle="Select all that apply"
             />
-            <View style={styles.chipGrid}>
+            <View style={[styles.chipGrid, isMobile && styles.chipGridMobile]}>
               {CATEGORIES.map((category) => {
                 const active = selected.includes(category.key);
                 return (
@@ -506,6 +508,7 @@ export default function FoodRequestScreen({ navigation, route }: Props) {
                     activeOpacity={0.8}
                     style={[
                       styles.chip,
+                      isMobile && styles.chipMobile,
                       active && {
                         backgroundColor: C.teal,
                         borderColor: C.teal,
@@ -1211,11 +1214,17 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
   },
+  pageMobile: {
+    paddingHorizontal: Spacing.three,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.five,
     marginBottom: Spacing.five,
+  },
+  topBarMobile: {
+    paddingHorizontal: Spacing.three,
   },
   backButton: {
     width: 44,
@@ -1242,6 +1251,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 26,
     elevation: 10,
+  },
+  cardMobile: {
+    padding: Spacing.four,
   },
   cardIntro: {
     flexDirection: 'row',
@@ -1284,6 +1296,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: Spacing.three,
   },
+  chipGridMobile: {
+    gap: Spacing.two,
+  },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1295,6 +1310,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: C.cardBorder,
     backgroundColor: C.inputBg,
+  },
+  chipMobile: {
+    flexBasis: '48%',
+    minWidth: 140,
   },
   chipIcon: {
     width: 34,

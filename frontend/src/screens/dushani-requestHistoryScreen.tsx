@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
-import { useIsWide } from '../hooks/dushani-useWideLayout';
+import { useIsWide, useBreakpoints } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import {
@@ -127,6 +127,7 @@ function Backdrop() {
 export default function RequestHistoryScreen({ navigation }: Props) {
   const T = useAppTypography();
   const wide = useIsWide();
+  const { isMobile, isTablet } = useBreakpoints();
   const displayName = useDisplayName();
 
   const [past, setPast] = useState<FoodRequestHistoryRow[]>([]);
@@ -225,7 +226,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
           />
         }
       >
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -241,8 +242,8 @@ export default function RequestHistoryScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <View style={[styles.page, wide && styles.pageWide]}>
-          <View style={styles.card}>
+        <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
+          <View style={[styles.card, isMobile && styles.cardMobile]}>
             <View style={styles.cardHead}>
               <View style={{ flex: 1 }}>
                 <Text style={{ ...T.labelStrong, fontSize: 13, color: C.navy }}>
@@ -276,12 +277,12 @@ export default function RequestHistoryScreen({ navigation }: Props) {
             </View>
 
             {!loading && !error && past.length > 0 && (
-              <View style={styles.stats}>
+              <View style={[styles.stats, isMobile && styles.statsMobile]}>
                 {FILTERS.filter((entry) => entry.key !== 'ALL').map((entry) => {
                   const outcome = entry.outcomes[0];
                   const meta = OUTCOME_META[outcome];
                   return (
-                    <View key={entry.key} style={[styles.stat, { borderColor: meta.bg }]}>
+                    <View key={entry.key} style={[styles.stat, isMobile && styles.statMobile, { borderColor: meta.bg }]}>
                       <Text
                         style={{
                           ...T.h3,
@@ -303,7 +304,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
             )}
 
             {!loading && !error && past.length > 0 && (
-              <View style={styles.tabs}>
+              <View style={[styles.tabs, isMobile && styles.tabsMobile]}>
                 {FILTERS.map((entry) => {
                   const active = entry.key === filter;
                   const count =
@@ -315,7 +316,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
                       key={entry.key}
                       onPress={() => setFilter(entry.key)}
                       activeOpacity={0.85}
-                      style={[styles.tab, active && styles.tabActive]}
+                      style={[styles.tab, isMobile && styles.tabMobile, active && styles.tabActive]}
                       accessibilityRole="tab"
                       accessibilityLabel={`${entry.label} requests`}
                       accessibilityState={{ selected: active }}
@@ -347,7 +348,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
             )}
 
             {!loading && !error && past.length > 0 && (
-              <View style={styles.orderRow}>
+              <View style={[styles.orderRow, isMobile && styles.orderRowMobile]}>
                 <Text style={{ ...T.caption, fontSize: 11, color: C.textMuted, flexShrink: 1 }}>
                   {visible.length === past.length
                     ? `Showing all ${past.length} closed requests`
@@ -364,7 +365,7 @@ export default function RequestHistoryScreen({ navigation }: Props) {
                         accessibilityRole="button"
                         accessibilityState={{ selected: active }}
                         accessibilityLabel={`Order the history ${entry.label.toLowerCase()}`}
-                        style={[styles.orderButton, active && styles.orderButtonActive]}
+                        style={[styles.orderButton, isMobile && styles.orderButtonMobile, active && styles.orderButtonActive]}
                       >
                         <Ionicons
                           name={entry.icon}
@@ -487,6 +488,7 @@ function HistoryRow({
   onOpen: () => void;
 }) {
   const T = useAppTypography();
+  const { isMobile } = useBreakpoints();
   const meta = OUTCOME_META[request.status as Outcome];
   const closed = request.closedAt;
   // A request called off after a donor had taken it reads differently from one
@@ -498,7 +500,7 @@ function HistoryRow({
     <TouchableOpacity
       onPress={onOpen}
       activeOpacity={0.85}
-      style={[styles.row, wide && styles.rowWide]}
+      style={[styles.row, wide && styles.rowWide, isMobile && styles.rowMobile]}
       accessibilityLabel={`Past request for ${request.foodType}, ${meta.label}`}
     >
       <View style={styles.rowMark}>
@@ -624,11 +626,17 @@ const styles = StyleSheet.create({
     maxWidth: 1160,
     paddingHorizontal: Spacing.five,
   },
+  pageMobile: {
+    paddingHorizontal: Spacing.three,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.five,
     marginBottom: Spacing.five,
+  },
+  topBarMobile: {
+    paddingHorizontal: Spacing.three,
   },
   backButton: {
     width: 44,
@@ -656,6 +664,9 @@ const styles = StyleSheet.create({
     shadowRadius: 26,
     elevation: 10,
   },
+  cardMobile: {
+    padding: Spacing.four,
+  },
   cardHead: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -677,6 +688,9 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     marginTop: Spacing.four,
   },
+  statsMobile: {
+    gap: Spacing.two,
+  },
   stat: {
     flex: 1,
     minWidth: 96,
@@ -685,11 +699,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
+  statMobile: {
+    minWidth: 80,
+    paddingHorizontal: Spacing.two,
+  },
   tabs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
     marginTop: Spacing.four,
+  },
+  tabsMobile: {
+    gap: Spacing.one,
   },
   tab: {
     flexDirection: 'row',
@@ -700,6 +721,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.cardBorder,
     backgroundColor: C.offWhite,
+  },
+  tabMobile: {
+    paddingHorizontal: Spacing.two,
   },
   tabActive: {
     borderColor: C.navy,
@@ -727,6 +751,10 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginTop: Spacing.three,
   },
+  orderRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+  },
   orderButtons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -742,6 +770,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.cardBorder,
     backgroundColor: C.offWhite,
+  },
+  orderButtonMobile: {
+    paddingHorizontal: Spacing.two,
   },
   orderButtonActive: {
     borderColor: C.teal,
@@ -776,6 +807,9 @@ const styles = StyleSheet.create({
   // of wrapping under the food name.
   rowWide: {
     padding: Spacing.four,
+  },
+  rowMobile: {
+    padding: Spacing.two + 2,
   },
   rowMark: {
     width: 30,

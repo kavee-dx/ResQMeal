@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Alert,
   StyleSheet,
   useWindowDimensions,
 } from "react-native";
@@ -18,7 +17,9 @@ import { useAppTypography } from "../hooks/kaveesha-useAppTypography";
 import { getGreeting } from "../utils/kaveesha-greeting";
 import type { RootStackParamList } from "../navigation/types";
 import LogoutButton from "../components/kaveesha-LogoutButton";
+import AmashaCampaignFeedSection from "@/components/amasha-CampaignFeedSection";
 import { getMyProfile } from "@/services/dilshara-profileService";
+import api from "@/services/api";
 
 type Props = NativeStackScreenProps<RootStackParamList, "NgoHome">;
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -29,7 +30,7 @@ const ROUTES = {
   dashboard: "NgoDashboard",
   map: "MonitoringMap",
   profile: "Profile",
-  createCampaign: null as string | null, // set to a route name when it exists
+  createCampaign: "NgoCampaign" as string | null,
 } as const;
 
 const SIDEBAR_WIDTH = 264;
@@ -392,6 +393,7 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
   const { width } = useWindowDimensions();
 
   const [profileName, setProfileName] = useState("");
+  const [activeCampaigns, setActiveCampaigns] = useState<number | null>(null);
 
   useEffect(() => {
     getMyProfile()
@@ -400,6 +402,11 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
         setProfileName(p?.fullName ?? "");
       })
       .catch((err) => console.error("Failed to load NGO profile:", err));
+
+    api
+      .get("/campaigns/me")
+      .then((res) => setActiveCampaigns(res.data.campaigns?.length ?? 0))
+      .catch((err) => console.error("Failed to load campaign count:", err));
   }, []);
 
   const fullName = profileName || route.params?.fullName || "";
@@ -415,11 +422,6 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
   const goCreateCampaign = () => {
     if (ROUTES.createCampaign) {
       (navigation as any).navigate(ROUTES.createCampaign);
-    } else {
-      Alert.alert(
-        "Coming soon",
-        "Campaign creation will be available in a future update.",
-      );
     }
   };
 
@@ -620,7 +622,7 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
                 rowGap: 12,
               }}
             >
-              <Stat icon="megaphone-outline" label="Active campaigns" value="0" width={statWidth} />
+              <Stat icon="megaphone-outline" label="Active campaigns" value={String(activeCampaigns ?? "—")} width={statWidth} />
               <Stat icon="people-outline" label="Partner donors" value="0" width={statWidth} />
               <Stat icon="walk-outline" label="Volunteers assigned" value="0" width={statWidth} />
               <Stat icon="cube-outline" label="Total distributed" value="0" width={statWidth} />
@@ -657,6 +659,9 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
                 onPress={() => handleNavigate("Profile")}
               />
             </View>
+
+            {/* Campaigns from all NGOs (including this one) */}
+            <AmashaCampaignFeedSection />
           </View>
         </ScrollView>
       </View>

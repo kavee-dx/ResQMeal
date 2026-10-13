@@ -17,6 +17,7 @@ import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import { useIsWide } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import LogoutButton from '../components/kaveesha-LogoutButton';
+import AmashaCampaignFeedSection from '@/components/amasha-CampaignFeedSection';
 import {
   getMyFoodRequests,
   getOpenFoodRequests,
@@ -410,6 +411,12 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
               </View>
             </View>
           </View>
+
+          {/* Campaigns posted by NGOs */}
+          <AmashaCampaignFeedSection
+            title="NGO campaigns"
+            subtitle="Food drives and surplus pickups near you"
+          />
         </View>
       </ScrollView>
     </View>

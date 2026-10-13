@@ -1,13 +1,11 @@
 export type CampaignCategory =
   | 'surplus_pickup'
   | 'food_drive'
-  | 'volunteer_call'
   | 'awareness';
 
 export const CAMPAIGN_CATEGORIES: { value: CampaignCategory; label: string }[] = [
   { value: 'surplus_pickup', label: 'Surplus pickup' },
   { value: 'food_drive', label: 'Food drive' },
-  { value: 'volunteer_call', label: 'Volunteer call' },
   { value: 'awareness', label: 'Awareness' },
 ];
 
@@ -39,4 +37,6 @@ export interface CampaignPost {
   imageUrl?: string; // relative path, e.g. /uploads/campaigns/123.jpg
   status: 'active' | 'closed';
   createdAt: string;
+  // Present in the community feed (public endpoint) only
+  ngoName?: string;
 }

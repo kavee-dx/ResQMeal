@@ -52,6 +52,8 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import type { RootStackParamList } from "../navigation/types";
 import { registerForPushNotificationsAsync } from "@/services/kaveesha-pushNotificationService";
+import api from "@/services/api";
+import type { CampaignPost } from "@/types/amasha-campaign";
 
 import {
   Colors,
@@ -68,7 +70,6 @@ import {
   MOCK_CATEGORIES,
   MOCK_COMMUNITY_POSTS,
   MOCK_IMPACT,
-  MOCK_NGO_CAMPAIGNS,
   MOCK_RECIPIENTS,
 } from "../constants/kaveesha-mockData";
 
@@ -3025,6 +3026,30 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
   }, []);
 
   /* ======================================================= */
+  /* NGO CAMPAIGNS (community feed)                          */
+  /* ======================================================= */
+
+  const [campaigns, setCampaigns] = useState<CampaignPost[]>([]);
+
+  const [campaignsLoading, setCampaignsLoading] = useState(true);
+
+  const loadCampaigns = useCallback(async () => {
+    try {
+      setCampaignsLoading(true);
+
+      const res = await api.get("/campaigns");
+
+      setCampaigns(res.data.campaigns ?? []);
+    } catch (error) {
+      console.error("[DonorHome] Failed to load campaigns:", error);
+
+      setCampaigns([]);
+    } finally {
+      setCampaignsLoading(false);
+    }
+  }, []);
+
+  /* ======================================================= */
   /* EXPIRY NOTIFICATIONS                                    */
   /* ======================================================= */
 
@@ -3075,7 +3100,8 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
     useCallback(() => {
       loadDonations();
       loadNotifications(false);
-    }, [loadDonations, loadNotifications]),
+      loadCampaigns();
+    }, [loadDonations, loadNotifications, loadCampaigns]),
   );
 
   const openNotifications = useCallback(() => {
@@ -3989,22 +4015,39 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
                 onViewAll={() => {}}
               />
 
-              {renderCards(
-                MOCK_NGO_CAMPAIGNS,
-                (campaign, width) => (
-                  <InfoCard
-                    key={campaign.id}
-                    width={width}
-                    icon="hand-left"
-                    title={campaign.title}
-                    subtitle={campaign.orgName}
-                    metaIcon="location-outline"
-                    metaText={campaign.location}
-                    footerText={campaign.goalText}
-                    badgeLabel="NGO"
-                  />
-                ),
-                "No campaigns yet.",
+              {campaignsLoading ? (
+                <ActivityIndicator
+                  color={c.primary}
+                  style={{ marginTop: Spacing.four }}
+                />
+              ) : (
+                renderCards(
+                  campaigns.map((campaign) => ({ ...campaign, id: campaign._id })),
+                  (campaign, width) => (
+                    <InfoCard
+                      key={campaign._id}
+                      width={width}
+                      icon="hand-left"
+                      title={campaign.title}
+                      subtitle={campaign.ngoName ?? "NGO"}
+                      metaIcon="location-outline"
+                      metaText={campaign.location}
+                      footerText={
+                        campaign.targetMeals
+                          ? `Target: ${campaign.targetMeals} meals`
+                          : `${new Date(campaign.startDate).toLocaleDateString(
+                              "en-GB",
+                              { day: "numeric", month: "short" },
+                            )} – ${new Date(campaign.endDate).toLocaleDateString(
+                              "en-GB",
+                              { day: "numeric", month: "short" },
+                            )}`
+                      }
+                      badgeLabel="NGO"
+                    />
+                  ),
+                  "No campaigns yet.",
+                )
               )}
             </View>
 

@@ -61,6 +61,16 @@ export interface OpenFoodRequest {
   preferredAt: string | null;
   expiresAt: string;
   createdAt: string;
+  /**
+   * Present only on a request the signed-in donor already claimed. The board
+   * keeps those posts on the donor's list with the recipient's phone and the
+   * stage timestamps so progress can be shown.
+   */
+  claimedByMe?: boolean;
+  contactNumber?: string;
+  acceptedAt?: string | null;
+  dispatchedAt?: string | null;
+  fulfilledAt?: string | null;
 }
 
 /** What a donor gets back after claiming a request — now with contact details. */

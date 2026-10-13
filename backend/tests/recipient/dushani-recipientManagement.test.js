@@ -376,16 +376,18 @@ describe('getRequestProgress (sprint item 3)', () => {
       'DISPATCHED',
       'FULFILLED',
     ]);
+    // Nothing has been accepted yet, so "Accepted by a donor" is the active
+    // step the recipient is waiting on, not a completed one.
     expect(timeline.map((entry) => entry.state)).toEqual([
       'done',
-      'upcoming',
+      'current',
       'upcoming',
       'upcoming',
     ]);
     expect(timeline[0].at).toEqual(new Date('2026-09-23T09:00:00.000Z'));
   });
 
-  it('marks an accepted request as the current step', async () => {
+  it('ticks the accepted step once a donor claims it', async () => {
     mockFound(stubRequest({ status: 'MATCHED' }));
     const { progress, timeline } = await getRequestProgress('recipient1', 'req1');
 
@@ -397,8 +399,8 @@ describe('getRequestProgress (sprint item 3)', () => {
     });
     expect(timeline.map((entry) => entry.state)).toEqual([
       'done',
+      'done',
       'current',
-      'upcoming',
       'upcoming',
     ]);
     expect(timeline[1].at).toEqual(new Date('2026-09-23T10:30:00.000Z'));
@@ -417,8 +419,8 @@ describe('getRequestProgress (sprint item 3)', () => {
     expect(timeline.map((entry) => entry.state)).toEqual([
       'done',
       'done',
+      'done',
       'current',
-      'upcoming',
     ]);
     expect(timeline[2].at).toEqual(new Date('2026-09-23T10:30:00.000Z'));
   });
@@ -666,6 +668,54 @@ describe('getOpenRequests (sprint item 4)', () => {
     const result = await getOpenRequests();
 
     expect(result[0].recipientName).toBe('A ResQMeal recipient');
+  });
+
+  it('keeps the donor’s own claimed requests on the board, first and with the phone number', async () => {
+    const open = [
+      doc({
+        _id: { toString: () => 'open1' },
+        urgency: 'NORMAL',
+        status: 'PENDING',
+        recipient: { _id: 'user5', fullName: 'Dushani Naveendhya' },
+      }),
+    ];
+    const claims = [
+      doc({
+        _id: { toString: () => 'claim1' },
+        status: 'MATCHED',
+        contactNumber: '0771234567',
+        acceptedAt: new Date('2026-10-10T09:00:00.000Z'),
+        recipient: { _id: 'user6', fullName: 'Kamala Perera' },
+      }),
+    ];
+
+    const chain = (docs) => ({
+      sort: () => ({
+        select: () => ({ populate: () => ({ lean: () => Promise.resolve(docs) }) }),
+      }),
+    });
+    jest.spyOn(FoodRequest, 'find').mockImplementation((query) => {
+      if (query.status === 'PENDING') return chain(open);
+      // The claims query filters by acceptedBy + a list of live stages.
+      expect(query.acceptedBy).toBe('donorX');
+      expect(query.status.$in).toEqual(['MATCHED', 'DISPATCHED', 'FULFILLED']);
+      return chain(claims);
+    });
+
+    const result = await getOpenRequests({ donorId: 'donorX' });
+
+    expect(result.map((request) => request.id)).toEqual(['claim1', 'open1']);
+    expect(result[0]).toMatchObject({
+      claimedByMe: true,
+      status: 'MATCHED',
+      contactNumber: '0771234567',
+      recipientName: 'Kamala Perera',
+    });
+    expect(result[0].acceptedAt).toEqual(new Date('2026-10-10T09:00:00.000Z'));
+    // An open request the donor has not claimed carries none of the private
+    // claim fields, so the phone number still stays withheld.
+    expect(result[1].claimedByMe).toBeUndefined();
+    expect(result[1].contactNumber).toBeUndefined();
   });
 });
 

@@ -29,7 +29,8 @@ type TabKey = "Home" | "Map" | "Create" | "Dashboard" | "Profile";
 /* ---- Route names (must match RootStackParamList + AppNavigator) ---- */
 const ROUTES = {
   dashboard: "NgoDashboard",
-  map: "MonitoringMap",
+  // Same Food Rescue Map every other role sees (filters + Near Me).
+  map: "FoodRescueMap",
   profile: "Profile",
   createCampaign: "NgoCampaign" as string | null,
 } as const;
@@ -656,7 +657,7 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
               />
               <QuickAction
                 icon="map-outline"
-                label="Monitoring map"
+                label="Rescue map"
                 onPress={() => handleNavigate("Map")}
               />
               <QuickAction

@@ -10,7 +10,6 @@ import { CreateDonationProvider } from '../context/kaveesha-CreateDonationContex
 
 import TypeSelectScreen from '../screens/donation-flow/kaveesha-TypeSelectScreen';
 import DetailsScreen from '../screens/donation-flow/kaveesha-DetailsScreen';
-import AnalysisScreen from '../screens/donation-flow/kaveesha-AnalysisScreen';
 import SafetyCheckScreen from '../screens/donation-flow/kaveesha-SafetyCheckScreen';
 import ReviewScreen from '../screens/donation-flow/kaveesha-ReviewScreen';
 
@@ -35,11 +34,6 @@ export default function KaveeshaCreateDonationNavigator() {
         <Stack.Screen
           name="Details"
           component={DetailsScreen}
-        />
-
-        <Stack.Screen
-          name="Analysis"
-          component={AnalysisScreen}
         />
 
         <Stack.Screen

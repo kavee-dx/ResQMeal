@@ -60,9 +60,20 @@ async function analyzePhoto(req, res) {
       error?.response?.data || error.message,
     );
 
+    // The free tier regularly returns 503/429 or times out under load. Tell
+    // the app it is worth another tap rather than a mysterious failure.
+    const upstreamStatus = error?.response?.status;
+    const busy =
+      upstreamStatus === 503 ||
+      upstreamStatus === 429 ||
+      ["ECONNABORTED", "ETIMEDOUT", "ECONNREFUSED"].includes(error?.code);
+
     return res.status(502).json({
       success: false,
-      message: "Could not analyze the photo right now. Please try again.",
+      retryable: true,
+      message: busy
+        ? "The free AI service is busy right now — please try again in a moment."
+        : "Could not analyze the photo right now. Please try again.",
     });
   }
 }

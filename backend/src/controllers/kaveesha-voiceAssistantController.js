@@ -3,7 +3,11 @@
 // Owner: Kaveesha
 
 const {
-  transcribeVoiceAnswer,
+  transcribeVoiceAnswer: transcribeWithGroq,
+} = require("../services/kaveesha-groqAudioService");
+
+const {
+  transcribeVoiceAnswer: transcribeWithGemini,
 } = require("../services/kaveesha-geminiAudioService");
 
 const MAX_BASE64_LENGTH = 12 * 1024 * 1024;
@@ -40,13 +44,43 @@ async function transcribeAnswer(req, res) {
         ? mimeType
         : "audio/mp4";
 
-    const answer = await transcribeVoiceAnswer(
-      audioBase64,
-      safeMimeType,
-      typeof question === "string" ? question : "",
-      typeof fieldLabel === "string" ? fieldLabel : "answer",
-      typeof formatHint === "string" ? formatHint : undefined
-    );
+    const cleanQuestion = typeof question === "string" ? question : "";
+    const cleanFieldLabel =
+      typeof fieldLabel === "string" ? fieldLabel : "answer";
+    const cleanFormatHint =
+      typeof formatHint === "string" ? formatHint : undefined;
+
+    // Prefer Groq Whisper (free, faster/steadier). If it is not configured or
+    // fails, transparently fall back to the free Gemini service so the voice
+    // assistant keeps working rather than erroring out.
+    let answer;
+    const groqConfigured = Boolean(process.env.GROQ_API_KEY);
+
+    if (groqConfigured) {
+      try {
+        answer = await transcribeWithGroq(audioBase64, safeMimeType);
+      } catch (groqError) {
+        console.warn(
+          "⚠️ Groq transcription failed, falling back to Gemini:",
+          groqError?.message || groqError
+        );
+        answer = await transcribeWithGemini(
+          audioBase64,
+          safeMimeType,
+          cleanQuestion,
+          cleanFieldLabel,
+          cleanFormatHint
+        );
+      }
+    } else {
+      answer = await transcribeWithGemini(
+        audioBase64,
+        safeMimeType,
+        cleanQuestion,
+        cleanFieldLabel,
+        cleanFormatHint
+      );
+    }
 
     return res.status(200).json({
       success: true,
@@ -60,6 +94,8 @@ async function transcribeAnswer(req, res) {
 
     return res.status(502).json({
       success: false,
+      // "retryable" tells the frontend it's safe to offer Try again / typing.
+      retryable: true,
       message:
         error?.response?.data?.error?.message ||
         error?.message ||

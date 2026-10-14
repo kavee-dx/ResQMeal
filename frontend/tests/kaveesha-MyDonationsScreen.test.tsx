@@ -56,7 +56,7 @@ describe('MyDonationsScreen', () => {
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText('No donations in this category yet.')).toBeTruthy();
+      expect(screen.getByText('No donations yet')).toBeTruthy();
     });
   });
 
@@ -83,8 +83,10 @@ describe('MyDonationsScreen', () => {
     renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText('Active')).toBeTruthy();
-      expect(screen.getByText('Pending')).toBeTruthy();
+      // Each status appears twice: once on its filter pill, once on the card
+      // photo overlay.
+      expect(screen.getAllByText('Active').length).toBe(2);
+      expect(screen.getAllByText('Pending').length).toBe(2);
     });
   });
 });

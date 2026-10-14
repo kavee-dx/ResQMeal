@@ -9,7 +9,7 @@
 // Owner: Kaveesha
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Easing } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Animated, Easing, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Speech from 'expo-speech';
 import {
@@ -93,7 +93,7 @@ const QUESTIONS: VoiceQuestion[] = [
   },
 ];
 
-type Phase = 'speaking' | 'ready' | 'recording' | 'processing' | 'done';
+type Phase = 'speaking' | 'ready' | 'recording' | 'processing' | 'typing' | 'done';
 
 interface Props {
   visible: boolean;
@@ -104,6 +104,7 @@ export default function KaveeshaVoiceAssistantModal({ visible, onComplete }: Pro
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('speaking');
   const [error, setError] = useState<string | null>(null);
+  const [manualText, setManualText] = useState('');
   const answersRef = useRef<Partial<Record<VoiceFieldKey, string>>>({});
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const pulse = useRef(new Animated.Value(1)).current;
@@ -272,9 +273,10 @@ export default function KaveeshaVoiceAssistantModal({ visible, onComplete }: Pro
     );
 
     setError(
-      err?.response?.data?.message ||
-      err?.message ||
-      "Sorry, I couldn't catch that. Try again."
+      (err?.response?.data?.message ||
+        err?.message ||
+        "Sorry, I couldn't catch that.") +
+        " Tap the mic to try again, or type your answer."
     );
 
     setPhase('ready');
@@ -282,6 +284,26 @@ export default function KaveeshaVoiceAssistantModal({ visible, onComplete }: Pro
 };
 
   const skipQuestion = () => {
+    setError(null);
+    goToNextQuestion();
+  };
+
+  // Let the donor type an answer instead of speaking — used when the mic or
+  // the transcription service is unavailable so the form can always be finished.
+  const openTypingMode = () => {
+    Speech.stop();
+    setError(null);
+    // Pre-fill with anything already captured for this field.
+    setManualText(answersRef.current[question.field] ?? '');
+    setPhase('typing');
+  };
+
+  const saveManualAnswer = () => {
+    const value = manualText.trim();
+    if (value) {
+      answersRef.current[question.field] = value;
+    }
+    setManualText('');
     setError(null);
     goToNextQuestion();
   };
@@ -358,14 +380,56 @@ export default function KaveeshaVoiceAssistantModal({ visible, onComplete }: Pro
                 <Text style={styles.statusText}>Filling in your form...</Text>
               </>
             )}
+
+            {phase === 'typing' && (
+              <View style={styles.typeWrap}>
+                <Text style={styles.typeHint}>
+                  Type your answer for “{question.label}”.
+                </Text>
+                <TextInput
+                  style={styles.typeInput}
+                  value={manualText}
+                  onChangeText={setManualText}
+                  placeholder="Type here..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  autoCapitalize="sentences"
+                  autoCorrect
+                />
+              </View>
+            )}
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {(phase === 'ready' || phase === 'recording') && (
-            <TouchableOpacity onPress={skipQuestion} style={styles.skipButton}>
-              <Text style={styles.skipText}>Skip this question</Text>
-            </TouchableOpacity>
+          {phase === 'typing' ? (
+            <>
+              <TouchableOpacity
+                onPress={saveManualAnswer}
+                style={styles.primaryActionButton}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryActionText}>Save & continue</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setPhase('ready')} style={styles.linkButton}>
+                <Text style={styles.linkText}>Back to mic</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {(phase === 'ready' || phase === 'recording') && (
+                <TouchableOpacity onPress={openTypingMode} style={styles.linkButton}>
+                  <Ionicons name="create-outline" size={15} color={colors.primary} />
+                  <Text style={styles.linkText}>Type your answer instead</Text>
+                </TouchableOpacity>
+              )}
+
+              {(phase === 'ready' || phase === 'recording') && (
+                <TouchableOpacity onPress={skipQuestion} style={styles.skipButton}>
+                  <Text style={styles.skipText}>Skip this question</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
 
           {phase !== 'done' && (
@@ -451,4 +515,34 @@ const styles = StyleSheet.create({
   skipText: { ...typography.label, color: colors.primary },
   cancelButton: { paddingVertical: 8, marginTop: 2 },
   cancelText: { ...typography.bodySmall, color: colors.textMuted },
+  typeWrap: { alignSelf: 'stretch', width: '100%' },
+  typeHint: { ...typography.bodySmall, color: colors.textSecondary, marginBottom: spacing.sm },
+  typeInput: {
+    ...typography.body,
+    color: colors.textPrimary,
+    minHeight: 90,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    textAlignVertical: 'top',
+  },
+  primaryActionButton: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  primaryActionText: { ...typography.label, color: colors.white },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+  },
+  linkText: { ...typography.label, color: colors.primary },
 });

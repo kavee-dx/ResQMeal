@@ -11,6 +11,7 @@ const CATEGORIES = {
   ASSIGNMENT: "ASSIGNMENT",
   DELIVERY: "DELIVERY",
   CAMPAIGN: "CAMPAIGN",
+  CHAT: "CHAT",
 };
 
 const PRIORITIES = ["low", "normal", "high"];
@@ -241,6 +242,26 @@ const NOTIFICATION_EVENTS = {
         .join(", "),
     }),
     trigger: "createCampaign, after the campaign is saved",
+  },
+
+  // ----- New chat message in a room the user belongs to -------------------
+  // Fired from the chat sendMessage path for every OTHER participant, so the
+  // person who just wrote the message is never alerted about their own text.
+  // dedupe returns null: each new message is its own alert.
+  CHAT_NEW_MESSAGE: {
+    category: CATEGORIES.CHAT,
+    roles: ["DONOR", "RECIPIENT", "NGO", "VOLUNTEER"],
+    priority: "normal",
+    target: { type: "chat", idKey: "contextId" },
+    dedupe: () => null,
+    build: (d) => ({
+      title:
+        d.contextType === "campaign"
+          ? `New message on "${d.title}"`
+          : `New rescue chat message`,
+      body: `${d.senderName || "Someone"}: ${d.text || "New message"}`,
+    }),
+    trigger: "amasha-chatController sendMessage(), after the message is saved",
   },
 };
 

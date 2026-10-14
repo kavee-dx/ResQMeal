@@ -18,6 +18,7 @@ import { useIsWide, useBreakpoints } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import LogoutButton from '../components/kaveesha-LogoutButton';
 import AmashaCampaignFeedSection from '@/components/amasha-CampaignFeedSection';
+import AmashaHomeNotificationBell from '@/components/amasha-HomeNotificationBell';
 import {
   getMyFoodRequests,
   getOpenFoodRequests,
@@ -279,10 +280,15 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                   a donor — in one place.
                 </Text>
               </View>
-              <LogoutButton navigation={navigation} compact />
+                <AmashaHomeNotificationBell
+                  background="rgba(255,255,255,0.14)"
+                  border="rgba(255,255,255,0.28)"
+                  iconColor={C.amber}
+                />
+                <LogoutButton navigation={navigation} compact />
+              </View>
             </View>
           </View>
-        </View>
 
         <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
           <View style={styles.strip}>
@@ -402,6 +408,13 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                 subtitle="Every request that has already closed — the food you received, the ones no donor claimed and the ones you cancelled."
                 action="Open my history"
                 onPress={() => navigation.navigate('RequestHistory')}
+              />
+              <BigTile
+                icon="chatbubbles-outline"
+                title="My chats"
+                subtitle="Every rescue chat you have with a donor you asked for food — kept here even after you close the app."
+                action="Open my chats"
+                onPress={() => navigation.navigate('ChatList')}
               />
 
               <View style={styles.footNote}>

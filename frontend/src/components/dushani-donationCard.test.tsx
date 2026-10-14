@@ -27,6 +27,7 @@ function donation(overrides: Partial<BrowseDonation> = {}): BrowseDonation {
     distanceTier: 0,
     inOwnDistrict: true,
     donorName: "Nimal's Kitchen",
+    donorId: 'donor-user-1',
     answering: {
       requestId: 'req1',
       requestFood: 'Cooked Rice',

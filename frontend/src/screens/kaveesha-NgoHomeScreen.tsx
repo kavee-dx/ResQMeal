@@ -18,6 +18,7 @@ import { getGreeting } from "../utils/kaveesha-greeting";
 import type { RootStackParamList } from "../navigation/types";
 import LogoutButton from "../components/kaveesha-LogoutButton";
 import AmashaCampaignFeedSection from "@/components/amasha-CampaignFeedSection";
+import AmashaHomeNotificationBell from "@/components/amasha-HomeNotificationBell";
 import { getMyProfile } from "@/services/dilshara-profileService";
 import api from "@/services/api";
 
@@ -464,7 +465,10 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
             ]}
           >
             <Brand />
-            <LogoutButton navigation={navigation} compact />
+            <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.two }}>
+              <AmashaHomeNotificationBell size={40} />
+              <LogoutButton navigation={navigation} compact />
+            </View>
           </View>
         )}
 
@@ -495,7 +499,14 @@ export default function NgoHomeScreen({ navigation, route }: Props) {
               <View style={{ flex: 1 }}>
                 <WelcomeHeader name={displayName} />
               </View>
-              {isDesktop && <LogoutButton navigation={navigation} compact />}
+              {isDesktop && (
+                <View
+                  style={{ flexDirection: "row", alignItems: "center", gap: Spacing.two }}
+                >
+                  <AmashaHomeNotificationBell />
+                  <LogoutButton navigation={navigation} compact />
+                </View>
+              )}
             </View>
 
             {/* Hero */}

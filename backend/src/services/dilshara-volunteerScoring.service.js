@@ -116,7 +116,10 @@ function buildReasons({ route, maxDistanceKm, area, coverage, urgent, availableN
 function scoreCandidate(candidate, context, evaluation) {
   const { route, maxDistanceKm, coverage } = evaluation.details;
 
-  const area = scoreArea(candidate.profile?.preferredDeliveryArea, context);
+  const area = scoreArea(
+    candidate.profile?.preferredDeliveryArea || candidate.preferences?.preferredDeliveryArea,
+    context,
+  );
   const availableNow = candidate.availability
     ? isWithinAvailability(candidate.availability, context.now)
     : false;
@@ -148,7 +151,10 @@ function scoreCandidate(candidate, context, evaluation) {
     volunteer: {
       displayName: candidate.user?.fullName || "Volunteer",
       vehicleType: candidate.profile?.vehicleType || null,
-      preferredDeliveryArea: candidate.profile?.preferredDeliveryArea || null,
+      preferredDeliveryArea:
+        candidate.profile?.preferredDeliveryArea ||
+        candidate.preferences?.preferredDeliveryArea ||
+        null,
     },
     score: total,
     breakdown,

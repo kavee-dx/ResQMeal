@@ -38,6 +38,20 @@ const volunteerDeliveryPreferencesSchema = new Schema(
       },
     },
 
+    preferredDeliveryArea: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 100,
+    },
+
+    preferredDeliveryTime: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 50,
+    },
+
     // Base location used ONLY for matching. Live GPS during a delivery
     // is a separate concept and must never be stored here.
     location: {

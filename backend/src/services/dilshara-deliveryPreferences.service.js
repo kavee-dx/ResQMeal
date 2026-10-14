@@ -13,8 +13,10 @@ async function getDeliveryPreferences(userId) {
   ]);
 
   return {
-    preferredDeliveryArea: profile?.preferredDeliveryArea ?? "",
-    preferredDeliveryTime: profile?.preferredDeliveryTime ?? "",
+    preferredDeliveryArea:
+      profile?.preferredDeliveryArea || preferences?.preferredDeliveryArea || "",
+    preferredDeliveryTime:
+      profile?.preferredDeliveryTime || preferences?.preferredDeliveryTime || "",
     maxDeliveryDistance: preferences?.maxDeliveryDistance ?? null,
     location: {
       latitude: preferences?.location?.latitude ?? null,
@@ -26,25 +28,14 @@ async function getDeliveryPreferences(userId) {
 async function updateDeliveryPreferences(userId, payload) {
   const { preferredDeliveryArea, preferredDeliveryTime, maxDeliveryDistance, location } = payload;
 
-  // 1. Only touch the two existing profile fields — no schema change to Dushani's model.
-  const profileUpdate = { preferredDeliveryArea: preferredDeliveryArea.trim() };
+  const preferencesUpdate = {
+    preferredDeliveryArea: preferredDeliveryArea.trim(),
+    maxDeliveryDistance,
+  };
   if (preferredDeliveryTime !== undefined) {
-    profileUpdate.preferredDeliveryTime = preferredDeliveryTime.trim();
+    preferencesUpdate.preferredDeliveryTime = preferredDeliveryTime.trim();
   }
 
-  const profile = await VolunteerProfile.findOneAndUpdate(
-    { userId },
-    { $set: profileUpdate },
-    { new: true, runValidators: true }
-  );
-
-  // Done first so nothing is written to preferences for a volunteer without a profile.
-  if (!profile) {
-    throw new Error("PROFILE_NOT_FOUND");
-  }
-
-  // 2. Matching-specific data owned by this component.
-  const preferencesUpdate = { maxDeliveryDistance };
   if (location) {
     preferencesUpdate["location.latitude"] = location.latitude;
     preferencesUpdate["location.longitude"] = location.longitude;
@@ -53,8 +44,20 @@ async function updateDeliveryPreferences(userId, payload) {
 
   await VolunteerDeliveryPreferences.findOneAndUpdate(
     { userId },
-    { $set: preferencesUpdate },
+    { $set: preferencesUpdate, $setOnInsert: { userId } },
     { new: true, upsert: true, runValidators: true }
+  );
+
+  // Keep existing volunteer profile fields synchronized when a profile exists,
+  // but do not make saving matching preferences depend on that separate record.
+  const profileUpdate = { preferredDeliveryArea: preferredDeliveryArea.trim() };
+  if (preferredDeliveryTime !== undefined) {
+    profileUpdate.preferredDeliveryTime = preferredDeliveryTime.trim();
+  }
+  await VolunteerProfile.findOneAndUpdate(
+    { userId },
+    { $set: profileUpdate },
+    { new: true, runValidators: true }
   );
 
   return getDeliveryPreferences(userId);

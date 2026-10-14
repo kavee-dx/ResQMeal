@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import RecipientAskPanel from './dushani-recipientAskPanel';
 import { getDonationAsks } from '../services/dushani-foodRequestApi';
@@ -39,8 +39,12 @@ function ask(overrides: Partial<DonationAsk> = {}): DonationAsk {
   };
 }
 
-async function renderPanel() {
-  await render(<RecipientAskPanel donationId="don1" />);
+async function renderPanel(
+  onConfirmDelivery?: (item: DonationAsk) => void,
+) {
+  await render(
+    <RecipientAskPanel donationId="don1" onConfirmDelivery={onConfirmDelivery} />,
+  );
   await waitFor(() => expect(load).toHaveBeenCalledWith('don1'));
 }
 
@@ -101,6 +105,39 @@ describe('recipient asks panel — what the donor sees', () => {
 
     expect(screen.getByText('That request has since closed — it no longer needs food')).toBeTruthy();
     expect(screen.queryByText('URGENT')).toBeNull();
+  });
+
+  it('lets the donor confirm a waiting request before volunteer matching', async () => {
+    const onConfirmDelivery = jest.fn();
+    const waitingAsk = ask();
+    load.mockResolvedValue({
+      donationId: 'don1',
+      donationCode: null,
+      count: 1,
+      requests: [waitingAsk],
+    });
+    await renderPanel(onConfirmDelivery);
+
+    fireEvent.press(
+      screen.getByLabelText(
+        'Confirm Lighthouse Home and suggest a delivery volunteer',
+      ),
+    );
+    expect(onConfirmDelivery).toHaveBeenCalledWith(waitingAsk);
+  });
+
+  it('does not offer confirmation for a closed request', async () => {
+    load.mockResolvedValue({
+      donationId: 'don1',
+      donationCode: null,
+      count: 1,
+      requests: [ask({ stillWaiting: false })],
+    });
+    await renderPanel(jest.fn());
+
+    expect(
+      screen.queryByText('Confirm recipient & suggest volunteer'),
+    ).toBeNull();
   });
 
   it('hides itself when the caller cannot read the asks', async () => {

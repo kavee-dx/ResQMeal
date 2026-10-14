@@ -129,14 +129,28 @@ export default function VolunteerSuggestionsScreen({ route, navigation }: Props)
   const [error, setError] = useState<string | null>(null);
   const [assigningVolunteerId, setAssigningVolunteerId] = useState<string | null>(null);
   const [assigned, setAssigned] = useState(false);
+  const [needsRecipient, setNeedsRecipient] = useState(false);
+  // True when another donor action has already created an active assignment.
+  const [alreadyAssigned, setAlreadyAssigned] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setAlreadyAssigned(false);
+    setNeedsRecipient(false);
     try {
       setResult(await getVolunteerSuggestions(donationId));
     } catch (loadError) {
-      setError(errorMessage(loadError, "Could not load volunteer suggestions."));
+      setResult(null);
+      const code = (loadError as { response?: { data?: { code?: string } } })
+        ?.response?.data?.code;
+      if (code === "ALREADY_ASSIGNED") {
+        setAlreadyAssigned(true);
+      } else if (code === "REQUEST_NOT_FOUND") {
+        setNeedsRecipient(true);
+      } else {
+        setError(errorMessage(loadError, "Could not load volunteer suggestions."));
+      }
     } finally {
       setLoading(false);
     }
@@ -228,6 +242,40 @@ export default function VolunteerSuggestionsScreen({ route, navigation }: Props)
             style={styles.secondaryButton}
           >
             <Text style={styles.secondaryText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      ) : alreadyAssigned ? (
+        <View style={styles.centerState}>
+          <View style={styles.successIcon}>
+            <Ionicons name="checkmark" size={30} color={Colors.light.success} />
+          </View>
+          <Text style={styles.stateTitle}>A volunteer has already been selected</Text>
+          <Text style={styles.stateBody}>
+            This delivery is awaiting the selected volunteer's acceptance. You will
+            be notified when they accept and start the pickup.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => navigation.navigate("MyDonations")}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      ) : needsRecipient ? (
+        <View style={styles.centerState}>
+          <Ionicons name="people-outline" size={34} color={Colors.light.textMuted} />
+          <Text style={styles.stateTitle}>Confirm a recipient first</Text>
+          <Text style={styles.stateBody}>
+            Volunteer matching starts after you choose a live recipient request
+            and link it to this donation. No volunteer assignment has been made.
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={() => navigation.navigate("RecipientSuggestions", { donationId })}
+            style={styles.secondaryButton}
+          >
+            <Text style={styles.secondaryText}>Choose a recipient</Text>
           </TouchableOpacity>
         </View>
       ) : loading ? (

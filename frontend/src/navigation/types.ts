@@ -67,6 +67,9 @@ export type RootStackParamList = {
   MonitoringMap: undefined;
   NgoDashboard: undefined;
 
+  // NGO campaign management (create / edit / delete)
+  NgoCampaign: undefined;
+
   // Food rescue map — donors, available food, recipients and NGOs (all roles)
   FoodRescueMap: undefined;
 

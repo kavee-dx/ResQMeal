@@ -19,6 +19,7 @@ import VolunteerHeroBanner from "../components/dilshara-VolunteerHeroBanner";
 import VolunteerStatCard from "../components/dilshara-VolunteerStatCard";
 import VolunteerBottomNav from "../components/dilshara-VolunteerBottomNav";
 import VolunteerDrawer from "../components/dilshara-VolunteerDrawer";
+import AmashaCampaignFeedSection from "@/components/amasha-CampaignFeedSection";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VolunteerHome">;
 
@@ -178,6 +179,12 @@ export default function VolunteerHomeScreen({ route }: Props) {
           />
           <Text style={{ ...T.button, color: theme.textOnPrimary }}>View My Assignments</Text>
         </TouchableOpacity>
+
+        {/* Campaigns posted by NGOs */}
+        <AmashaCampaignFeedSection
+          title="NGO campaigns"
+          subtitle="Food drives you can help with"
+        />
       </ScrollView>
 
       <VolunteerBottomNav active="home" />

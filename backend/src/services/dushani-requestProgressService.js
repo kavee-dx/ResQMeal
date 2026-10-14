@@ -54,9 +54,14 @@ function buildTimeline(request, status) {
       state: 'done',
     },
     ...STAGES.map((stage, index) => {
+      // A donor stage is ticked the moment it actually happens: reaching a
+      // status marks that step done and moves the highlight to the next one.
+      // A stopped (expired / cancelled) track never reached any donor stage.
       let state = 'upcoming';
-      if (index < stageIndex) state = 'done';
-      else if (index === stageIndex) state = status === 'FULFILLED' ? 'done' : 'current';
+      if (!stopped) {
+        if (index <= stageIndex) state = 'done';
+        else if (index === stageIndex + 1) state = 'current';
+      }
 
       return {
         key: stage.key,

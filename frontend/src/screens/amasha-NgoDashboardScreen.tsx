@@ -5,6 +5,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import CommunityStatsSection from "@/components/communityMonitoring/amasha-CommunityStatsSection";
 import DonationStatusSection from "@/components/communityMonitoring/amasha-DonationStatusSection";
 import RequestStatusSection from "@/components/communityMonitoring/amasha-RequestStatusSection";
+import AmashaCampaignPostsSection from "@/components/communityMonitoring/amasha-CampaignPostsSection";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import api from "@/services/api";
 import FoodRescueTrendsSection from "@/components/communityMonitoring/amasha-FoodRescueTrendsSection";
@@ -58,6 +59,7 @@ export default function NgoDashboardScreen() {
         </Text>
       </Pressable>
       <CommunityStatsSection stats={stats} loading={loading} />
+      <AmashaCampaignPostsSection />
       <RequestStatusSection />
       <DonationStatusSection />
       <FoodRescueTrendsSection />

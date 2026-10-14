@@ -42,6 +42,7 @@ import VolunteerSuggestionsScreen from "../screens/dilshara-VolunteerSuggestions
 // Community monitoring (adjust file names if yours differ)
 import MonitoringMapScreen from "../screens/amasha-MonitoringMapScreen";
 import NgoDashboardScreen from "../screens/amasha-NgoDashboardScreen";
+import NgoCampaignScreen from "../screens/amasha-NgoCampaignScreen";
 import FoodRescueMapScreen from "../screens/amasha-FoodRescueMapScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -189,6 +190,13 @@ export default function AppNavigator({ initialAuth }: Props) {
           name="NgoDashboard"
           component={NgoDashboardScreen}
           options={{ headerShown: true, title: "Community Dashboard" }}
+        />
+
+        {/* NGO campaign management (create / edit / delete) */}
+        <Stack.Screen
+          name="NgoCampaign"
+          component={NgoCampaignScreen}
+          options={{ headerShown: false }}
         />
 
         {/* Donor */}

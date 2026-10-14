@@ -13,7 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
-import { useIsWide } from '../hooks/dushani-useWideLayout';
+import { useIsWide, useBreakpoints } from '../hooks/dushani-useWideLayout';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
@@ -76,11 +76,28 @@ const isClosed = (status: FoodRequestStatus) =>
   status === 'EXPIRED' || status === 'CANCELLED';
 
 // Inside the All tab the still-running requests come first and the closed ones
-// drop below them.
-const GROUPS: { key: string; title: string; statuses: FoodRequestStatus[] }[] = [
-  { key: 'LIVE', title: 'Live', statuses: ['PENDING', 'MATCHED', 'DISPATCHED'] },
-  { key: 'CLOSED', title: 'Expired', statuses: ['EXPIRED', 'CANCELLED'] },
-  { key: 'COLLECTED', title: 'Collected', statuses: ['FULFILLED'] },
+// drop below them. Expired and cancelled each get their own band so a heading
+// never claims a request ran out of time when the recipient called it off.
+const GROUPS: {
+  key: string;
+  title: string;
+  statuses: FoodRequestStatus[];
+  tone: 'live' | 'expired' | 'cancelled' | 'plain';
+}[] = [
+  {
+    key: 'LIVE',
+    title: '',
+    statuses: ['PENDING', 'MATCHED', 'DISPATCHED'],
+    tone: 'live',
+  },
+  { key: 'EXPIRED', title: 'Expired', statuses: ['EXPIRED'], tone: 'expired' },
+  {
+    key: 'CANCELLED',
+    title: 'Cancelled',
+    statuses: ['CANCELLED'],
+    tone: 'cancelled',
+  },
+  { key: 'COLLECTED', title: 'Collected', statuses: ['FULFILLED'], tone: 'plain' },
 ];
 
 // A past expiry date arrives from the server already reported as EXPIRED.
@@ -93,6 +110,38 @@ function formatExpiry(expiresAt?: string): string | null {
   if (hours <= 0) return `Expires in ${minutes} min`;
   return `Expires in ${hours}h ${minutes}m`;
 }
+
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+/** "3 Oct, 6:30 PM" — the raw toLocaleString() includes seconds and reads messy. */
+function formatMoment(iso?: string | null): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  const time = date.toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${date.getDate()} ${MONTHS[date.getMonth()]}, ${time}`;
+}
+
+// Requests that closed before the stage stamps existed fall back to the last
+// write, exactly as the history endpoint does.
+function closedMoment(item: FoodRequest): string | null {
+  const fallback = item.updatedAt ?? item.createdAt;
+  if (item.status === 'CANCELLED') {
+    return formatMoment(item.cancelledAt ?? fallback);
+  }
+  return formatMoment(item.expiresAt ?? fallback);
+}
+
+const CLOSED_REASON: Record<'EXPIRED' | 'CANCELLED', string> = {
+  EXPIRED: 'No donor claimed it in time',
+  CANCELLED: 'You cancelled this request',
+};
 
 /** Navy brand band behind the card — identical to the Create Request screen. */
 function Backdrop() {
@@ -109,6 +158,7 @@ function Backdrop() {
 export default function RequestStatusScreen({ navigation }: Props) {
   const T = useAppTypography();
   const wide = useIsWide();
+  const { isMobile } = useBreakpoints();
   const displayName = useDisplayName();
 
   const [requests, setRequests] = useState<FoodRequest[]>([]);
@@ -230,26 +280,48 @@ export default function RequestStatusScreen({ navigation }: Props) {
     </View>
   );
 
-  // A closed request gets a single muted row: no progress, no details.
+  // A closed request gets a quiet, compact row: what it was, why it ended, and
+  // when — with no progress link because there is nothing left to track.
   const renderClosedItem = (item: FoodRequest) => {
     const meta = STATUS_META[item.status];
+    const when = closedMoment(item);
+    const reason = CLOSED_REASON[item.status as 'EXPIRED' | 'CANCELLED'];
+
     return (
-      <View key={item._id} style={[styles.closedItem, wide && styles.gridFull]}>
-        <Text
-          style={{ ...T.labelStrong, fontSize: 13, color: C.textMuted, flex: 1 }}
-          numberOfLines={1}
-        >
-          {item.foodType}
-        </Text>
-        <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
-          <Ionicons
-            name={meta.icon}
-            size={12}
-            color={meta.text}
-            style={{ marginRight: 4 }}
-          />
-          <Text style={{ ...T.labelStrong, fontSize: 11, color: meta.text }}>
-            {meta.label}
+      <View
+        key={item._id}
+        style={[
+          styles.closedItem,
+          item.status === 'EXPIRED'
+            ? styles.closedExpired
+            : styles.closedCancelled,
+          wide && styles.gridFull,
+        ]}
+        accessibilityLabel={`${item.foodType}. ${reason}${
+          when ? `, ${when}` : ''
+        }`}
+      >
+        <View style={[styles.closedDot, { backgroundColor: meta.bg }]}>
+          <Ionicons name={meta.icon} size={13} color={meta.text} />
+        </View>
+        <View style={styles.closedText}>
+          <Text
+            style={{ ...T.labelStrong, fontSize: 14, color: C.navy }}
+            numberOfLines={1}
+          >
+            {item.foodType}
+          </Text>
+          <Text
+            style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, marginTop: 2 }}
+            numberOfLines={1}
+          >
+            {`${item.quantity} · ${item.location}`}
+          </Text>
+          <Text
+            style={{ ...T.caption, fontSize: 11, color: meta.text, marginTop: 3 }}
+            numberOfLines={1}
+          >
+            {when ? `${reason} · ${when}` : reason}
           </Text>
         </View>
       </View>
@@ -300,7 +372,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
           {isUrgent && (
             <View style={styles.urgentStrip}>
               <Text style={{ ...T.labelStrong, fontSize: 11, color: C.error, flex: 1 }}>
-                {expiry ?? 'Emergency request'}
+                Emergency — donors alerted first
               </Text>
               <Ionicons
                 name="notifications"
@@ -338,7 +410,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
             </View>
             <View style={styles.itemFootRight}>
               <Text style={{ ...T.caption, fontSize: 10, color: C.textMuted }} numberOfLines={1}>
-                {new Date(item.createdAt).toLocaleString()}
+                {`Posted ${formatMoment(item.createdAt) ?? ''}`}
               </Text>
               {expiry ? (
                 <Text
@@ -411,8 +483,12 @@ export default function RequestStatusScreen({ navigation }: Props) {
               onDone={() => loadRequests(false)}
             />
           ) : (
-            <Text style={{ ...T.bodySmall, fontSize: 11, color: C.textMuted }}>
-              Locked — a donor is handling this
+            // Only a delivered request reaches here — there is nothing to
+            // cancel, so the row reports when the food arrived instead.
+            <Text style={{ ...T.bodySmall, fontSize: 11, color: C.success }}>
+              {item.fulfilledAt
+                ? `Delivered ${formatMoment(item.fulfilledAt)}`
+                : 'Food received'}
             </Text>
           )}
 
@@ -461,7 +537,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
           />
         }
       >
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -484,8 +560,8 @@ export default function RequestStatusScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.page, wide && styles.pageWide]}>
-          <View style={styles.card}>
+        <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
+          <View style={[styles.card, isMobile && styles.cardMobile]}>
             <View style={styles.cardHead}>
               <View style={{ flex: 1 }}>
                 <Text style={{ ...T.labelStrong, fontSize: 13, color: C.navy }}>
@@ -519,7 +595,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
             </View>
 
             {!loading && !error && (
-              <View style={styles.tabs}>
+              <View style={[styles.tabs, isMobile && styles.tabsMobile]}>
                 {TABS.map((entry) => {
                   const active = entry.key === tab;
                   const count = countFor(entry.statuses);
@@ -528,7 +604,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
                       key={entry.key}
                       onPress={() => setTab(entry.key)}
                       activeOpacity={0.85}
-                      style={[styles.tab, active && styles.tabActive]}
+                      style={[styles.tab, isMobile && styles.tabMobile, active && styles.tabActive]}
                       accessibilityRole="tab"
                       accessibilityState={{ selected: active }}
                     >
@@ -595,9 +671,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
                   );
                   if (items.length === 0) return null;
 
-                  // The running requests need no heading — they are the list.
-                  // Only the closed ones are called out.
-                  if (group.key === 'LIVE') {
+                  if (group.tone === 'live') {
                     return (
                       <View key={group.key} style={wide ? styles.listGrid : undefined}>
                         {items.map(renderItem)}
@@ -605,42 +679,48 @@ export default function RequestStatusScreen({ navigation }: Props) {
                     );
                   }
 
-                  const expired = group.key === 'CLOSED';
+                  const accent =
+                    group.tone === 'expired'
+                      ? C.error
+                      : group.tone === 'cancelled'
+                        ? C.textMuted
+                        : null;
+
+                  // A quiet section divider: whitespace, a hairline, then the
+                  // label — the heading itself is never boxed or filled.
                   return (
-                    <View key={group.key}>
-                      <View
-                        style={[
-                          styles.sectionHead,
-                          expired && styles.sectionHeadExpired,
-                        ]}
-                      >
-                        {expired && (
+                    <View key={group.key} style={styles.section}>
+                      <View style={styles.sectionHead}>
+                        {accent && (
                           <Ionicons
-                            name="close-circle-outline"
-                            size={14}
-                            color={C.error}
-                            style={{ marginRight: Spacing.two }}
+                            name={
+                              group.tone === 'expired'
+                                ? 'time-outline'
+                                : 'ban-outline'
+                            }
+                            size={15}
+                            color={accent}
                           />
                         )}
                         <Text
                           style={{
                             ...T.labelStrong,
                             fontSize: 11,
-                            color: expired ? C.error : C.textMuted,
-                            letterSpacing: 0.6,
+                            color: C.navy,
+                            letterSpacing: 1.2,
                           }}
                         >
                           {group.title.toUpperCase()}
                         </Text>
-                        <View style={styles.sectionLine} />
+                        <View style={styles.sectionSpacer} />
                         <Text
                           style={{
                             ...T.caption,
                             fontSize: 11,
-                            color: expired ? C.error : C.textMuted,
+                            color: C.textMuted,
                           }}
                         >
-                          {items.length}
+                          {`${items.length} ${items.length === 1 ? 'request' : 'requests'}`}
                         </Text>
                       </View>
                       <View style={wide ? styles.listGrid : undefined}>
@@ -741,6 +821,9 @@ const styles = StyleSheet.create({
     maxWidth: 1160,
     paddingHorizontal: Spacing.five,
   },
+  pageMobile: {
+    paddingHorizontal: Spacing.three,
+  },
   listGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -760,6 +843,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.five,
     marginBottom: Spacing.five,
+  },
+  topBarMobile: {
+    paddingHorizontal: Spacing.three,
   },
   backButton: {
     width: 44,
@@ -801,6 +887,9 @@ const styles = StyleSheet.create({
     shadowRadius: 26,
     elevation: 10,
   },
+  cardMobile: {
+    padding: Spacing.four,
+  },
   cardHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -836,7 +925,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: C.cardBorder,
     padding: Spacing.four,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.four,
   },
   requestItemUrgent: {
     borderLeftWidth: 4,
@@ -848,13 +937,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     borderWidth: 1,
-    borderStyle: 'dashed',
     borderColor: C.cardBorder,
     borderRadius: Radius.md,
     backgroundColor: C.white,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    marginBottom: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.four,
+    marginBottom: Spacing.three,
+  },
+  closedExpired: {
+    backgroundColor: C.offWhite,
+    borderLeftWidth: 3,
+    borderLeftColor: C.error,
+  },
+  closedCancelled: {
+    backgroundColor: C.offWhite,
+    borderLeftWidth: 3,
+    borderLeftColor: C.cardBorder,
+  },
+  closedDot: {
+    width: 28,
+    height: 28,
+    borderRadius: Radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closedText: {
+    flex: 1,
   },
   itemHead: {
     flexDirection: 'row',
@@ -930,31 +1038,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
+  section: {
+    marginTop: Spacing.five,
+    paddingTop: Spacing.five,
+    borderTopWidth: 1,
+    borderTopColor: C.cardBorder,
+  },
   sectionHead: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginTop: Spacing.two,
-    marginBottom: Spacing.three,
+    marginBottom: Spacing.four,
   },
-  sectionHeadExpired: {
-    backgroundColor: C.errorSoft,
-    borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderWidth: 1,
-    borderColor: C.error,
-  },
-  sectionLine: {
+  sectionSpacer: {
     flex: 1,
-    height: 1,
-    backgroundColor: C.cardBorder,
   },
   tabs: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: Spacing.two,
     marginBottom: Spacing.four,
+  },
+  tabsMobile: {
+    gap: Spacing.one,
   },
   tab: {
     flexDirection: 'row',
@@ -970,6 +1076,11 @@ const styles = StyleSheet.create({
     backgroundColor: C.offWhite,
     paddingHorizontal: Spacing.two,
     gap: Spacing.two,
+  },
+  tabMobile: {
+    flexBasis: '48%',
+    minWidth: 80,
+    paddingHorizontal: Spacing.one,
   },
   tabActive: {
     backgroundColor: C.teal,

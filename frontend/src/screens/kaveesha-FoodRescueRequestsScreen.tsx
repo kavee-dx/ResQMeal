@@ -17,6 +17,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -58,6 +59,7 @@ import {
   updateFoodRequestStatus,
   type AcceptedFoodRequest,
   type FoodRequestAdvance,
+  type FoodRequestStatus,
   type OpenFoodRequest,
 } from '../services/dushani-foodRequestApi';
 
@@ -88,6 +90,11 @@ type FoodRequest = {
   closesIn: string;
   closingSoon: boolean;
   postedAt: string;
+  // The board also carries the requests this donor already claimed, so the
+  // post can stay on the list and reopen into its progress panel instead of
+  // the Donate button.
+  status: FoodRequestStatus;
+  claimedByMe: boolean;
 };
 
 /** A request either names a day or is an emergency with no chosen slot. */
@@ -172,6 +179,28 @@ function toFoodRequest(request: OpenFoodRequest): FoodRequest {
     closesIn: closing.text,
     closingSoon: closing.soon,
     postedAt: formatPosted(request.createdAt),
+    status: request.status,
+    claimedByMe: request.claimedByMe ?? false,
+  };
+}
+
+/**
+ * Rebuild the claim panel's data from a board entry the donor already owns, so
+ * reopening the post shows progress without a fresh accept call. The panel only
+ * reads status, contact, location, quantity and details.
+ */
+function toAccepted(request: OpenFoodRequest): AcceptedFoodRequest {
+  return {
+    id: request.id,
+    status: request.status,
+    foodType: request.foodType,
+    quantity: request.quantity,
+    location: request.location,
+    details: request.details ?? '',
+    contactNumber: request.contactNumber ?? '',
+    urgency: request.urgency,
+    preferredAt: request.preferredAt ?? null,
+    acceptedAt: request.acceptedAt ?? request.createdAt,
   };
 }
 
@@ -402,6 +431,24 @@ const s = StyleSheet.create({
     fontSize: 12,
   },
 
+  claimedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: c.successSoft,
+  },
+
+  claimedChipText: {
+    ...Typography.label,
+    fontSize: 11,
+    color: c.success,
+  },
+
   distanceText: {
     ...Typography.bodySmall,
     color: c.textMuted,
@@ -468,21 +515,6 @@ const s = StyleSheet.create({
     ...Typography.label,
     fontSize: 13,
     color: accent,
-  },
-
-  donateBtn: {
-    height: 40,
-    paddingHorizontal: 18,
-    borderRadius: Radius.pill,
-    backgroundColor: c.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...Shadows.button,
-  },
-
-  donateBtnText: {
-    ...Typography.buttonSmall,
-    color: c.textOnSecondary,
   },
 
   empty: {
@@ -554,21 +586,6 @@ const s = StyleSheet.create({
     color: c.textSecondary,
     marginTop: 14,
     lineHeight: 22,
-  },
-
-  modalDonateBtn: {
-    height: 50,
-    borderRadius: Radius.pill,
-    backgroundColor: c.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20,
-    ...Shadows.button,
-  },
-
-  modalDonateBtnText: {
-    ...Typography.button,
-    color: c.textOnSecondary,
   },
 
   closesSoon: {
@@ -689,12 +706,10 @@ function RequestCard({
   item,
   width,
   onViewDetails,
-  onDonate,
 }: {
   item: FoodRequest;
   width: DimensionValue;
   onViewDetails: () => void;
-  onDonate: () => void;
 }) {
   const badge = urgencyBadge[item.urgency];
 
@@ -726,6 +741,19 @@ function RequestCard({
           {item.closesIn}
         </Text>
       </View>
+
+      {item.claimedByMe && (
+        <View style={s.claimedChip}>
+          <Ionicons
+            name="checkmark-circle"
+            size={12}
+            color={c.success}
+          />
+          <Text style={s.claimedChipText}>
+            You donated
+          </Text>
+        </View>
+      )}
 
       <Text
         style={s.cardTitle}
@@ -783,16 +811,6 @@ function RequestCard({
             color={accent}
           />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={s.donateBtn}
-          onPress={onDonate}
-        >
-          <Text style={s.donateBtnText}>
-            Donate
-          </Text>
-        </TouchableOpacity>
       </View>
     </View>
   );
@@ -816,7 +834,7 @@ function ClaimedPanel({
 }) {
   const next: { label: string; status: FoodRequestAdvance } | null =
     claimed.status === 'MATCHED'
-      ? { label: 'I am on the way', status: 'DISPATCHED' }
+      ? { label: 'Suggest volunteer', status: 'DISPATCHED' }
       : claimed.status === 'DISPATCHED'
         ? { label: 'Food delivered', status: 'FULFILLED' }
         : null;
@@ -846,7 +864,6 @@ function ClaimedPanel({
           activeOpacity={0.85}
           style={[
             s.claimBtn,
-            s.claimBtnDisabled,
             busy && s.claimBtnDisabled,
           ]}
           disabled={busy}
@@ -878,7 +895,6 @@ function RequestDetailModal({
   stageBusy,
   stageError,
   onClose,
-  onDonate,
   onClaim,
   onAdvance,
 }: {
@@ -890,7 +906,6 @@ function RequestDetailModal({
   stageBusy: boolean;
   stageError: string | null;
   onClose: () => void;
-  onDonate: (item: FoodRequest) => void;
   onClaim: (item: FoodRequest) => void;
   onAdvance: (status: FoodRequestAdvance) => void;
 }) {
@@ -1003,7 +1018,7 @@ function RequestDetailModal({
                   <Text style={s.claimBtnText}>
                     {claiming
                       ? 'Accepting…'
-                      : "I'll deliver this request"}
+                      : 'Donate this Request'}
                   </Text>
                 </TouchableOpacity>
               )
@@ -1079,6 +1094,10 @@ export default function FoodRescueRequestsScreen({
   const [claimed, setClaimed] =
     useState<AcceptedFoodRequest | null>(null);
 
+  // Claims the board came back with for this donor, keyed by request id, so a
+  // claimed post reopens into its progress panel instead of the Donate button.
+  const acceptedById = useRef<Record<string, AcceptedFoodRequest>>({});
+
   const [claiming, setClaiming] =
     useState(false);
 
@@ -1102,6 +1121,11 @@ export default function FoodRescueRequestsScreen({
 
       try {
         const data = await getOpenFoodRequests();
+        const map: Record<string, AcceptedFoodRequest> = {};
+        data.forEach((row) => {
+          if (row.claimedByMe) map[row.id] = toAccepted(row);
+        });
+        acceptedById.current = map;
         setRequests(data.map(toFoodRequest));
       } catch (err) {
         setError(
@@ -1220,7 +1244,9 @@ export default function FoodRescueRequestsScreen({
 
   const openDetails = (item: FoodRequest) => {
     setSelected(item);
-    setClaimed(null);
+    // A post this donor already owns reopens into its progress panel; a fresh
+    // open request shows the Donate button.
+    setClaimed(item.claimedByMe ? acceptedById.current[item.id] ?? null : null);
     setClaimError(null);
     setStageError(null);
   };
@@ -1246,8 +1272,18 @@ export default function FoodRescueRequestsScreen({
     try {
       const result = await acceptFoodRequest(item.id);
       setClaimed(result);
+      // Keep the post on the board as the donor's own, now in MATCHED state, so
+      // it neither disappears on refresh nor reopens as a Donate button.
+      acceptedById.current = {
+        ...acceptedById.current,
+        [item.id]: result,
+      };
       setRequests((current) =>
-        current.filter((r) => r.id !== item.id),
+        current.map((r) =>
+          r.id === item.id
+            ? { ...r, claimedByMe: true, status: result.status }
+            : r,
+        ),
       );
     } catch (err) {
       setClaimError(
@@ -1272,7 +1308,19 @@ export default function FoodRescueRequestsScreen({
         claimed.id,
         status,
       );
-      setClaimed({ ...claimed, status: result.status });
+      const updated = { ...claimed, status: result.status };
+      setClaimed(updated);
+      // Reflect the new stage on the retained board entry too, so closing and
+      // reopening the post keeps showing the updated progress.
+      acceptedById.current = {
+        ...acceptedById.current,
+        [claimed.id]: updated,
+      };
+      setRequests((current) =>
+        current.map((r) =>
+          r.id === claimed.id ? { ...r, status: result.status } : r,
+        ),
+      );
     } catch (err) {
       setStageError(
         err instanceof Error
@@ -1583,9 +1631,6 @@ export default function FoodRescueRequestsScreen({
                     onViewDetails={() =>
                       openDetails(item)
                     }
-                    onDonate={() =>
-                      handleDonate(item)
-                    }
                   />
                 ))}
               </View>
@@ -1598,9 +1643,6 @@ export default function FoodRescueRequestsScreen({
                     width={cardWidth}
                     onViewDetails={() =>
                       openDetails(item)
-                    }
-                    onDonate={() =>
-                      handleDonate(item)
                     }
                   />
                 ))}
@@ -1619,7 +1661,6 @@ export default function FoodRescueRequestsScreen({
         stageBusy={stageBusy}
         stageError={stageError}
         onClose={closeDetails}
-        onDonate={handleDonate}
         onClaim={handleClaim}
         onAdvance={advanceClaim}
       />

@@ -16,7 +16,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
-import { useIsWide } from '../hooks/dushani-useWideLayout';
+import { useIsWide, useBreakpoints } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import DonationCard from '../components/dushani-donationCard';
 import {
@@ -140,6 +140,7 @@ function FilterGroup({
 export default function AvailableFoodScreen({ navigation }: Props) {
   const T = useAppTypography();
   const wide = useIsWide();
+  const { isMobile } = useBreakpoints();
   const displayName = useDisplayName();
 
   const [search, setSearch] = useState('');
@@ -248,7 +249,7 @@ export default function AvailableFoodScreen({ navigation }: Props) {
           />
         }
       >
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -271,8 +272,8 @@ export default function AvailableFoodScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.page, wide && styles.pageWide]}>
-          <View style={styles.filterCard}>
+        <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
+          <View style={[styles.filterCard, isMobile && styles.filterCardMobile]}>
             <View style={styles.searchRow}>
               <View style={styles.searchIcon}>
                 <Ionicons name="search" size={17} color={C.teal} />
@@ -549,11 +550,17 @@ const styles = StyleSheet.create({
     maxWidth: 980,
     paddingHorizontal: Spacing.five,
   },
+  pageMobile: {
+    paddingHorizontal: Spacing.three,
+  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.five,
     marginBottom: Spacing.five,
+  },
+  topBarMobile: {
+    paddingHorizontal: Spacing.three,
   },
   backButton: {
     width: 44,
@@ -590,6 +597,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 22,
     elevation: 8,
+  },
+  filterCardMobile: {
+    padding: Spacing.three,
   },
   searchRow: {
     flexDirection: 'row',

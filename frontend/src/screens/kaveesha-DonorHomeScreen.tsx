@@ -108,7 +108,7 @@ type Palette = Record<ThemeColor, string>;
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
-type TabKey = "Home" | "Donations" | "Impact" | "Create" | "Profile";
+type TabKey = "Home" | "Donations" | "Impact" | "Create" | "Profile" | "Map";
 
 type ExtraNavKey = "FoodRequests" | "NGOCommunities";
 
@@ -160,6 +160,13 @@ const NAV_ITEMS: NavItem[] = [
     icon: "person-outline",
     iconActive: "person",
   },
+  {
+    key: "Map",
+    label: "Rescue map",
+    tabLabel: "Map",
+    icon: "map-outline",
+    iconActive: "map",
+  },
 ];
 
 type ExtraNavItem = {
@@ -190,6 +197,7 @@ const SIDEBAR_NAV_ITEMS: Array<NavItem | ExtraNavItem> = [
   ...EXTRA_NAV_ITEMS,
   NAV_ITEMS[2],
   NAV_ITEMS[3],
+  NAV_ITEMS[4],
 ];
 
 /* ========================================================= */
@@ -2764,6 +2772,10 @@ function BottomTabBar({
     );
   };
 
+  // Impact lives further down the page itself, so it is left out of the
+  // mobile tab bar (the desktop sidebar still offers it).
+  const barItems = NAV_ITEMS.filter((item) => item.key !== "Impact");
+
   return (
     <View
       style={[
@@ -2774,7 +2786,7 @@ function BottomTabBar({
       ]}
     >
       <View style={s.tabBarInner}>
-        {NAV_ITEMS.slice(0, 2).map(renderTab)}
+        {barItems.slice(0, 2).map(renderTab)}
 
         <TouchableOpacity
           activeOpacity={0.85}
@@ -2797,7 +2809,7 @@ function BottomTabBar({
           </Text>
         </TouchableOpacity>
 
-        {NAV_ITEMS.slice(2).map(renderTab)}
+        {barItems.slice(2).map(renderTab)}
       </View>
     </View>
   );
@@ -3599,6 +3611,10 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
 
     if (tab === "NGOCommunities") {
       navigation.navigate("NGOCommunities");
+    }
+
+    if (tab === "Map") {
+      navigation.navigate("FoodRescueMap");
     }
   };
 

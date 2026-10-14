@@ -12,11 +12,13 @@ exports.getDonationsTrend = async (req, res) => {
     since.setDate(since.getDate() - (days - 1));
     since.setHours(0, 0, 0, 0);
 
+    // Donations have no donatedAt field — createdAt (timestamps: true) is
+    // the moment the donor posted them.
     const results = await Donation.aggregate([
-      { $match: { donatedAt: { $gte: since } } },
+      { $match: { createdAt: { $gte: since } } },
       {
         $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$donatedAt" } },
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
           count: { $sum: 1 },
         },
       },
@@ -41,8 +43,9 @@ exports.getFulfilledTrend = async (req, res) => {
     since.setDate(since.getDate() - (days - 1));
     since.setHours(0, 0, 0, 0);
 
+    // Food request statuses are uppercase in the model.
     const results = await EmergencyRequest.aggregate([
-      { $match: { status: "fulfilled", fulfilledAt: { $gte: since, $ne: null } } },
+      { $match: { status: "FULFILLED", fulfilledAt: { $gte: since, $ne: null } } },
       {
         $group: {
           _id: { $dateToString: { format: "%Y-%m-%d", date: "$fulfilledAt" } },
@@ -66,22 +69,23 @@ exports.getFulfilledTrend = async (req, res) => {
 exports.getTrendSummary = async (req, res) => {
   try {
     const [rateResult] = await EmergencyRequest.aggregate([
-      { $match: { status: { $in: ["fulfilled", "expired"] } } },
+      { $match: { status: { $in: ["FULFILLED", "EXPIRED"] } } },
       {
         $group: {
           _id: null,
           total: { $sum: 1 },
-          fulfilled: { $sum: { $cond: [{ $eq: ["$status", "fulfilled"] }, 1, 0] } },
+          fulfilled: { $sum: { $cond: [{ $eq: ["$status", "FULFILLED"] }, 1, 0] } },
         },
       },
     ]);
 
     const [timeResult] = await EmergencyRequest.aggregate([
-      { $match: { status: "fulfilled", fulfilledAt: { $ne: null } } },
+      { $match: { status: "FULFILLED", fulfilledAt: { $ne: null } } },
       {
         $project: {
           hoursToFulfill: {
-            $divide: [{ $subtract: ["$fulfilledAt", "$requestedAt"] }, 1000 * 60 * 60],
+            // No requestedAt field on the model — createdAt is the request time.
+            $divide: [{ $subtract: ["$fulfilledAt", "$createdAt"] }, 1000 * 60 * 60],
           },
         },
       },

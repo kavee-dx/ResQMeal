@@ -151,6 +151,12 @@ app.use(
   require("./routes/amasha-TrendRoutes")
 );
 
+// NGO dashboard monitoring routes (requests / donations / community stats)
+app.use(
+  "/api/ngo",
+  require("./routes/amasha-ngoMonitoringRoutes")
+);
+
 // Campaign routes
 app.use(
   "/api/campaigns",

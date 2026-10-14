@@ -19,6 +19,7 @@ import type { RootStackParamList } from '../navigation/types';
 import LogoutButton from '../components/kaveesha-LogoutButton';
 import AmashaCampaignFeedSection from '@/components/amasha-CampaignFeedSection';
 import AmashaHomeNotificationBell from '@/components/amasha-HomeNotificationBell';
+import AmashaRoleBottomNav from '@/components/amasha-RoleBottomNav';
 import {
   getMyFoodRequests,
   getOpenFoodRequests,
@@ -439,6 +440,9 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
           />
         </View>
       </ScrollView>
+
+      {/* Rescue map / chats / profile shortcut bar for recipients */}
+      <AmashaRoleBottomNav active="home" />
     </View>
   );
 }

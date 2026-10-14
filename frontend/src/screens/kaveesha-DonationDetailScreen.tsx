@@ -30,13 +30,81 @@ import {
   getDonationById,
 } from "../services/kaveesha-donationApi";
 
-import { colors, fonts } from "../styles/kaveesha-theme";
+import { colors } from "../styles/kaveesha-theme";
+import { LinearGradient } from "expo-linear-gradient";
 
 import RecipientAskPanel from "../components/dushani-recipientAskPanel";
 import {
   acceptFoodRequest,
   type DonationAsk,
 } from "../services/dushani-foodRequestApi";
+
+/* =========================================================
+   PREMIUM DESIGN TOKENS
+   Surface, elevation and type scale shared by every block on
+   this page. Text styles only declare a size and a weight:
+   applyPremiumTypography() resolves the matching font below.
+========================================================= */
+
+const C = {
+  navy: "#023047",
+  navyDeep: "#011C2E",
+  orange: "#FB8500",
+
+  background: "#F6F8FA",
+  white: "#FFFFFF",
+
+  text: "#023047",
+  secondary: "#4D6470",
+  muted: "#8A9AA3",
+
+  border: "#D7E3E7",
+  hairline: "#EDF3F6",
+  softBlue: "#EDF4F7",
+
+  success: "#2FA35B",
+  successSoft: "#EAF7EE",
+  successBorder: "#CFEBDA",
+
+  warning: "#D99100",
+  warningSoft: "#FFF7DD",
+  warningBorder: "#F5E3AE",
+
+  danger: "#DC4C4C",
+  dangerSoft: "#FBEBEB",
+  dangerBorder: "#F3CCCC",
+
+  onDark: "#DCEAF1",
+  onDarkFaint: "#9DB6C4",
+
+  glass: "rgba(255,255,255,0.10)",
+  glassBorder: "rgba(255,255,255,0.20)",
+} as const;
+
+const FONT_BY_WEIGHT: Record<string, string> = {
+  "400": "Poppins_400Regular",
+  "500": "Poppins_500Medium",
+  "600": "Poppins_600SemiBold",
+  "700": "Poppins_700Bold",
+  "800": "Poppins_700Bold",
+  "900": "Poppins_700Bold",
+};
+
+const ELEV = {
+  shadowColor: "#023047",
+  shadowOpacity: 0.1,
+  shadowRadius: 20,
+  shadowOffset: { width: 0, height: 9 },
+  elevation: 5,
+};
+
+const ELEV_SOFT = {
+  shadowColor: "#023047",
+  shadowOpacity: 0.06,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 3,
+};
 
 type Donation = {
   _id?: string;
@@ -789,7 +857,12 @@ export default function DonationDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingScreen}>
+      <LinearGradient
+        colors={[C.navy, C.navyDeep]}
+        start={{ x: 0.05, y: 0 }}
+        end={{ x: 0.95, y: 1 }}
+        style={styles.loadingScreen}
+      >
         <StatusBar
           barStyle="light-content"
           backgroundColor={
@@ -798,13 +871,17 @@ export default function DonationDetailScreen() {
         />
 
         <View
-          style={styles.loadingIcon}
+          style={styles.loadingHalo}
         >
-          <Ionicons
-            name="restaurant-outline"
-            size={30}
-            color={colors.accent}
-          />
+          <View
+            style={styles.loadingIcon}
+          >
+            <Ionicons
+              name="restaurant-outline"
+              size={30}
+              color={colors.accent}
+            />
+          </View>
         </View>
 
         <ActivityIndicator
@@ -826,7 +903,7 @@ export default function DonationDetailScreen() {
         >
           Getting your donation details...
         </Text>
-      </View>
+      </LinearGradient>
     );
   }
 
@@ -844,12 +921,14 @@ export default function DonationDetailScreen() {
           }
         />
 
-        <View style={styles.emptyIcon}>
-          <Ionicons
-            name="fast-food-outline"
-            size={42}
-            color={colors.primary}
-          />
+        <View style={styles.emptyHalo}>
+          <View style={styles.emptyIcon}>
+            <Ionicons
+              name="fast-food-outline"
+              size={42}
+              color={colors.primary}
+            />
+          </View>
         </View>
 
         <Text style={styles.emptyTitle}>
@@ -869,6 +948,7 @@ export default function DonationDetailScreen() {
             )
           }
           activeOpacity={0.85}
+          accessibilityRole="button"
         >
           <Ionicons
             name="arrow-back"
@@ -1040,7 +1120,20 @@ export default function DonationDetailScreen() {
           HEADER
       ===================================================== */}
 
-      <View style={styles.header}>
+      <LinearGradient
+        colors={[C.navy, C.navyDeep]}
+        start={{ x: 0.05, y: 0 }}
+        end={{ x: 0.95, y: 1 }}
+        style={[
+          styles.header,
+          {
+            paddingHorizontal:
+              horizontalPadding,
+          },
+        ]}
+      >
+        <View style={styles.headerGlow} />
+
         <View
           style={[
             styles.headerInner,
@@ -1051,17 +1144,19 @@ export default function DonationDetailScreen() {
           ]}
         >
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.headerBack}
             onPress={() =>
               navigation.popTo(
                 "MyDonations",
               )
             }
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Back to my donations"
           >
             <Ionicons
               name="arrow-back"
-              size={22}
+              size={20}
               color="#FFFFFF"
             />
           </TouchableOpacity>
@@ -1097,6 +1192,8 @@ export default function DonationDetailScreen() {
             onPress={handleRefresh}
             activeOpacity={0.8}
             disabled={refreshing}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh donation details"
           >
             {refreshing ? (
               <ActivityIndicator
@@ -1112,7 +1209,7 @@ export default function DonationDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.scrollView}
@@ -1264,35 +1361,6 @@ export default function DonationDetailScreen() {
               </View>
             )}
           </View>
-
-          {donation.photoUrl && (
-            <View
-              style={
-                styles.heroBottomInfo
-              }
-            >
-              <Text
-                style={
-                  styles.heroFoodName
-                }
-              >
-                {donation.foodType ||
-                  "Food Donation"}
-              </Text>
-
-              {donation.foodCategory && (
-                <Text
-                  style={
-                    styles.heroCategory
-                  }
-                >
-                  {
-                    donation.foodCategory
-                  }
-                </Text>
-              )}
-            </View>
-          )}
         </View>
 
         {/* =====================================================
@@ -3186,21 +3254,30 @@ function InfoRow({
    STYLES
 ========================================================= */
 
-const styles = StyleSheet.create({
+const baseStyles: Record<string, any> = {
   screen: {
     flex: 1,
-    backgroundColor:
-      colors.background,
+    backgroundColor: C.background,
   },
 
   /* Header */
 
   header: {
-    backgroundColor:
-      colors.primaryDark,
-    paddingTop: 48,
-    paddingBottom: 18,
-    paddingHorizontal: 18,
+    paddingTop: 52,
+    paddingBottom: 26,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: "hidden",
+  },
+
+  headerGlow: {
+    position: "absolute",
+    top: -86,
+    right: -46,
+    width: 226,
+    height: 226,
+    borderRadius: 113,
+    backgroundColor: "rgba(140,207,228,0.16)",
   },
 
   headerInner: {
@@ -3210,58 +3287,69 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  headerButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  headerBack: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor:
-      "rgba(255,255,255,0.10)",
+    backgroundColor: C.glass,
+    borderWidth: 1,
+    borderColor: C.glassBorder,
+  },
+
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.glass,
+    borderWidth: 1,
+    borderColor: C.glassBorder,
   },
 
   headerTitleContainer: {
     flex: 1,
-    marginHorizontal: 14,
+    marginHorizontal: 12,
   },
 
   headerTitle: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 20,
-    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: -0.3,
+    color: C.white,
   },
 
   headerSubtitle: {
-    marginTop: 3,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 12,
-    color:
-      "rgba(255,255,255,0.68)",
+    marginTop: 4,
+    fontSize: 11.5,
+    fontWeight: "600",
+    letterSpacing: 0.8,
+    color: C.onDarkFaint,
   },
 
   scrollView: {
     flex: 1,
+    backgroundColor: "transparent",
   },
 
   content: {
-    paddingTop: 22,
+    paddingTop: 18,
   },
 
   /* Hero */
 
   heroCard: {
-    height: 270,
-    borderRadius: 24,
+    height: 250,
+    borderRadius: 26,
     overflow: "hidden",
-    backgroundColor:
-      colors.primaryLight,
+    backgroundColor: C.softBlue,
     position: "relative",
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
     marginBottom: 4,
+    ...ELEV_SOFT,
   },
 
   heroCardDesktop: {
@@ -3277,78 +3365,54 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 0,
-    height: 145,
-    backgroundColor:
-      "rgba(0,0,0,0.42)",
+    top: 0,
+    height: 96,
+    backgroundColor: "rgba(4,22,31,0.34)",
   },
 
   heroTopRow: {
     position: "absolute",
-    top: 16,
-    left: 16,
-    right: 16,
+    top: 14,
+    left: 14,
+    right: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
 
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 13,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 999,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 7,
+    ...ELEV_SOFT,
   },
 
   statusBadgeText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 12,
-    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: 0.2,
+    color: C.white,
   },
 
   urgentBadge: {
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor:
-      colors.urgent,
+    borderRadius: 999,
+    backgroundColor: C.danger,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+    ...ELEV_SOFT,
   },
 
   urgentText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 11,
-    color: "#FFFFFF",
-  },
-
-  heroBottomInfo: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 18,
-  },
-
-  heroFoodName: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 27,
-    lineHeight: 34,
-    color: "#FFFFFF",
-  },
-
-  heroCategory: {
-    marginTop: 4,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 13,
-    color:
-      "rgba(255,255,255,0.82)",
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    color: C.white,
   },
 
   noImage: {
@@ -3359,43 +3423,42 @@ const styles = StyleSheet.create({
   },
 
   noImageIcon: {
-    width: 72,
-    height: 72,
+    width: 70,
+    height: 70,
     borderRadius: 24,
-    backgroundColor:
-      "#FFFFFF",
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.hairline,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 13,
+    ...ELEV_SOFT,
   },
 
   noImageTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 16,
-    color:
-      colors.textPrimary,
+    fontSize: 15.5,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    color: C.text,
   },
 
   noImageText: {
-    marginTop: 4,
-    fontFamily:
-      fonts.bodyMedium,
+    marginTop: 5,
     fontSize: 12,
-    color:
-      colors.textMuted,
+    fontWeight: "500",
+    color: C.muted,
   },
 
   /* Title */
 
   titleSection: {
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 18,
+    paddingBottom: 14,
   },
 
   titleRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: 14,
   },
 
@@ -3404,62 +3467,60 @@ const styles = StyleSheet.create({
   },
 
   foodTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 28,
-    lineHeight: 35,
-    color:
-      colors.textPrimary,
+    fontSize: 26,
+    lineHeight: 33,
+    fontWeight: "700",
+    letterSpacing: -0.6,
+    color: C.text,
   },
 
   categoryRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 7,
+    marginTop: 8,
     gap: 6,
   },
 
   categoryText: {
-    fontFamily:
-      fonts.bodyMedium,
     fontSize: 13,
-    color:
-      colors.textSecondary,
+    fontWeight: "500",
+    color: C.secondary,
   },
 
   priorityBadge: {
-    minHeight: 36,
-    paddingHorizontal: 11,
-    borderRadius: 18,
+    minHeight: 34,
+    paddingHorizontal: 13,
+    borderRadius: 999,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: C.hairline,
   },
 
   priorityText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
 
   /* Stats */
 
   statsCard: {
-    backgroundColor:
-      colors.surface,
-    borderRadius: 20,
+    backgroundColor: C.white,
+    borderRadius: 22,
     paddingVertical: 18,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
+    ...ELEV_SOFT,
   },
 
   statsCardDesktop: {
-    maxWidth: 720,
+    maxWidth: 760,
   },
 
   statItem: {
@@ -3468,39 +3529,37 @@ const styles = StyleSheet.create({
   },
 
   statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor:
-      colors.primaryLight,
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: C.softBlue,
+    borderWidth: 1,
+    borderColor: C.hairline,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 7,
+    marginBottom: 8,
   },
 
   statValue: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 15,
-    color:
-      colors.textPrimary,
+    fontSize: 16,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    color: C.text,
     textAlign: "center",
   },
 
   statLabel: {
-    marginTop: 3,
-    fontFamily:
-      fonts.bodyMedium,
+    marginTop: 4,
     fontSize: 11,
-    color:
-      colors.textMuted,
+    fontWeight: "500",
+    letterSpacing: 0.3,
+    color: C.muted,
   },
 
   statDivider: {
     width: 1,
-    height: 55,
-    backgroundColor:
-      colors.border,
+    height: 58,
+    backgroundColor: C.hairline,
   },
 
   /* Main Grid */
@@ -3524,213 +3583,200 @@ const styles = StyleSheet.create({
   },
 
   sectionCard: {
-    backgroundColor:
-      colors.surface,
-    borderRadius: 20,
+    backgroundColor: C.white,
+    borderRadius: 22,
     padding: 18,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
+    ...ELEV_SOFT,
   },
 
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 16,
   },
 
   sectionIcon: {
-    width: 44,
-    height: 44,
+    width: 42,
+    height: 42,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: C.hairline,
   },
 
   sectionHeaderText: {
     flex: 1,
-    marginLeft: 11,
+    marginLeft: 12,
   },
 
   sectionTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 16,
-    color:
-      colors.textPrimary,
+    fontSize: 15.5,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    color: C.text,
   },
 
   sectionSubtitle: {
     marginTop: 3,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 11,
+    fontSize: 11.5,
     lineHeight: 16,
-    color:
-      colors.textMuted,
+    fontWeight: "500",
+    color: C.muted,
   },
 
   /* Safety */
 
   safetyPassedCard: {
-    backgroundColor:
-      "#EAF8F1",
-    borderRadius: 15,
-    padding: 13,
+    backgroundColor: C.successSoft,
+    borderRadius: 18,
+    padding: 14,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor:
-      "#CDEEDD",
+    borderColor: C.successBorder,
   },
 
   safetyPassedIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor:
-      "#FFFFFF",
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.successBorder,
     alignItems: "center",
     justifyContent: "center",
   },
 
   safetyPassedContent: {
     flex: 1,
-    marginLeft: 11,
+    marginLeft: 12,
   },
 
   safetyPassedTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 13,
-    color:
-      colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.1,
+    color: C.text,
   },
 
   safetyPassedBadge: {
-    marginTop: 4,
-    fontFamily:
-      fonts.bodyBold,
+    marginTop: 5,
     fontSize: 10,
-    color:
-      colors.success,
-    letterSpacing: 0.5,
+    fontWeight: "800",
+    color: C.success,
+    letterSpacing: 0.9,
   },
 
   safetyDescription: {
     marginTop: 12,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 12,
-    lineHeight: 18,
-    color:
-      colors.textSecondary,
+    fontSize: 12.5,
+    lineHeight: 19,
+    fontWeight: "400",
+    color: C.secondary,
   },
 
   safetyConcernCard: {
-    backgroundColor:
-      "#FDECEC",
-    borderRadius: 15,
-    padding: 13,
+    backgroundColor: C.dangerSoft,
+    borderRadius: 18,
+    padding: 14,
     flexDirection: "row",
     alignItems: "flex-start",
     borderWidth: 1,
-    borderColor:
-      "#F3CCCC",
+    borderColor: C.dangerBorder,
   },
 
   safetyConcernIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor:
-      "#FFFFFF",
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.dangerBorder,
     alignItems: "center",
     justifyContent: "center",
   },
 
   safetyConcernContent: {
     flex: 1,
-    marginLeft: 11,
+    marginLeft: 12,
   },
 
   safetyConcernTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 12,
-    color:
-      colors.urgent,
+    fontSize: 11.5,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    color: C.danger,
   },
 
   safetyConcernText: {
-    marginTop: 4,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 12,
-    lineHeight: 18,
-    color:
-      colors.textSecondary,
+    marginTop: 5,
+    fontSize: 12.5,
+    lineHeight: 19,
+    fontWeight: "500",
+    color: C.secondary,
   },
 
   safetyWarningCard: {
-    backgroundColor:
-      "#FFF8E1",
-    borderRadius: 14,
+    backgroundColor: C.warningSoft,
+    borderRadius: 16,
     padding: 13,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 9,
+    borderWidth: 1,
+    borderColor: C.warningBorder,
   },
 
   safetyWarningText: {
     flex: 1,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 12,
-    lineHeight: 18,
-    color:
-      colors.textSecondary,
+    fontSize: 12.5,
+    lineHeight: 19,
+    fontWeight: "500",
+    color: C.secondary,
   },
 
   /* Info Rows */
 
   infoRow: {
-    minHeight: 54,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 9,
+    paddingVertical: 10,
+    gap: 10,
   },
 
   infoRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor:
-      colors.border,
+    borderBottomColor: C.hairline,
   },
 
   infoIcon: {
     width: 32,
-    alignItems: "flex-start",
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: C.softBlue,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   infoLabel: {
-    width: 105,
-    fontFamily:
-      fonts.bodyMedium,
+    width: 104,
     fontSize: 12,
-    color:
-      colors.textSecondary,
+    fontWeight: "500",
+    color: C.muted,
   },
 
   infoValue: {
     flex: 1,
     textAlign: "right",
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 12,
-    lineHeight: 18,
-    color:
-      colors.textPrimary,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600",
+    color: C.text,
   },
 
   /* =========================================================
@@ -3738,28 +3784,30 @@ const styles = StyleSheet.create({
   ========================================================= */
 
   expiryCountdownCard: {
-    marginTop: 6,
-    marginBottom: 8,
-    borderRadius: 18,
-    padding: 15,
+    marginTop: 8,
+    marginBottom: 10,
+    borderRadius: 20,
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
+    ...ELEV_SOFT,
   },
 
   expiryCountdownIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 17,
+    width: 54,
+    height: 54,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: C.hairline,
   },
 
   expiryCountdownContent: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 14,
   },
 
   expiryCountdownTopRow: {
@@ -3770,97 +3818,92 @@ const styles = StyleSheet.create({
   },
 
   expiryCountdownLabel: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 9,
-    color:
-      colors.textMuted,
-    letterSpacing: 0.7,
+    fontSize: 9.5,
+    fontWeight: "800",
+    color: C.muted,
+    letterSpacing: 1.1,
   },
 
   expirySoonBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 5,
-    borderRadius: 12,
-    backgroundColor:
-      "#FFFFFF",
+    borderRadius: 999,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.hairline,
   },
 
   expirySoonDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    marginRight: 5,
+    marginRight: 6,
   },
 
   expirySoonText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 8,
-    letterSpacing: 0.4,
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.6,
   },
 
   expiryCountdownText: {
-    marginTop: 5,
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 21,
-    lineHeight: 27,
+    marginTop: 6,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "700",
+    letterSpacing: -0.4,
   },
 
   expiryCountdownSubtext: {
-    marginTop: 3,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 10.5,
-    lineHeight: 16,
-    color:
-      colors.textSecondary,
+    marginTop: 4,
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontWeight: "500",
+    color: C.secondary,
   },
 
   /* Additional Details */
 
   additionalText: {
-    fontFamily:
-      fonts.bodyMedium,
     fontSize: 13,
     lineHeight: 21,
-    color:
-      colors.textSecondary,
-    backgroundColor:
-      colors.background,
-    borderRadius: 13,
-    padding: 13,
+    fontWeight: "400",
+    color: C.secondary,
+    backgroundColor: C.background,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: C.hairline,
+    padding: 14,
   },
 
   /* Rescue Hub */
 
   rescueHub: {
     width: "100%",
-    backgroundColor:
-      colors.surface,
-    borderRadius: 24,
+    backgroundColor: C.white,
+    borderRadius: 26,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
+    ...ELEV_SOFT,
   },
 
   rescueHubHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 18,
   },
 
   rescueHubIcon: {
     width: 46,
     height: 46,
-    borderRadius: 15,
-    backgroundColor:
-      colors.primaryLight,
+    borderRadius: 16,
+    backgroundColor: C.softBlue,
+    borderWidth: 1,
+    borderColor: C.hairline,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3871,34 +3914,29 @@ const styles = StyleSheet.create({
   },
 
   rescueHubTitle: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 17,
-    color:
-      colors.textPrimary,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+    color: C.text,
   },
 
   rescueHubSubtitle: {
-    marginTop: 3,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 11,
+    marginTop: 4,
+    fontSize: 11.5,
     lineHeight: 17,
-    color:
-      colors.textMuted,
+    fontWeight: "500",
+    color: C.muted,
   },
 
   integrationBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor:
-      colors.background,
+    borderRadius: 999,
+    backgroundColor: C.successSoft,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.successBorder,
     marginLeft: 10,
   },
 
@@ -3906,18 +3944,15 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor:
-      colors.success,
+    backgroundColor: C.success,
     marginRight: 6,
   },
 
   integrationBadgeText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 9,
-    color:
-      colors.textSecondary,
-    letterSpacing: 0.3,
+    fontWeight: "800",
+    color: C.success,
+    letterSpacing: 0.8,
   },
 
   rescueFeatureGrid: {
@@ -3930,14 +3965,17 @@ const styles = StyleSheet.create({
   },
 
   rescueFeatureCard: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: C.background,
+    borderRadius: 20,
     width: "100%",
     backgroundColor:
       colors.background,
     borderRadius: 19,
     padding: 16,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
     marginBottom: 12,
   },
 
@@ -3950,96 +3988,82 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 13,
+    marginBottom: 14,
   },
 
   featureIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
+    width: 44,
+    height: 44,
+    borderRadius: 15,
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: C.hairline,
   },
 
   featureStatusBadge: {
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor:
-      "#EDEDFB",
+    borderRadius: 999,
+    backgroundColor: "#EDEDFB",
+    borderWidth: 1,
+    borderColor: "#DEDDF7",
   },
 
   featureStatusBadgeGreen: {
-    backgroundColor:
-      "#EAF8F1",
+    backgroundColor: C.successSoft,
+    borderColor: C.successBorder,
   },
 
   featureStatusText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 9,
+    fontWeight: "800",
     color: "#5B5BD6",
-    letterSpacing: 0.4,
+    letterSpacing: 0.9,
   },
 
   featureTitle: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 15,
-    color:
-      colors.textPrimary,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    color: C.text,
   },
 
   featureDescription: {
-    marginTop: 6,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 11,
+    marginTop: 7,
+    fontSize: 11.5,
     lineHeight: 18,
-    color:
-      colors.textSecondary,
+    fontWeight: "400",
+    color: C.secondary,
   },
 
   featureInfoBox: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginTop: 13,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor:
-      "#F4F5FF",
-  },
-
-  featureInfoBoxGreen: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginTop: 13,
-    padding: 10,
-    borderRadius: 12,
-    backgroundColor:
-      "#F0FAF5",
+    marginTop: 14,
+    padding: 11,
+    borderRadius: 14,
+    backgroundColor: "#F4F5FF",
+    borderWidth: 1,
+    borderColor: "#E7E7FB",
   },
 
   featureInfoText: {
     flex: 1,
     marginLeft: 8,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 10,
+    fontSize: 10.5,
     lineHeight: 16,
-    color:
-      colors.textSecondary,
+    fontWeight: "500",
+    color: C.secondary,
   },
 
   featureDisabledButton: {
-    minHeight: 44,
-    marginTop: 12,
-    borderRadius: 12,
-    backgroundColor:
-      colors.surface,
+    minHeight: 46,
+    marginTop: 13,
+    borderRadius: 999,
+    backgroundColor: C.white,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.border,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -4047,43 +4071,39 @@ const styles = StyleSheet.create({
   },
 
   featureDisabledButtonText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 11,
-    color:
-      colors.textMuted,
+    fontSize: 11.5,
+    fontWeight: "600",
+    color: C.muted,
   },
 
   featureActiveButton: {
-    minHeight: 44,
-    marginTop: 12,
-    borderRadius: 12,
-    backgroundColor:
-      colors.primary,
+    minHeight: 46,
+    marginTop: 13,
+    borderRadius: 999,
+    backgroundColor: C.navy,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
+    ...ELEV,
   },
 
   featureActiveButtonText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 11,
-    color: "#FFFFFF",
+    fontSize: 11.5,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+    color: C.white,
   },
 
   /* Tracking */
 
   trackingCard: {
     marginTop: 2,
-    backgroundColor:
-      colors.background,
-    borderRadius: 19,
+    backgroundColor: C.background,
+    borderRadius: 20,
     padding: 16,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
   },
 
   trackingHeader: {
@@ -4097,22 +4117,22 @@ const styles = StyleSheet.create({
   },
 
   trackingSubtitle: {
-    marginTop: 4,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 10.5,
+    marginTop: 5,
+    fontSize: 11,
     lineHeight: 16,
-    color:
-      colors.textMuted,
+    fontWeight: "500",
+    color: C.muted,
   },
 
   trackingStateBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 9,
+    paddingHorizontal: 10,
     paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: 999,
     marginLeft: 8,
+    borderWidth: 1,
+    borderColor: C.hairline,
   },
 
   trackingStateDot: {
@@ -4123,17 +4143,16 @@ const styles = StyleSheet.create({
   },
 
   trackingStateText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 9,
+    fontSize: 9.5,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
 
   trackingNote: {
-    marginTop: 8,
-    padding: 11,
-    borderRadius: 12,
-    backgroundColor:
-      "#F1F3F5",
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: C.softBlue,
     flexDirection: "row",
     alignItems: "flex-start",
   },
@@ -4141,76 +4160,67 @@ const styles = StyleSheet.create({
   trackingNoteText: {
     flex: 1,
     marginLeft: 8,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 10.5,
-    lineHeight: 16,
-    color:
-      colors.textMuted,
+    fontSize: 11,
+    lineHeight: 17,
+    fontWeight: "400",
+    color: C.muted,
   },
 
   /* Timeline */
 
   timeline: {
     marginTop: 18,
-    paddingHorizontal: 3,
+    paddingHorizontal: 2,
   },
 
   timelineRow: {
     flexDirection: "row",
-    minHeight: 62,
+    minHeight: 64,
   },
 
   timelineRail: {
-    width: 34,
+    width: 36,
     alignItems: "center",
   },
 
   timelineNode: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor:
-      "#EEF0F2",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C.white,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.border,
   },
 
   timelineNodeComplete: {
-    backgroundColor:
-      colors.success,
-    borderColor:
-      colors.success,
+    backgroundColor: C.success,
+    borderColor: C.success,
   },
 
   timelineNodeActive: {
-    backgroundColor:
-      colors.surface,
-    borderColor:
-      colors.primary,
+    backgroundColor: C.white,
+    borderColor: C.navy,
     borderWidth: 2,
   },
 
   timelineLine: {
     width: 2,
     flex: 1,
-    minHeight: 27,
-    backgroundColor:
-      colors.border,
+    minHeight: 28,
+    borderRadius: 1,
+    backgroundColor: C.border,
   },
 
   timelineLineComplete: {
-    backgroundColor:
-      colors.success,
+    backgroundColor: C.success,
   },
 
   timelineContent: {
     flex: 1,
-    paddingLeft: 11,
-    paddingBottom: 15,
+    paddingLeft: 12,
+    paddingBottom: 16,
   },
 
   timelineTitleRow: {
@@ -4221,73 +4231,66 @@ const styles = StyleSheet.create({
   },
 
   timelineTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 12.5,
-    color:
-      colors.textPrimary,
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+    color: C.text,
   },
 
   timelineTitlePending: {
-    color:
-      colors.textMuted,
+    color: C.muted,
   },
 
   timelineDescription: {
-    marginTop: 3,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 10.5,
-    lineHeight: 16,
-    color:
-      colors.textMuted,
+    marginTop: 4,
+    fontSize: 11,
+    lineHeight: 16.5,
+    fontWeight: "400",
+    color: C.muted,
   },
 
   timelineDoneBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor:
-      "#EAF8F1",
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+    borderRadius: 999,
+    backgroundColor: C.successSoft,
+    borderWidth: 1,
+    borderColor: C.successBorder,
   },
 
   timelineDoneText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 7.5,
-    color:
-      colors.success,
-    letterSpacing: 0.3,
+    fontSize: 8,
+    fontWeight: "800",
+    color: C.success,
+    letterSpacing: 0.7,
   },
 
   timelineCurrentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor:
-      colors.primaryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 3.5,
+    borderRadius: 999,
+    backgroundColor: C.softBlue,
+    borderWidth: 1,
+    borderColor: C.border,
   },
 
   timelineCurrentText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 7.5,
-    color:
-      colors.primary,
-    letterSpacing: 0.3,
+    fontSize: 8,
+    fontWeight: "800",
+    color: C.navy,
+    letterSpacing: 0.7,
   },
 
   /* Actions */
 
   actionsCard: {
-    backgroundColor:
-      colors.surface,
-    borderRadius: 20,
+    backgroundColor: C.white,
+    borderRadius: 24,
     padding: 18,
     marginTop: 2,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.hairline,
+    ...ELEV_SOFT,
   },
 
   actionsHeader: {
@@ -4298,38 +4301,36 @@ const styles = StyleSheet.create({
   actionsIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
-    backgroundColor:
-      colors.primaryLight,
+    borderRadius: 15,
+    backgroundColor: C.softBlue,
+    borderWidth: 1,
+    borderColor: C.hairline,
     alignItems: "center",
     justifyContent: "center",
   },
 
   actionsHeaderText: {
     flex: 1,
-    marginLeft: 11,
+    marginLeft: 12,
   },
 
   actionsTitle: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 16,
-    color:
-      colors.textPrimary,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    color: C.text,
   },
 
   actionsSubtitle: {
     marginTop: 4,
-    fontFamily:
-      fonts.bodyMedium,
     fontSize: 12,
     lineHeight: 18,
-    color:
-      colors.textMuted,
+    fontWeight: "500",
+    color: C.muted,
   },
 
   actionButtons: {
-    marginTop: 16,
+    marginTop: 18,
     gap: 10,
   },
 
@@ -4338,188 +4339,193 @@ const styles = StyleSheet.create({
   },
 
   editButton: {
-    minHeight: 50,
+    minHeight: 52,
     flex: 1,
-    borderRadius: 14,
-    backgroundColor:
-      colors.primary,
+    borderRadius: 999,
+    backgroundColor: C.navy,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
+    ...ELEV,
   },
 
   editButtonText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 14,
-    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    color: C.white,
   },
 
   cancelButton: {
-    minHeight: 50,
+    minHeight: 52,
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor:
-      "#F0B5B5",
-    backgroundColor:
-      "#FFF5F5",
+    borderColor: C.dangerBorder,
+    backgroundColor: C.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
   },
 
   cancelButtonText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 14,
-    color:
-      colors.urgent,
+    fontWeight: "700",
+    color: C.danger,
   },
 
   deleteButton: {
-    minHeight: 50,
+    minHeight: 52,
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor:
-      "#F0B5B5",
-    backgroundColor:
-      "#FFF5F5",
+    borderColor: C.border,
+    backgroundColor: C.white,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
   },
 
   deleteButtonText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 14,
-    color:
-      colors.urgent,
+    fontWeight: "700",
+    color: C.danger,
   },
 
   bottomSpace: {
-    height: 36,
+    height: 40,
   },
 
   /* Loading */
 
   loadingScreen: {
     flex: 1,
-    backgroundColor:
-      colors.background,
     alignItems: "center",
     justifyContent: "center",
     padding: 30,
   },
 
-  loadingIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
-    backgroundColor:
-      colors.primaryLight,
+  loadingHalo: {
+    width: 116,
+    height: 116,
+    borderRadius: 58,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    marginBottom: 22,
+  },
+
+  loadingIcon: {
+    width: 74,
+    height: 74,
+    borderRadius: 26,
+    backgroundColor: C.glass,
+    borderWidth: 1,
+    borderColor: C.glassBorder,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   loadingSpinner: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
 
   loadingTitle: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 19,
-    color:
-      colors.textPrimary,
+    fontWeight: "700",
+    letterSpacing: -0.3,
+    color: C.white,
   },
 
   loadingText: {
-    marginTop: 6,
-    fontFamily:
-      fonts.bodyMedium,
+    marginTop: 7,
     fontSize: 13,
-    color:
-      colors.textMuted,
+    fontWeight: "500",
+    color: C.onDarkFaint,
   },
 
   /* Empty */
 
   emptyScreen: {
     flex: 1,
-    backgroundColor:
-      colors.background,
+    backgroundColor: C.background,
     alignItems: "center",
     justifyContent: "center",
     padding: 30,
   },
 
+  emptyHalo: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    backgroundColor: C.white,
+    borderWidth: 1,
+    borderColor: C.hairline,
+    alignItems: "center",
+    justifyContent: "center",
+    ...ELEV_SOFT,
+  },
+
   emptyIcon: {
     width: 88,
     height: 88,
-    borderRadius: 28,
-    backgroundColor:
-      colors.primaryLight,
+    borderRadius: 30,
+    backgroundColor: C.softBlue,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
   },
 
   emptyTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 21,
-    color:
-      colors.textPrimary,
+    marginTop: 24,
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.4,
+    color: C.text,
   },
 
   emptyText: {
-    marginTop: 8,
-    maxWidth: 290,
+    marginTop: 9,
+    maxWidth: 300,
     textAlign: "center",
-    fontFamily:
-      fonts.bodyMedium,
     fontSize: 13,
     lineHeight: 20,
-    color:
-      colors.textSecondary,
+    fontWeight: "500",
+    color: C.secondary,
   },
 
   backButton: {
-    marginTop: 22,
-    height: 48,
-    paddingHorizontal: 22,
-    borderRadius: 14,
-    backgroundColor:
-      colors.primary,
+    marginTop: 26,
+    height: 50,
+    paddingHorizontal: 26,
+    borderRadius: 999,
+    backgroundColor: C.navy,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+    ...ELEV,
   },
 
   backButtonText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 14,
-    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    color: C.white,
   },
 
   /* Modal */
 
   modalOverlay: {
     flex: 1,
-    backgroundColor:
-      "rgba(1,28,46,0.55)",
+    backgroundColor: "rgba(4,22,31,0.62)",
     alignItems: "center",
     justifyContent: "center",
     padding: 22,
@@ -4527,120 +4533,149 @@ const styles = StyleSheet.create({
 
   modalCard: {
     width: "100%",
-    maxWidth: 430,
-    backgroundColor:
-      colors.surface,
-    borderRadius: 24,
-    padding: 24,
+    maxWidth: 440,
+    backgroundColor: C.white,
+    borderRadius: 28,
+    padding: 26,
     alignItems: "center",
+    ...ELEV,
   },
 
   modalIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+    width: 68,
+    height: 68,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 15,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: C.hairline,
   },
 
   modalIconWarning: {
-    backgroundColor:
-      "#FFF5E8",
+    backgroundColor: C.warningSoft,
   },
 
   modalIconSuccess: {
-    backgroundColor:
-      "#EAF8F1",
+    backgroundColor: C.successSoft,
   },
 
   modalIconError: {
-    backgroundColor:
-      "#FDECEC",
+    backgroundColor: C.dangerSoft,
   },
 
   modalTitle: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 19,
+    fontSize: 20,
+    fontWeight: "700",
+    letterSpacing: -0.3,
     textAlign: "center",
-    color:
-      colors.textPrimary,
+    color: C.text,
   },
 
   modalMessage: {
-    marginTop: 8,
-    fontFamily:
-      fonts.bodyMedium,
-    fontSize: 13,
-    lineHeight: 20,
+    marginTop: 10,
+    fontSize: 13.5,
+    lineHeight: 21,
+    fontWeight: "500",
     textAlign: "center",
-    color:
-      colors.textSecondary,
+    color: C.secondary,
   },
 
   modalButtons: {
     width: "100%",
     flexDirection: "row",
     gap: 10,
-    marginTop: 22,
+    marginTop: 24,
   },
 
   modalSecondaryButton: {
     flex: 1,
-    height: 48,
-    borderRadius: 13,
-    backgroundColor:
-      colors.background,
+    height: 50,
+    borderRadius: 999,
+    backgroundColor: C.background,
     borderWidth: 1,
-    borderColor:
-      colors.border,
+    borderColor: C.border,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
   },
 
   modalSecondaryText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 12,
-    color:
-      colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: C.secondary,
   },
 
   modalDangerButton: {
     flex: 1,
-    height: 48,
-    borderRadius: 13,
-    backgroundColor:
-      colors.urgent,
+    height: 50,
+    borderRadius: 999,
+    backgroundColor: C.danger,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 10,
+    ...ELEV,
   },
 
   modalDangerText: {
-    fontFamily:
-      fonts.bodyBold,
-    fontSize: 12,
-    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+    color: C.white,
   },
 
   modalPrimaryButton: {
     width: "100%",
-    height: 48,
-    marginTop: 22,
-    borderRadius: 13,
-    backgroundColor:
-      colors.primary,
+    height: 50,
+    marginTop: 24,
+    borderRadius: 999,
+    backgroundColor: C.navy,
     alignItems: "center",
     justifyContent: "center",
+    ...ELEV,
   },
 
   modalPrimaryText: {
-    fontFamily:
-      fonts.bodyBold,
     fontSize: 14,
-    color: "#FFFFFF",
+    fontWeight: "700",
+    letterSpacing: 0.1,
+    color: C.white,
   },
-});
+};
+
+/* =========================================================
+   TYPOGRAPHY PASS
+   Every declaration that carries a font size gets the
+   matching Poppins cut, so the page keeps one consistent
+   type scale without repeating fontFamily everywhere.
+========================================================= */
+
+function applyPremiumTypography(
+  defs: Record<string, any>,
+): Record<string, any> {
+  const enriched: Record<string, any> = {};
+
+  for (const key of Object.keys(defs)) {
+    const value = defs[key];
+
+    const needsFont =
+      value &&
+      typeof value === "object" &&
+      value.fontSize !== undefined &&
+      value.fontFamily === undefined;
+
+    enriched[key] = needsFont
+      ? {
+          ...value,
+          fontFamily:
+            FONT_BY_WEIGHT[String(value.fontWeight)] ??
+            "Poppins_400Regular",
+        }
+      : value;
+  }
+
+  return enriched;
+}
+
+const styles = StyleSheet.create(
+  applyPremiumTypography(baseStyles) as any,
+);

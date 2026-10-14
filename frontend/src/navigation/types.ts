@@ -55,6 +55,13 @@ export type RootStackParamList = {
   AdminLogin: undefined;
   AdminDashboard: undefined;
 
+  CreateDonation: undefined;
+
+  // Review replaces itself with MyDonations after a publish, carrying the
+  // details of the post so the list can confirm it at the top.
+  MyDonations:
+    | { justPublished?: { code?: string; foodType?: string } }
+    | undefined;
   CreateDonation: { requestId?: string } | undefined;
   MyDonations: undefined;
   DonationDetail: { donationId: string };

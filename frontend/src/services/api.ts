@@ -1,14 +1,81 @@
 import axios from "axios";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
 import { getToken, clearSession } from "../utils/kaveesha-authStorage";
 import { PrivacySettings } from "@/types/amasha-privacySettings";
 import { NotificationSettings } from "@/types/amasha-notificationSettings";
 
-const RAW_API = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
+/* ============================================================
+   WHERE IS THE BACKEND?
+   ------------------------------------------------------------
+   The API always runs on the same computer that serves this app,
+   but that computer's LAN address changes every time the Wi-Fi
+   changes. A hard-coded IP in .env then quietly breaks every
+   request with "Unable to connect to the server", which looks
+   exactly like a dead backend.
 
-export const API_BASE_URL = RAW_API.replace(/\/api\/?$/i, "").replace(
-  /\/+$/,
-  "",
-);
+   So the host is detected at runtime instead:
+   • web      → whatever host the browser loaded the app from
+   • Expo Go  → the host the phone already used to reach Metro
+   • built    → falls back to EXPO_PUBLIC_API_URL (no dev server)
+
+   Escape hatches, both optional, in frontend/.env:
+   • EXPO_PUBLIC_API_URL=http://your-host:5000/api  (fallback / pin)
+   • EXPO_PUBLIC_API_URL_AUTO=false                 (never autodetect)
+   • EXPO_PUBLIC_API_PORT=5000                      (if the API is not on 5000)
+   ============================================================ */
+
+const API_PORT = process.env.EXPO_PUBLIC_API_PORT || "5000";
+
+// Only trust a detected host that is a real addressable machine. Tunnel mode
+// hands back hosts like `xxx.exp.run`, and a production build hands back
+// nothing at all — both must fall through to the configured URL.
+function isLanHost(host: string): boolean {
+  if (host === "localhost" || host === "127.0.0.1") return true;
+  if (host.endsWith(".local")) return true;
+  return /^(\d{1,3}\.){3}\d{1,3}$/.test(host); // IPv4, e.g. 172.28.17.248
+}
+
+function detectHost(): string | null {
+  try {
+    if (Platform.OS === "web") {
+      if (typeof window === "undefined") return null;
+      return window.location.hostname || null;
+    }
+
+    // Metro tells the runtime where it is reachable from. The field moved
+    // between SDK versions, so try the known shapes.
+    const hostUri =
+      Constants.expoConfig?.hostUri ||
+      (Constants as any).manifest2?.extra?.expoGo?.debuggerHost ||
+      (Constants as any).manifest?.debuggerHost;
+
+    if (typeof hostUri !== "string") return null;
+
+    return hostUri.split(":")[0] || null;
+  } catch {
+    // Never let host discovery break the app — fall back to the configured URL.
+    return null;
+  }
+}
+
+function configuredBase(): string {
+  const raw = process.env.EXPO_PUBLIC_API_URL || "";
+  return raw.replace(/\/api\/?$/i, "").replace(/\/+$/, "");
+}
+
+function resolveApiBase(): string {
+  const autodetect = process.env.EXPO_PUBLIC_API_URL_AUTO !== "false";
+  const host = autodetect ? detectHost() : null;
+
+  if (host && isLanHost(host)) {
+    return `http://${host}:${API_PORT}`;
+  }
+
+  return configuredBase() || "http://localhost:5000";
+}
+
+export const API_BASE_URL = resolveApiBase();
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,

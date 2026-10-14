@@ -2,8 +2,9 @@
 // Step 5 of 5 — Review & Publish
 // Owner: Kaveesha
 //
-// AI wording intentionally describes visual screening only.
-// It does not confirm that food is safe or unsafe.
+// The optional AI photo check deliberately does NOT appear on this step. It
+// belongs to the Safety Check step, where the donor ran it. Repeating it here
+// only made the final screen long and easy to misread.
 
 import React, { useMemo, useState } from 'react';
 import type { NavigationProp } from '@react-navigation/native';
@@ -12,7 +13,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +21,8 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StackActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -48,55 +50,75 @@ type Props = NativeStackScreenProps<
   'Review'
 >;
 
-type AiResultConfig = {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  shortTitle: string;
-  description: string;
-  color: string;
-  background: string;
+/* ============================================================
+   PREMIUM DESIGN TOKENS
+   Same local palette, elevation and Poppins-weight mapping the
+   Details and Safety steps use, so all four steps read as one
+   product. Styling only — no form data or logic changes.
+   ============================================================ */
+
+const C = {
+  navy: '#082634',
+  navyDeep: '#04161F',
+  teal: '#0E6B80',
+  orange: '#F97316',
+  amber: '#F5A524',
+
+  background: '#F4F7F9',
+  white: '#FFFFFF',
+
+  text: '#082634',
+  secondary: '#4A616D',
+  muted: '#93A5AE',
+
+  border: '#E2ECEF',
+  hairline: '#EDF3F6',
+  softBlue: '#EDF4F7',
+
+  success: '#2FA35B',
+  successSoft: '#EAF7EE',
+
+  warning: '#D99100',
+  warningSoft: '#FFF7DD',
+
+  danger: '#DC4C4C',
+  dangerSoft: '#FBEBEB',
+
+  onDark: '#CFE0E8',
+  onDarkFaint: '#9FB4C0',
 };
 
-const AI_RESULT_CONFIG: Record<string, AiResultConfig> = {
-  GOOD: {
-    icon: 'checkmark-circle-outline',
-    title: 'No obvious visual concern',
-    shortTitle: 'GOOD',
-    description:
-      'The AI visual screening did not identify an obvious visible concern in the submitted photo.',
-    color: colors.success,
-    background: colors.successSoft,
-  },
+const FONT_BY_WEIGHT: Record<string, string> = {
+  '400': 'Poppins_400Regular',
+  '500': 'Poppins_500Medium',
+  '600': 'Poppins_600SemiBold',
+  '700': 'Poppins_700Bold',
+  '800': 'Poppins_700Bold',
+  '900': 'Poppins_700Bold',
+};
 
-  REVIEW: {
-    icon: 'alert-circle-outline',
-    title: 'Manual review recommended',
-    shortTitle: 'REVIEW',
-    description:
-      'The AI visual screening identified something that may need closer attention.',
-    color: colors.accent,
-    background: colors.accentSoft,
-  },
+const ELEV = {
+  shadowColor: '#082634',
+  shadowOpacity: 0.1,
+  shadowRadius: 22,
+  shadowOffset: { width: 0, height: 10 },
+  elevation: 6,
+};
 
-  CONCERN: {
-    icon: 'close-circle-outline',
-    title: 'Visible concern identified',
-    shortTitle: 'CONCERN',
-    description:
-      'The AI visual screening identified a visible indicator that should be considered before donation.',
-    color: colors.urgent,
-    background: colors.urgentSoft,
-  },
+const ELEV_SOFT = {
+  shadowColor: '#082634',
+  shadowOpacity: 0.06,
+  shadowRadius: 14,
+  shadowOffset: { width: 0, height: 6 },
+  elevation: 3,
+};
 
-  PENDING: {
-    icon: 'information-circle-outline',
-    title: 'AI screening not performed',
-    shortTitle: 'NOT PERFORMED',
-    description:
-      'AI visual screening was optional and was not performed for this donation.',
-    color: colors.info,
-    background: colors.primaryLight,
-  },
+const ELEV_GLOW = {
+  shadowColor: '#F97316',
+  shadowOpacity: 0.32,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 8,
 };
 
 type SafetyConcern = {
@@ -106,6 +128,33 @@ type SafetyConcern = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
+/* The five checklist answers, mapped once so both the compact strip and the
+   expandable answer list read from the same source. */
+type SafetyAnswerKey =
+  | 'storage'
+  | 'temperature'
+  | 'handling'
+  | 'packaging'
+  | 'allergens';
+
+const SAFETY_ROWS: {
+  key: SafetyAnswerKey;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  blocking: boolean;
+}[] = [
+  { key: 'storage', label: 'Storage', icon: 'archive-outline', blocking: true },
+  {
+    key: 'temperature',
+    label: 'Temperature',
+    icon: 'thermometer-outline',
+    blocking: false,
+  },
+  { key: 'handling', label: 'Handling', icon: 'hand-left-outline', blocking: true },
+  { key: 'packaging', label: 'Packaging', icon: 'cube-outline', blocking: true },
+  { key: 'allergens', label: 'Allergens', icon: 'warning-outline', blocking: false },
+];
+
 export default function ReviewScreen({
   navigation,
   route,
@@ -113,9 +162,10 @@ export default function ReviewScreen({
   const { state, reset } = useCreateDonation();
 
   const [publishing, setPublishing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [publishedDonationCode, setPublishedDonationCode] =
-    useState<string | null>(null);
+
+  /* The safety answer list stays collapsed behind the status strip so this
+     page reads in one screen instead of scrolling through two pages of text. */
+  const [showSafetyDetails, setShowSafetyDetails] = useState(false);
 
   const isUrgent = state.donationType === 'URGENT';
 
@@ -153,12 +203,9 @@ export default function ReviewScreen({
         state.pickupAvailableUntilTime ||
         '—';
 
-  const aiConfig = useMemo(
-    () =>
-      AI_RESULT_CONFIG[state.aiResult] ??
-      AI_RESULT_CONFIG.PENDING,
-    [state.aiResult],
-  );
+  const answeredCount = SAFETY_ROWS.filter(
+    (row) => state.safety[row.key] !== null,
+  ).length;
 
   const safetyComplete =
     state.safety.storage !== null &&
@@ -240,6 +287,78 @@ export default function ReviewScreen({
     return items;
   }, [state.safety]);
 
+  /*
+   * ONE short safety verdict for this page — the same three tones the Safety
+   * Check pop-up uses, so the donor recognises the result at a glance instead
+   * of reading a wall of text again.
+   */
+  const safetyStatus = useMemo(() => {
+    if (hasSafetyConcern) {
+      return {
+        icon: 'close-circle' as const,
+        kicker: 'NOT READY TO PUBLISH',
+        title: 'A safety concern was reported',
+        line: `Fix your answers on the safety check before publishing · ${safetyConcerns.length} concern${
+          safetyConcerns.length === 1 ? '' : 's'
+        }`,
+        accent: C.danger,
+        soft: C.dangerSoft,
+      };
+    }
+
+    if (!safetyComplete) {
+      return {
+        icon: 'help-circle' as const,
+        kicker: 'SAFETY CHECK NOT FINISHED',
+        title: 'Some answers are missing',
+        line: `${
+          SAFETY_ROWS.length - answeredCount
+        } of ${
+          SAFETY_ROWS.length
+        } questions still open — finish them before publishing`,
+        accent: C.teal,
+        soft: C.softBlue,
+      };
+    }
+
+    if (uncertainInformation.length > 0) {
+      return {
+        icon: 'alert-circle' as const,
+        kicker: 'READY — WITH NOTES',
+        title: 'Passed, with things to confirm',
+        line: `${uncertainInformation.length} answer${
+          uncertainInformation.length === 1 ? ' is' : 's are'
+        } marked “Not sure” — recipients will see that`,
+        accent: C.warning,
+        soft: C.warningSoft,
+      };
+    }
+
+    return {
+      icon: 'checkmark-circle' as const,
+      kicker: 'SAFETY CHECK PASSED',
+      title: 'All clear',
+      line: `All ${answeredCount} required answers reported no concern`,
+      accent: C.success,
+      soft: C.successSoft,
+    };
+  }, [
+    hasSafetyConcern,
+    safetyConcerns,
+    safetyComplete,
+    answeredCount,
+    uncertainInformation,
+  ]);
+
+  /* Every “Edit” on this page jumps straight to the step that owns the data. */
+  function openStep(step: 'TypeSelect' | 'Details' | 'Safety') {
+    if (publishing) {
+      return;
+    }
+
+    navigation.navigate(step);
+  }
+
   const handlePublish = async () => {
     if (publishing || hasSafetyConcern) {
       return;
@@ -260,6 +379,34 @@ export default function ReviewScreen({
     try {
       createdDonation = await createDonation(state);
 
+      /*
+       * Publish lands on My Donations — no intermediate dialog. REPLACE is
+       * used instead of navigate so this wizard step leaves the root stack
+       * entirely; pressing back on My Donations therefore goes to the donor
+       * home page rather than bouncing back to a finished review screen.
+       */
+      const code = donation?.donationCode ?? null;
+
+      const payload = {
+        justPublished: {
+          code: code ?? undefined,
+          foodType: state.foodType || undefined,
+        },
+      };
+
+      reset();
+
+      const rootStack = navigation.getParent();
+
+      if (rootStack) {
+        rootStack.dispatch(
+          StackActions.replace('MyDonations', payload) as never,
+        );
+      } else {
+        /* Mounted outside the wizard stack (isolated runs): still land on the
+           list, and My Donations resolves its own way back to the home page. */
+        (navigation as any).navigate('MyDonations', payload);
+      }
       setPublishedDonationCode(
         createdDonation.donationCode ?? null,
       );
@@ -315,27 +462,8 @@ export default function ReviewScreen({
     }
   };
 
-  const handleViewPost = () => {
-    setShowSuccess(false);
-    reset();
-
-    /*
-     * MyDonations is registered in the root navigator,
-     * while Review is inside CreateDonationNavigator.
-     */
-    navigation
-      .getParent()
-      ?.navigate('MyDonations' as never);
-  };
-
-  const handleDone = () => {
-    setShowSuccess(false);
-    reset();
-
-    navigation
-      .getParent()
-      ?.navigate('DonorHome' as never);
-  };
+  /* This step ends by replacing itself with My Donations, so there is no
+     in-place confirmation dialog. */
 
   return (
     <SafeAreaView
@@ -347,7 +475,7 @@ export default function ReviewScreen({
         <TouchableOpacity
           style={styles.iconCircleButton}
           onPress={() => navigation.goBack()}
-          disabled={publishing || showSuccess}
+          disabled={publishing}
           activeOpacity={0.8}
         >
           <Ionicons
@@ -359,7 +487,7 @@ export default function ReviewScreen({
 
         <View style={styles.headerCenter}>
           <Text style={styles.headerEyebrow}>
-            STEP 5 OF 5
+            STEP 4 OF 4
           </Text>
 
           <Text style={styles.headerTitle}>
@@ -371,8 +499,8 @@ export default function ReviewScreen({
       </View>
 
       <KaveeshaStepProgress
-        step={5}
-        total={5}
+        step={4}
+        total={4}
         label="Final Review"
       />
 
@@ -380,323 +508,303 @@ export default function ReviewScreen({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Intro */}
-        <View style={styles.introCard}>
-          <View style={styles.introIcon}>
-            <Ionicons
-              name="checkmark-done-outline"
-              size={24}
-              color={colors.primary}
-            />
-          </View>
-
-          <View style={styles.introContent}>
-            <Text style={styles.introTitle}>
-              Final review
-            </Text>
-
-            <Text style={styles.introText}>
-              Check the information below before publishing
-              your donation. Recipients will use these details
-              when deciding whether to request it.
-            </Text>
-          </View>
-        </View>
-
         {/* ================================================== */}
-        {/* SAFETY BLOCKING WARNING */}
+        {/* HERO — the donation exactly as a recipient will see it */}
         {/* ================================================== */}
 
-        {hasSafetyConcern ? (
-          <View style={styles.dangerCard}>
-            <View style={styles.dangerHeader}>
-              <View style={styles.dangerIcon}>
-                <Ionicons
-                  name="warning"
-                  size={25}
-                  color={colors.urgent}
-                />
-              </View>
+        <LinearGradient
+          colors={[C.navy, C.navyDeep]}
+          start={{ x: 0.05, y: 0 }}
+          end={{ x: 0.95, y: 1 }}
+          style={styles.hero}
+        >
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroEyebrowRow}>
+              <Ionicons
+                name="eye-outline"
+                size={12}
+                color={C.onDarkFaint}
+              />
 
-              <View style={styles.dangerHeaderContent}>
-                <Text style={styles.dangerEyebrow}>
-                  FOOD SAFETY
-                </Text>
-
-                <Text style={styles.dangerTitle}>
-                  SAFETY CONCERN IDENTIFIED
-                </Text>
-              </View>
+              <Text style={styles.heroEyebrow}>
+                WHAT RECIPIENTS WILL SEE
+              </Text>
             </View>
 
-            <View style={styles.dangerDivider} />
+            <TouchableOpacity
+              style={styles.heroEditChip}
+              onPress={() => openStep('Details')}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="create-outline"
+                size={11}
+                color={C.onDark}
+              />
 
-            <View style={styles.doNotDonateBox}>
-              <View style={styles.doNotDonateIcon}>
-                <Ionicons
-                  name="close-circle"
-                  size={22}
-                  color={colors.urgent}
-                />
-              </View>
+              <Text style={styles.heroEditChipText}>
+                EDIT
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-              <View style={styles.doNotDonateContent}>
-                <Text style={styles.doNotDonateTitle}>
-                  DO NOT DONATE THIS FOOD
-                </Text>
-
-                <Text style={styles.doNotDonateText}>
-                  A blocking concern was reported in the
-                  required safety checklist. This donation
-                  cannot continue through the publishing process.
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.concernsHeading}>
-              Reported concerns
-            </Text>
-
-            {safetyConcerns.map((concern) => (
-              <View
-                key={concern.label}
-                style={styles.concernItem}
+          <View style={styles.heroPhotoFrame}>
+            {state.photoUri ? (
+              <Image
+                source={{ uri: state.photoUri }}
+                resizeMode="cover"
+                style={styles.heroPhoto}
+              />
+            ) : (
+              <TouchableOpacity
+                style={styles.heroPhotoEmpty}
+                onPress={() => openStep('Details')}
+                activeOpacity={0.85}
               >
-                <View style={styles.concernIcon}>
+                <View style={styles.heroPhotoEmptyIcon}>
                   <Ionicons
-                    name={concern.icon}
-                    size={17}
-                    color={colors.urgent}
+                    name="camera-outline"
+                    size={22}
+                    color={C.navy}
                   />
                 </View>
 
-                <View style={styles.concernContent}>
-                  <View style={styles.concernTitleRow}>
-                    <Text style={styles.concernLabel}>
-                      {concern.label}
-                    </Text>
-
-                    <View style={styles.concernAnswerBadge}>
-                      <Text style={styles.concernAnswerText}>
-                        {concern.answer}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <Text style={styles.concernMessage}>
-                    {concern.message}
-                  </Text>
-                </View>
-              </View>
-            ))}
-
-            <View style={styles.dangerFooter}>
-              <Ionicons
-                name="information-circle-outline"
-                size={16}
-                color={colors.urgent}
-              />
-
-              <Text style={styles.dangerFooterText}>
-                This result is based on the information
-                reported in your safety checklist. The donation
-                cannot be published while a blocking concern
-                is present.
-              </Text>
-            </View>
-          </View>
-        ) : (
-          /* ================================================== */
-          /* SAFETY PASSED */
-          /* ================================================== */
-          <View style={styles.passedCard}>
-            <View style={styles.passedHeader}>
-              <View style={styles.passedIcon}>
-                <Ionicons
-                  name="shield-checkmark"
-                  size={24}
-                  color={colors.success}
-                />
-              </View>
-
-              <View style={styles.passedHeaderContent}>
-                <Text style={styles.passedEyebrow}>
-                  FOOD SAFETY
+                <Text style={styles.heroPhotoEmptyTitle}>
+                  No food photo yet
                 </Text>
 
-                <Text style={styles.passedTitle}>
-                  SAFETY CHECK PASSED
+                <Text style={styles.heroPhotoEmptyText}>
+                  Posts with a clear photo are rescued faster —
+                  tap to add one
                 </Text>
+              </TouchableOpacity>
+            )}
 
-                <Text style={styles.passedText}>
-                  All required safety questions were answered
-                  without a blocking concern being reported.
-                </Text>
-              </View>
-            </View>
-
-            {uncertainInformation.length > 0 ? (
-              <View style={styles.uncertainBox}>
-                <View style={styles.uncertainHeader}>
-                  <Ionicons
-                    name="alert-circle-outline"
-                    size={18}
-                    color={colors.accent}
-                  />
-
-                  <Text style={styles.uncertainTitle}>
-                    INFORMATION COULD NOT BE CONFIRMED
-                  </Text>
-                </View>
-
-                {uncertainInformation.map((item) => (
-                  <View
-                    key={item.label}
-                    style={styles.uncertainItem}
-                  >
-                    <Ionicons
-                      name={item.icon}
-                      size={15}
-                      color={colors.accent}
-                    />
-
-                    <View style={styles.uncertainItemContent}>
-                      <Text style={styles.uncertainLabel}>
-                        {item.label}
-                      </Text>
-
-                      <Text style={styles.uncertainMessage}>
-                        {item.message}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-            <View style={styles.safetyDisclaimer}>
-              <Ionicons
-                name="information-circle-outline"
-                size={16}
-                color={colors.textMuted}
-              />
-
-              <Text style={styles.safetyDisclaimerText}>
-                A completed safety check does not guarantee
-                that food is safe to eat. Recipients should
-                still use their own judgement.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Food photo */}
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={styles.sectionEyebrow}>
-              DONATION
-            </Text>
-
-            <Text style={styles.sectionTitle}>
-              Food preview
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.photoPreview}>
-          {state.photoUri ? (
-            <Image
-              source={{
-                uri: state.photoUri,
-              }}
-              style={styles.photoImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.noPhotoContent}>
-              <View style={styles.noPhotoIcon}>
-                <Ionicons
-                  name="fast-food-outline"
-                  size={30}
-                  color={colors.primary}
-                />
-              </View>
-
-              <Text style={styles.noPhotoText}>
-                No food photo added
-              </Text>
-            </View>
-          )}
-
-          <View
-            style={[
-              styles.typeBadge,
-              {
-                backgroundColor: isUrgent
-                  ? colors.urgentSoft
-                  : colors.accentSoft,
-              },
-            ]}
-          >
-            <Ionicons
-              name={
-                isUrgent
-                  ? 'flash'
-                  : 'time-outline'
-              }
-              size={12}
-              color={
-                isUrgent
-                  ? colors.urgent
-                  : colors.primary
-              }
-            />
-
-            <Text
+            <View
               style={[
-                styles.typeBadgeText,
+                styles.heroTypeChip,
                 {
-                  color: isUrgent
-                    ? colors.urgent
-                    : colors.primary,
+                  backgroundColor: isUrgent
+                    ? 'rgba(220,76,76,0.92)'
+                    : 'rgba(249,115,22,0.92)',
                 },
               ]}
             >
-              {isUrgent
-                ? 'URGENT RESCUE'
-                : 'STANDARD DONATION'}
+              <Ionicons
+                name={isUrgent ? 'flash' : 'time-outline'}
+                size={11}
+                color={C.white}
+              />
+
+              <Text style={styles.heroTypeChipText}>
+                {isUrgent
+                  ? 'URGENT RESCUE'
+                  : 'STANDARD DONATION'}
+              </Text>
+            </View>
+          </View>
+
+          <Text
+            style={styles.heroTitle}
+            numberOfLines={2}
+          >
+            {state.foodType || 'Untitled donation'}
+          </Text>
+
+          <Text style={styles.heroSubtitle} numberOfLines={1}>
+            {`${state.category || 'Uncategorized'}  ·  ${
+              state.pickupLocation || 'No pickup location'
+            }`}
+          </Text>
+
+          <View style={styles.heroMetaRow}>
+            <View style={styles.heroPill}>
+              <Ionicons
+                name="scale-outline"
+                size={12}
+                color={C.onDark}
+              />
+
+              <Text style={styles.heroPillText}>
+                {quantityDisplay}
+              </Text>
+            </View>
+
+            <View style={styles.heroPill}>
+              <Ionicons
+                name="people-outline"
+                size={12}
+                color={C.onDark}
+              />
+
+              <Text style={styles.heroPillText}>
+                {state.portions
+                  ? `${state.portions} portions`
+                  : 'Portions not set'}
+              </Text>
+            </View>
+
+            <View style={[styles.heroPill, styles.heroPillWarm]}>
+              <Ionicons
+                name="hourglass-outline"
+                size={12}
+                color={C.amber}
+              />
+
+              <Text style={styles.heroPillWarmText}>
+                {expiryDisplay === '—'
+                  ? 'No expiry time'
+                  : `Until ${expiryDisplay}`}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* ================================================== */}
+        {/* SAFETY STATUS — one short strip, details on demand */}
+        {/* ================================================== */}
+
+        <View style={styles.statusStrip}>
+          <View
+            style={[
+              styles.statusStripe,
+              { backgroundColor: safetyStatus.accent },
+            ]}
+          />
+
+          <View
+            style={[
+              styles.statusIcon,
+              { backgroundColor: safetyStatus.soft },
+            ]}
+          >
+            <Ionicons
+              name={safetyStatus.icon}
+              size={22}
+              color={safetyStatus.accent}
+            />
+          </View>
+
+          <View style={styles.statusBody}>
+            <Text
+              style={[
+                styles.statusKicker,
+                { color: safetyStatus.accent },
+              ]}
+            >
+              {safetyStatus.kicker}
+            </Text>
+
+            <Text style={styles.statusTitle}>
+              {safetyStatus.title}
+            </Text>
+
+            <Text style={styles.statusLine}>
+              {safetyStatus.line}
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={styles.statusEdit}
+            onPress={() => openStep('Safety')}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="create-outline"
+              size={13}
+              color={C.secondary}
+            />
+
+            <Text style={styles.statusEditText}>
+              Edit
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Food title */}
-        <View style={styles.foodHeader}>
-          <Text style={styles.foodName}>
-            {state.foodType ||
-              'Untitled donation'}
-          </Text>
+        {hasSafetyConcern ? (
+          <View style={styles.statusConcerns}>
+            {safetyConcerns.map((concern) => (
+              <View
+                key={concern.label}
+                style={styles.statusConcernRow}
+              >
+                <Ionicons
+                  name={concern.icon}
+                  size={14}
+                  color={C.danger}
+                />
 
-          <Text style={styles.foodCategory}>
-            {state.category ||
-              'Uncategorized'}
+                <Text style={styles.statusConcernText}>
+                  <Text style={styles.statusConcernLabel}>
+                    {concern.label}
+                  </Text>
+                  {` — ${concern.message}`}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={styles.statusToggle}
+          onPress={() =>
+            setShowSafetyDetails((open) => !open)
+          }
+          activeOpacity={0.75}
+        >
+          <Ionicons
+            name={
+              showSafetyDetails
+                ? 'chevron-up'
+                : 'chevron-down'
+            }
+            size={14}
+            color={C.secondary}
+          />
+
+          <Text style={styles.statusToggleText}>
+            {showSafetyDetails
+              ? 'Hide safety answers'
+              : `Check all ${SAFETY_ROWS.length} safety answers`}
           </Text>
-        </View>
+        </TouchableOpacity>
+
+        {showSafetyDetails ? (
+          <View style={styles.statusDetails}>
+            {SAFETY_ROWS.map((row, index) => (
+              <SafetyRow
+                key={row.key}
+                icon={row.icon}
+                label={row.label}
+                value={state.safety[row.key]}
+                blocking={
+                  row.blocking &&
+                  state.safety[row.key] === 'NO'
+                }
+                last={index === SAFETY_ROWS.length - 1}
+              />
+            ))}
+
+            <Text style={styles.statusFootnote}>
+              A self-report, not a guarantee — recipients always
+              use their own judgement.
+            </Text>
+          </View>
+        ) : null}
+
+        {/* The photo, food name, category and headline numbers all live in the
+            hero above, so this step never shows the same data twice. */}
 
         {/* ================================================== */}
         {/* FOOD INFORMATION */}
         {/* ================================================== */}
 
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={styles.sectionEyebrow}>
-              DONATION DETAILS
-            </Text>
-
-            <Text style={styles.sectionTitle}>
-              Food information
-            </Text>
-          </View>
-        </View>
+        <SectionHeader
+          eyebrow="DONATION"
+          title="Food details"
+          editLabel="Edit food"
+          onEdit={() => openStep('Details')}
+        />
 
         <View style={styles.card}>
           <ReviewRow
@@ -738,17 +846,12 @@ export default function ReviewScreen({
         {/* PICKUP INFORMATION */}
         {/* ================================================== */}
 
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={styles.sectionEyebrow}>
-              COLLECTION
-            </Text>
-
-            <Text style={styles.sectionTitle}>
-              Pickup information
-            </Text>
-          </View>
-        </View>
+        <SectionHeader
+          eyebrow="COLLECTION"
+          title="Pickup"
+          editLabel="Edit pickup"
+          onEdit={() => openStep('Details')}
+        />
 
         <View style={styles.pickupCard}>
           <View style={styles.pickupLocationBox}>
@@ -872,283 +975,109 @@ export default function ReviewScreen({
         ) : null}
 
         {/* ================================================== */}
-        {/* AI SCREENING */}
+        {/* EDIT — every change goes back to the step that owns it */}
         {/* ================================================== */}
 
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={styles.sectionEyebrow}>
-              DECISION SUPPORT
-            </Text>
-
-            <Text style={styles.sectionTitle}>
-              AI visual screening
-            </Text>
-          </View>
-
-          <View style={styles.optionalBadge}>
-            <Text style={styles.optionalBadgeText}>
-              OPTIONAL
-            </Text>
-          </View>
-        </View>
-
-        <View
-          style={[
-            styles.aiCard,
-            {
-              backgroundColor:
-                aiConfig.background,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.aiIcon,
-              {
-                backgroundColor:
-                  colors.white,
-              },
-            ]}
-          >
-            <Ionicons
-              name={aiConfig.icon}
-              size={23}
-              color={aiConfig.color}
-            />
-          </View>
-
-          <View style={styles.aiContent}>
-            <View style={styles.aiTitleRow}>
-              <Text
-                style={[
-                  styles.aiTitle,
-                  {
-                    color: aiConfig.color,
-                  },
-                ]}
-              >
-                {aiConfig.title}
-              </Text>
-
-              <View
-                style={[
-                  styles.aiResultBadge,
-                  {
-                    backgroundColor:
-                      colors.white,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.aiResultBadgeText,
-                    {
-                      color: aiConfig.color,
-                    },
-                  ]}
-                >
-                  {aiConfig.shortTitle}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.aiDescription}>
-              {aiConfig.description}
-            </Text>
-
-            {state.aiReason ? (
-              <View style={styles.aiReasonBox}>
-                <Text style={styles.aiReasonLabel}>
-                  SCREENING NOTE
-                </Text>
-
-                <Text style={styles.aiReasonText}>
-                  {state.aiReason}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={styles.aiDisclaimer}>
-          <Ionicons
-            name="information-circle-outline"
-            size={16}
-            color={colors.textMuted}
-          />
-
-          <Text style={styles.aiDisclaimerText}>
-            AI visual screening is food-safety decision support
-            only. A photo cannot confirm whether food is actually
-            safe or unsafe.
-          </Text>
-        </View>
-
-        {/* ================================================== */}
-        {/* SAFETY INFORMATION */}
-        {/* ================================================== */}
-
-        <View style={styles.sectionHeading}>
-          <View>
-            <Text style={styles.sectionEyebrow}>
-              FOOD SAFETY
-            </Text>
-
-            <Text style={styles.sectionTitle}>
-              Safety information
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.completeBadge,
-              {
-                backgroundColor: hasSafetyConcern
-                  ? colors.urgentSoft
-                  : safetyComplete
-                    ? colors.successSoft
-                    : colors.primaryLight,
-              },
-            ]}
-          >
-            <Ionicons
-              name={
-                hasSafetyConcern
-                  ? 'warning'
-                  : safetyComplete
-                    ? 'checkmark-circle'
-                    : 'ellipse-outline'
-              }
-              size={14}
-              color={
-                hasSafetyConcern
-                  ? colors.urgent
-                  : safetyComplete
-                    ? colors.success
-                    : colors.info
-              }
-            />
-
-            <Text
-              style={[
-                styles.completeBadgeText,
-                {
-                  color: hasSafetyConcern
-                    ? colors.urgent
-                    : safetyComplete
-                      ? colors.success
-                      : colors.info,
-                },
-              ]}
-            >
-              {hasSafetyConcern
-                ? 'CONCERN'
-                : safetyComplete
-                  ? 'COMPLETE'
-                  : 'INCOMPLETE'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.safetySummary}>
-          <SafetyRow
-            icon="archive-outline"
-            label="Storage"
-            value={state.safety.storage}
-            blocking={state.safety.storage === 'NO'}
-          />
-
-          <SafetyRow
-            icon="thermometer-outline"
-            label="Temperature"
-            value={state.safety.temperature}
-          />
-
-          <SafetyRow
-            icon="hand-left-outline"
-            label="Handling"
-            value={state.safety.handling}
-            blocking={state.safety.handling === 'NO'}
-          />
-
-          <SafetyRow
-            icon="cube-outline"
-            label="Packaging"
-            value={state.safety.packaging}
-            blocking={state.safety.packaging === 'NO'}
-          />
-
-          <SafetyRow
-            icon="warning-outline"
-            label="Allergens"
-            value={state.safety.allergens}
-            last
-          />
-        </View>
-
-        {/* ================================================== */}
-        {/* EDIT FOOD DETAILS */}
-        {/* ================================================== */}
-
-        <View style={styles.editSection}>
-          <Text style={styles.editSectionTitle}>
-            Need to make a change?
+        <View style={styles.editCard}>
+          <Text style={styles.editCardTitle}>
+            Need to change something?
           </Text>
 
           <TouchableOpacity
-            style={styles.editButton}
-            onPress={() =>
-              navigation.navigate('Details')
-            }
-            disabled={publishing || showSuccess}
+            style={styles.editRow}
+            onPress={() => openStep('TypeSelect')}
             activeOpacity={0.8}
           >
-            <View style={styles.editButtonIcon}>
+            <View style={styles.editRowIcon}>
               <Ionicons
-                name="create-outline"
-                size={17}
-                color={colors.primary}
+                name="flash-outline"
+                size={15}
+                color={C.teal}
               />
             </View>
 
-            <View style={styles.editButtonContent}>
-              <Text style={styles.editButtonTitle}>
-                Edit food details
+            <View style={styles.editRowBody}>
+              <Text style={styles.editRowTitle}>
+                Donation type
               </Text>
 
-              <Text style={styles.editButtonSubtitle}>
-                Food, quantity, dates and pickup information
+              <Text style={styles.editRowHint}>
+                Urgent rescue or standard donation
               </Text>
             </View>
 
             <Ionicons
               name="chevron-forward"
-              size={18}
-              color={colors.primary}
+              size={16}
+              color={C.muted}
             />
           </TouchableOpacity>
 
-          <View style={styles.safetyLockedCard}>
-            <View style={styles.safetyLockedIcon}>
+          <TouchableOpacity
+            style={styles.editRow}
+            onPress={() => openStep('Details')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.editRowIcon}>
               <Ionicons
-                name="lock-closed-outline"
-                size={17}
-                color={colors.textMuted}
+                name="restaurant-outline"
+                size={15}
+                color={C.teal}
               />
             </View>
 
-            <View style={styles.safetyLockedContent}>
-              <Text style={styles.safetyLockedTitle}>
-                Safety answers are locked
+            <View style={styles.editRowBody}>
+              <Text style={styles.editRowTitle}>
+                Food, photo &amp; pickup
               </Text>
 
-              <Text style={styles.safetyLockedText}>
-                Safety information cannot be changed from the
-                final review after the safety check has been completed.
+              <Text style={styles.editRowHint}>
+                Everything a recipient reads about the food
               </Text>
             </View>
-          </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={C.muted}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.editRow, styles.editRowLast]}
+            onPress={() => openStep('Safety')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.editRowIcon}>
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={15}
+                color={
+                  hasSafetyConcern
+                    ? C.danger
+                    : C.success
+                }
+              />
+            </View>
+
+            <View style={styles.editRowBody}>
+              <Text style={styles.editRowTitle}>
+                Safety answers
+              </Text>
+
+              <Text style={styles.editRowHint}>
+                {hasSafetyConcern
+                  ? 'Change an answer and run the check again'
+                  : `${answeredCount} of ${SAFETY_ROWS.length} answered`}
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={16}
+              color={C.muted}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* ================================================== */}
@@ -1160,8 +1089,8 @@ export default function ReviewScreen({
             <View style={styles.publishNoticeIcon}>
               <Ionicons
                 name="eye-outline"
-                size={19}
-                color={colors.primary}
+                size={17}
+                color={C.teal}
               />
             </View>
 
@@ -1171,10 +1100,8 @@ export default function ReviewScreen({
               </Text>
 
               <Text style={styles.publishNoticeText}>
-                Make sure the information, pickup location,
-                food photo, and safety answers are accurate.
-                Recipients will use these details when deciding
-                whether to request the donation.
+                Recipients see exactly what is above — check the
+                photo, the pickup place and the times once more.
               </Text>
             </View>
           </View>
@@ -1243,7 +1170,7 @@ export default function ReviewScreen({
                   styles.publishButtonDisabled,
               ]}
               onPress={handlePublish}
-              disabled={publishing || showSuccess}
+              disabled={publishing}
               activeOpacity={0.85}
             >
               {publishing ? (
@@ -1275,80 +1202,55 @@ export default function ReviewScreen({
         )}
       </View>
 
-      {/* ================================================== */}
-      {/* SUCCESS MODAL */}
-      {/* ================================================== */}
-
-      <Modal
-        visible={showSuccess}
-        transparent
-        animationType="fade"
-        statusBarTranslucent
-        onRequestClose={() => {}}
-      >
-        <View style={styles.successOverlay}>
-          <View style={styles.successModal}>
-            <View style={styles.successIconOuter}>
-              <View style={styles.successIconInner}>
-                <Ionicons
-                  name="checkmark"
-                  size={38}
-                  color={colors.white}
-                />
-              </View>
-            </View>
-
-            <Text style={styles.successTitle}>
-              Donation Posted!
-            </Text>
-
-            <Text style={styles.successMessage}>
-              Your donation is now available for rescue.
-            </Text>
-
-            {publishedDonationCode ? (
-              <View style={styles.successCodeBox}>
-                <Text style={styles.successCodeLabel}>
-                  DONATION CODE
-                </Text>
-
-                <Text style={styles.successCode}>
-                  {publishedDonationCode}
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={styles.successActions}>
-              <TouchableOpacity
-                style={styles.viewPostButton}
-                onPress={handleViewPost}
-                activeOpacity={0.85}
-              >
-                <Ionicons
-                  name="eye-outline"
-                  size={19}
-                  color={colors.white}
-                />
-
-                <Text style={styles.viewPostButtonText}>
-                  View Post
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.doneButton}
-                onPress={handleDone}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.doneButtonText}>
-                  Done
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* No success dialog: publishing replaces this step with My Donations,
+          which confirms the post where the donor actually needs to see it. */}
     </SafeAreaView>
+  );
+}
+
+/* Section label + the edit action for that section, so a donor never has to
+   hunt for the way back to a field. */
+function SectionHeader({
+  eyebrow,
+  title,
+  editLabel,
+  onEdit,
+}: {
+  eyebrow: string;
+  title: string;
+  editLabel?: string;
+  onEdit?: () => void;
+}) {
+  return (
+    <View style={styles.sectionHeading}>
+      <View style={styles.sectionHeadingText}>
+        <Text style={styles.sectionEyebrow}>
+          {eyebrow}
+        </Text>
+
+        <Text style={styles.sectionTitle}>
+          {title}
+        </Text>
+      </View>
+
+      {onEdit ? (
+        <TouchableOpacity
+          style={styles.sectionEdit}
+          onPress={onEdit}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="create-outline"
+            size={13}
+            color={C.teal}
+          />
+
+          <Text style={styles.sectionEditText}>
+            {editLabel ?? 'Edit'}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 }
 
@@ -1497,7 +1399,408 @@ function SafetyRow({
   );
 }
 
-const styles = StyleSheet.create({
+const baseStyles: Record<string, any> = {
+  /* ====================================================== */
+  /* HERO — the donation as a recipient will see it          */
+  /* ====================================================== */
+
+  hero: {
+    borderRadius: 28,
+    padding: 18,
+    marginBottom: 16,
+    ...ELEV,
+  },
+
+  heroTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  heroEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+
+  heroEyebrow: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: C.onDarkFaint,
+  },
+
+  heroEditChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+
+  heroEditChipText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    color: C.onDark,
+  },
+
+  /* aspectRatio keeps the photo framed without a fixed height, so the card
+     never jumps when a donation has no photo. */
+  heroPhotoFrame: {
+    width: '100%',
+    aspectRatio: 1.55,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    marginBottom: 14,
+  },
+
+  heroPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+
+  heroPhotoEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 26,
+  },
+
+  heroPhotoEmptyIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  heroPhotoEmptyTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.onDark,
+    marginTop: 2,
+  },
+
+  heroPhotoEmptyText: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontWeight: '500',
+    color: C.onDarkFaint,
+    textAlign: 'center',
+  },
+
+  heroTypeChip: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+
+  heroTypeChipText: {
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.7,
+    color: C.white,
+  },
+
+  heroTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: C.white,
+  },
+
+  heroSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: C.onDarkFaint,
+    marginTop: 4,
+  },
+
+  heroMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    marginTop: 13,
+  },
+
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+
+  heroPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.onDark,
+  },
+
+  heroPillWarm: {
+    backgroundColor: 'rgba(245,165,36,0.14)',
+    borderColor: 'rgba(245,165,36,0.4)',
+  },
+
+  heroPillWarmText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.amber,
+  },
+
+  /* ====================================================== */
+  /* SAFETY STATUS STRIP + EXPANDABLE ANSWERS                */
+  /* ====================================================== */
+
+  statusStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    backgroundColor: C.white,
+    borderRadius: 20,
+    paddingTop: 13,
+    paddingBottom: 13,
+    paddingLeft: 10,
+    paddingRight: 12,
+    marginBottom: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: C.border,
+    ...ELEV_SOFT,
+  },
+
+  statusStripe: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 4,
+  },
+
+  statusIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  statusBody: {
+    flex: 1,
+  },
+
+  statusKicker: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    marginBottom: 2,
+  },
+
+  statusTitle: {
+    fontSize: 15.5,
+    fontWeight: '800',
+    color: C.text,
+    marginBottom: 2,
+  },
+
+  statusLine: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontWeight: '500',
+    color: C.secondary,
+  },
+
+  statusEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: C.softBlue,
+  },
+
+  statusEditText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.secondary,
+  },
+
+  statusConcerns: {
+    backgroundColor: C.dangerSoft,
+    borderRadius: 16,
+    padding: 12,
+    gap: 8,
+    marginBottom: 6,
+  },
+
+  statusConcernRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+
+  statusConcernText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontWeight: '500',
+    color: C.secondary,
+  },
+
+  statusConcernLabel: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: C.danger,
+  },
+
+  statusToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    paddingVertical: 7,
+    marginBottom: 2,
+  },
+
+  statusToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: C.secondary,
+  },
+
+  statusDetails: {
+    backgroundColor: C.white,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingHorizontal: 14,
+    marginBottom: 14,
+    ...ELEV_SOFT,
+  },
+
+  statusFootnote: {
+    fontSize: 10.5,
+    lineHeight: 16,
+    fontWeight: '500',
+    color: C.muted,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: C.hairline,
+  },
+
+  /* ====================================================== */
+  /* SECTION HEADINGS WITH INLINE EDIT                       */
+  /* ====================================================== */
+
+  sectionHeadingText: {
+    flex: 1,
+  },
+
+  sectionEdit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: C.softBlue,
+  },
+
+  sectionEditText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: C.teal,
+  },
+
+  /* ====================================================== */
+  /* EDIT CARDS                                              */
+  /* ====================================================== */
+
+  editCard: {
+    backgroundColor: C.white,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingTop: 4,
+    paddingBottom: 4,
+    borderWidth: 1,
+    borderColor: C.border,
+    marginBottom: 14,
+    ...ELEV_SOFT,
+  },
+
+  editCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.text,
+    paddingTop: 13,
+    paddingBottom: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: C.hairline,
+  },
+
+  editRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingVertical: 13,
+    borderBottomWidth: 1,
+    borderBottomColor: C.hairline,
+  },
+
+  editRowLast: {
+    borderBottomWidth: 0,
+  },
+
+  editRowIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: C.softBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  editRowBody: {
+    flex: 1,
+  },
+
+  editRowTitle: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: C.text,
+  },
+
+  editRowHint: {
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '500',
+    color: C.muted,
+    marginTop: 1,
+  },
+
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -1547,405 +1850,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
-  },
-
-  introCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-    ...shadow.soft,
-  },
-
-  introIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-
-  introContent: {
-    flex: 1,
-  },
-
-  introTitle: {
-    ...typography.label,
-    color: colors.textPrimary,
-    marginBottom: 5,
-  },
-
-  introText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-
-  /* ====================================================== */
-  /* SAFETY RESULT CARDS */
-  /* ====================================================== */
-
-  dangerCard: {
-    backgroundColor: colors.urgentSoft,
-    borderRadius: radius.xl,
-    borderWidth: 1.5,
-    borderColor: colors.urgent,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    ...shadow.soft,
-  },
-
-  dangerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  dangerIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
-  dangerHeaderContent: {
-    flex: 1,
-  },
-
-  dangerEyebrow: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.urgent,
-    letterSpacing: 1,
-    marginBottom: 3,
-  },
-
-  dangerTitle: {
-    ...typography.h2,
-    color: colors.urgent,
-    fontSize: 18,
-  },
-
-  dangerDivider: {
-    height: 1,
-    backgroundColor: colors.urgent,
-    opacity: 0.2,
-    marginVertical: spacing.md,
-  },
-
-  doNotDonateBox: {
-    flexDirection: 'row',
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.urgent,
-  },
-
-  doNotDonateIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.urgentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
-  doNotDonateContent: {
-    flex: 1,
-  },
-
-  doNotDonateTitle: {
-    fontSize: 13,
-    fontWeight: '900',
-    color: colors.urgent,
-    letterSpacing: 0.4,
-    marginBottom: 4,
-  },
-
-  doNotDonateText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-
-  concernsHeading: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.urgent,
-    letterSpacing: 0.8,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-
-  concernItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
-    marginBottom: 8,
-  },
-
-  concernIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.urgentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
-  concernContent: {
-    flex: 1,
-  },
-
-  concernTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-
-  concernLabel: {
-    ...typography.label,
-    color: colors.textPrimary,
-    flex: 1,
-  },
-
-  concernAnswerBadge: {
-    backgroundColor: colors.urgentSoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-
-  concernAnswerText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.urgent,
-  },
-
-  concernMessage: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 17,
-    marginTop: 3,
-  },
-
-  dangerFooter: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.urgent,
-    opacity: 0.9,
-  },
-
-  dangerFooterText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    flex: 1,
-    marginLeft: 6,
-    lineHeight: 17,
-  },
-
-  passedCard: {
-    backgroundColor: colors.successSoft,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-    ...shadow.soft,
-  },
-
-  passedHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-
-  passedIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
-  passedHeaderContent: {
-    flex: 1,
-  },
-
-  passedEyebrow: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.success,
-    letterSpacing: 1,
-    marginBottom: 3,
-  },
-
-  passedTitle: {
-    ...typography.h2,
-    color: colors.success,
-    fontSize: 18,
-    marginBottom: 4,
-  },
-
-  passedText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-
-  uncertainBox: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
-    marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-
-  uncertainHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-    gap: 6,
-  },
-
-  uncertainTitle: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.accent,
-    letterSpacing: 0.7,
-  },
-
-  uncertainItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 5,
-  },
-
-  uncertainItemContent: {
-    flex: 1,
-    marginLeft: 7,
-  },
-
-  uncertainLabel: {
-    ...typography.label,
-    color: colors.textPrimary,
-    fontSize: 12,
-  },
-
-  uncertainMessage: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 17,
-  },
-
-  safetyDisclaimer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-
-  safetyDisclaimerText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    flex: 1,
-    marginLeft: 5,
-    lineHeight: 17,
-  },
-
-  /* ====================================================== */
-  /* PHOTO */
-  /* ====================================================== */
-
-  photoPreview: {
-    height: 210,
-    borderRadius: radius.xl,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    ...shadow.soft,
-  },
-
-  photoImage: {
-    width: '100%',
-    height: '100%',
-  },
-
-  noPhotoContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  noPhotoIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-
-  noPhotoText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-  },
-
-  typeBadge: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-  },
-
-  typeBadgeText: {
-    ...typography.bodySmall,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-  },
-
-  foodHeader: {
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-  },
-
-  foodName: {
-    ...typography.h2,
-    color: colors.textPrimary,
-  },
-
-  foodCategory: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: 3,
   },
 
   /* ====================================================== */
@@ -2191,138 +2095,8 @@ const styles = StyleSheet.create({
   },
 
   /* ====================================================== */
-  /* AI */
+  /* SAFETY ANSWER ROWS (inside the expandable strip)        */
   /* ====================================================== */
-
-  optionalBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primaryLight,
-  },
-
-  optionalBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.textMuted,
-    letterSpacing: 0.7,
-  },
-
-  aiCard: {
-    flexDirection: 'row',
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    marginTop: spacing.xs,
-  },
-
-  aiIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
-  aiContent: {
-    flex: 1,
-  },
-
-  aiTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 7,
-    marginBottom: 5,
-  },
-
-  aiTitle: {
-    ...typography.label,
-    flexShrink: 1,
-  },
-
-  aiResultBadge: {
-    borderRadius: radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-
-  aiResultBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.5,
-  },
-
-  aiDescription: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 19,
-  },
-
-  aiReasonBox: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-
-  aiReasonLabel: {
-    ...typography.bodySmall,
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.textMuted,
-    letterSpacing: 0.8,
-    marginBottom: 3,
-  },
-
-  aiReasonText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-
-  aiDisclaimer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: spacing.sm,
-    paddingHorizontal: 3,
-  },
-
-  aiDisclaimerText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    flex: 1,
-    marginLeft: 5,
-    lineHeight: 17,
-  },
-
-  /* ====================================================== */
-  /* SAFETY SUMMARY */
-  /* ====================================================== */
-
-  completeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-  },
-
-  completeBadgeText: {
-    fontSize: 9,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-
-  safetySummary: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadow.soft,
-  },
 
   safetyRow: {
     minHeight: 58,
@@ -2430,94 +2204,6 @@ const styles = StyleSheet.create({
   },
 
   /* ====================================================== */
-  /* EDIT */
-  /* ====================================================== */
-
-  editSection: {
-    marginTop: spacing.lg,
-  },
-
-  editSectionTitle: {
-    ...typography.label,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
-  },
-
-  editButtonIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
-  editButtonContent: {
-    flex: 1,
-  },
-
-  editButtonTitle: {
-    ...typography.label,
-    color: colors.primary,
-  },
-
-  editButtonSubtitle: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    fontSize: 10,
-    marginTop: 2,
-  },
-
-  safetyLockedCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.lg,
-    padding: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-
-  safetyLockedIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-
-  safetyLockedContent: {
-    flex: 1,
-  },
-
-  safetyLockedTitle: {
-    ...typography.label,
-    color: colors.textPrimary,
-  },
-
-  safetyLockedText: {
-    ...typography.bodySmall,
-    color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 16,
-    marginTop: 2,
-  },
-
-  /* ====================================================== */
   /* PUBLISH NOTICE */
   /* ====================================================== */
 
@@ -2562,7 +2248,7 @@ const styles = StyleSheet.create({
   /* ====================================================== */
 
   bottomSpace: {
-    height: 150,
+    height: 22,
   },
 
   footer: {
@@ -2644,123 +2330,265 @@ const styles = StyleSheet.create({
     ...typography.label,
     color: colors.urgent,
   },
+};
 
-  /* ====================================================== */
-  /* SUCCESS MODAL */
-  /* ====================================================== */
+/* ============================================================
+   PREMIUM TYPE PASS
+   The theme still declares its 'System' placeholders, so every
+   rule that sets a fontSize but no real family gets the matching
+   Poppins cut, and the shared cards/buttons pick up the refined
+   palette above. Identical to the Details and Safety steps.
+   ============================================================ */
 
-  successOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(1, 28, 46, 0.62)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+const PREMIUM_OVERRIDES: Record<string, any> = {
+  safeArea: {
+    backgroundColor: C.background,
   },
 
-  successModal: {
-    width: '100%',
-    maxWidth: 460,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    alignItems: 'center',
-    ...shadow.soft,
-  },
-
-  successIconOuter: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: colors.successSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-
-  successIconInner: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  successTitle: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    fontSize: 25,
-    marginBottom: spacing.xs,
-  },
-
-  successMessage: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 21,
-    maxWidth: 320,
-  },
-
-  successCodeBox: {
-    width: '100%',
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginTop: spacing.md,
-    alignItems: 'center',
-  },
-
-  successCodeLabel: {
-    fontSize: 9,
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '800',
-    color: colors.textMuted,
-    letterSpacing: 1,
-    marginBottom: 3,
+    color: C.text,
   },
 
-  successCode: {
-    ...typography.h2,
-    color: colors.primary,
+  headerEyebrow: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.muted,
+  },
+
+  iconCircleButton: {
+    backgroundColor: C.white,
+    borderColor: C.border,
+    borderWidth: 1,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
+
+  sectionEyebrow: {
+    fontSize: 9.5,
+    fontWeight: '800',
+    letterSpacing: 1.3,
+    color: C.orange,
+  },
+
+  /* Group rhythm: each section breathes away from the card above it. */
+  sectionHeading: {
+    marginTop: 20,
+    marginBottom: 11,
+  },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+    color: C.text,
+  },
+
+  card: {
+    borderRadius: 22,
+    borderColor: C.border,
+    backgroundColor: C.white,
+    marginBottom: 4,
+    ...ELEV_SOFT,
+  },
+
+  reviewRow: {
+    minHeight: 56,
+  },
+
+  reviewIcon: {
+    backgroundColor: C.softBlue,
+  },
+
+  reviewLabel: {
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: C.muted,
+  },
+
+  reviewValue: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    color: C.text,
+  },
+
+  pickupCard: {
+    borderRadius: 22,
+    borderColor: C.border,
+    backgroundColor: C.white,
+    marginBottom: 4,
+    ...ELEV_SOFT,
+  },
+
+  pickupLabel: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    color: C.muted,
+  },
+
+  pickupValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: C.text,
+  },
+
+  pickupTimeHeading: {
+    fontSize: 9.5,
+    fontWeight: '800',
     letterSpacing: 1.2,
+    color: C.muted,
   },
 
-  successActions: {
-    width: '100%',
-    marginTop: spacing.lg,
+  timeLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.muted,
   },
 
-  viewPostButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    paddingVertical: 15,
-    width: '100%',
+  timeValue: {
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: C.text,
   },
 
-  viewPostButtonText: {
-    ...typography.button,
-    color: colors.white,
+  detailsCard: {
+    borderRadius: 22,
+    borderColor: C.border,
+    backgroundColor: C.white,
+    marginTop: 18,
+    ...ELEV_SOFT,
   },
 
-  doneButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    paddingVertical: 14,
-    width: '100%',
-    marginTop: spacing.sm,
+  detailsTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: C.text,
   },
 
-  doneButtonText: {
-    ...typography.label,
-    color: colors.textPrimary,
+  detailsText: {
+    fontSize: 12.5,
+    lineHeight: 19,
+    color: C.secondary,
   },
-});
+
+  safetyRow: {
+    paddingVertical: 12,
+  },
+
+  safetyLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: C.text,
+  },
+
+  safetyValue: {
+    fontSize: 11.5,
+    fontWeight: '800',
+  },
+
+  editCard: {
+    marginTop: 22,
+  },
+
+  publishNotice: {
+    borderRadius: 20,
+    backgroundColor: C.softBlue,
+    borderColor: C.border,
+    marginTop: 18,
+  },
+
+  publishNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: C.text,
+  },
+
+  publishNoticeText: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: C.secondary,
+  },
+
+  footer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 22,
+    backgroundColor: C.white,
+    borderTopColor: C.hairline,
+    ...ELEV_SOFT,
+  },
+
+  footerHintText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: C.muted,
+  },
+
+  blockedFooterText: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontWeight: '600',
+    color: C.danger,
+  },
+
+  publishButton: {
+    borderRadius: 999,
+    backgroundColor: C.orange,
+    ...ELEV_GLOW,
+  },
+
+  publishText: {
+    fontSize: 15.5,
+    fontWeight: '800',
+    color: C.white,
+  },
+
+  cancelButton: {
+    borderRadius: 999,
+    borderColor: C.danger,
+  },
+
+  cancelButtonText: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    color: C.danger,
+  },
+};
+
+function applyPremiumTypography(
+  defs: Record<string, any>,
+): Record<string, any> {
+  const enriched: Record<string, any> = {};
+
+  for (const key of Object.keys(defs)) {
+    const merged = {
+      ...defs[key],
+      ...(PREMIUM_OVERRIDES[key] ?? {}),
+    };
+
+    const needsFont =
+      merged.fontSize !== undefined &&
+      (merged.fontFamily === undefined ||
+        merged.fontFamily === 'System');
+
+    enriched[key] = needsFont
+      ? {
+          ...merged,
+          fontFamily:
+            FONT_BY_WEIGHT[String(merged.fontWeight)] ??
+            'Poppins_400Regular',
+        }
+      : merged;
+  }
+
+  return enriched;
+}
+
+const styles = StyleSheet.create(
+  applyPremiumTypography(baseStyles) as any,
+);

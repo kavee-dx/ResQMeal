@@ -59,9 +59,13 @@ function neededBy(iso: string | null): string {
 export default function RecipientAskPanel({
   donationId,
   onChatRecipient,
+  onConfirmDelivery,
+  confirmingDelivery = false,
 }: {
   donationId: string;
   onChatRecipient?: (ask: DonationAsk) => void;
+  onConfirmDelivery?: (ask: DonationAsk) => void;
+  confirmingDelivery?: boolean;
 }) {
   const T = useAppTypography();
   const [asks, setAsks] = useState<DonationAsk[] | null>(null);
@@ -232,6 +236,22 @@ export default function RecipientAskPanel({
               </Text>
             </TouchableOpacity>
           ) : null}
+
+          {onConfirmDelivery && ask.stillWaiting && ask.requestId ? (
+            <TouchableOpacity
+              style={styles.confirmBtn}
+              onPress={() => onConfirmDelivery(ask)}
+              activeOpacity={0.85}
+              disabled={confirmingDelivery}
+              accessibilityRole="button"
+              accessibilityLabel={`Confirm ${ask.recipientName} and suggest a delivery volunteer`}
+            >
+              <Ionicons name="bicycle-outline" size={14} color={C.white} />
+              <Text style={{ ...T.buttonSmall, fontSize: 12, color: C.white }}>
+                Confirm recipient & suggest volunteer
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
         );
       })}
@@ -244,9 +264,9 @@ export default function RecipientAskPanel({
           style={{ marginRight: Spacing.two }}
         />
         <Text style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, flex: 1 }}>
-          To answer one, open Food rescue requests and accept that recipient’s
-          request — you then get their contact number to arrange the pickup. You
-          can also coordinate right away with Open Rescue Chat below.
+          Chat with the recipient, then confirm their request to link it to this
+          donation and find delivery volunteers. Confirming also provides the
+          recipient contact details needed to arrange pickup.
         </Text>
       </View>
     </View>
@@ -351,11 +371,16 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     gap: 5,
     marginTop: Spacing.two,
-    paddingHorizontal: Spacing.three - 4,
-    paddingVertical: 5,
+  },
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    backgroundColor: C.teal,
     borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: C.teal,
-    backgroundColor: 'transparent',
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.three,
+    marginTop: Spacing.two,
   },
 });

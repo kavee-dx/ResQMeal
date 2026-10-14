@@ -32,7 +32,7 @@ async function loadVolunteerCandidates(donationId) {
       .select("userId availabilityStatus availableDays availableFrom availableTo")
       .lean(),
     VolunteerDeliveryPreferences.find({ userId: { $in: ids } })
-      .select("userId maxDeliveryDistance location")
+      .select("userId preferredDeliveryArea preferredDeliveryTime maxDeliveryDistance location")
       .lean(),
     Assignment.find({ volunteerId: { $in: ids }, status: { $in: ACTIVE_ASSIGNMENT_STATUSES } })
       .select("volunteerId")

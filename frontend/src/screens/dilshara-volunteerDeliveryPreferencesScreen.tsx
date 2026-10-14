@@ -43,7 +43,7 @@ interface FormState {
 
 function getErrorMessage(err: unknown, fallback: string): string {
   const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-  return message ?? fallback;
+  return message ?? (err instanceof Error ? err.message : fallback);
 }
 
 export default function VolunteerDeliveryPreferencesScreen() {
@@ -97,8 +97,16 @@ export default function VolunteerDeliveryPreferencesScreen() {
               ? String(preferences.maxDeliveryDistance)
               : '',
         });
-      } catch {
-        if (active) Alert.alert('Error', 'Could not load your saved preferences.');
+      } catch (error) {
+        if (active) {
+          Alert.alert(
+            'Could not load preferences',
+            getErrorMessage(
+              error,
+              'Could not load your saved availability and delivery preferences.',
+            ),
+          );
+        }
       } finally {
         if (active) setLoading(false);
       }

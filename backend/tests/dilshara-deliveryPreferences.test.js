@@ -185,15 +185,34 @@ describe("availability and preferences: app saves -> engine reads (step 14)", ()
     expect(candidate.preferences).toBeNull();
   });
 
-  it("returns 404 when saving preferences without a volunteer profile", async () => {
+  it("persists preferences and exposes the saved area to matching without a volunteer profile", async () => {
     const volunteer = await makeUser();
 
     const res = await request(app)
       .patch(preferencesUrl)
       .set(...auth(volunteer))
-      .send({ preferredDeliveryArea: "Colombo", maxDeliveryDistance: 5 });
+      .send({
+        preferredDeliveryArea: "Colombo",
+        preferredDeliveryTime: "16:00 - 22:00",
+        maxDeliveryDistance: 5,
+      });
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
+
+    const stored = await VolunteerDeliveryPreferences.findOne({ userId: volunteer._id }).lean();
+    expect(stored.preferredDeliveryArea).toBe("Colombo");
+    expect(stored.preferredDeliveryTime).toBe("16:00 - 22:00");
+    expect(stored.maxDeliveryDistance).toBe(5);
+
+    const getRes = await request(app).get(preferencesUrl).set(...auth(volunteer));
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.preferredDeliveryArea).toBe("Colombo");
+    expect(getRes.body.preferredDeliveryTime).toBe("16:00 - 22:00");
+
+    const candidates = await loadVolunteerCandidates(new mongoose.Types.ObjectId());
+    const candidate = candidates.find((row) => row.userId === String(volunteer._id));
+    expect(candidate.profile).toBeNull();
+    expect(candidate.preferences.preferredDeliveryArea).toBe("Colombo");
   });
 
   it("only allows authenticated volunteers to read or change these records", async () => {

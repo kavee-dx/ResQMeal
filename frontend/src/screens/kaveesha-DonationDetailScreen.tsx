@@ -5,6 +5,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   RefreshControl,
@@ -32,7 +33,10 @@ import {
 import { colors, fonts } from "../styles/kaveesha-theme";
 
 import RecipientAskPanel from "../components/dushani-recipientAskPanel";
-import type { DonationAsk } from "../services/dushani-foodRequestApi";
+import {
+  acceptFoodRequest,
+  type DonationAsk,
+} from "../services/dushani-foodRequestApi";
 
 type Donation = {
   _id?: string;
@@ -520,6 +524,11 @@ export default function DonationDetailScreen() {
     setActionLoading,
   ] = useState(false);
 
+  const [
+    confirmingRecipient,
+    setConfirmingRecipient,
+  ] = useState(false);
+
   /*
    * Live clock used by the expiry countdown.
    *
@@ -981,6 +990,41 @@ export default function DonationDetailScreen() {
     // Navigate to the donor's full chat list — each recipient's conversation
     // is 1-on-1 and can be opened from "My chats" or the per-ask button below.
     navigation.navigate("ChatList");
+  };
+
+  const openDeliveryVolunteerSuggestions = () => {
+    const id = getDonationId(donation);
+    if (!id) return;
+
+    navigation.navigate("VolunteerSuggestions", {
+      donationId: id,
+    });
+  };
+
+  const confirmRecipientForDelivery = async (ask: DonationAsk) => {
+    const id = getDonationId(donation);
+    if (!id || !ask.requestId || confirmingRecipient) return;
+
+    setConfirmingRecipient(true);
+    try {
+      const accepted = await acceptFoodRequest(ask.requestId, id);
+      if (!accepted.linkedDonation?.id) {
+        throw new Error(
+          "The recipient request was accepted, but it was not linked to this donation. Please contact support before assigning a volunteer.",
+        );
+      }
+      navigation.navigate("VolunteerSuggestions", {
+        donationId: accepted.linkedDonation.id,
+      });
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        (error instanceof Error ? error.message : "Please try again.");
+      Alert.alert("Could not confirm recipient", message);
+    } finally {
+      setConfirmingRecipient(false);
+    }
   };
 
   return (
@@ -1694,6 +1738,8 @@ export default function DonationDetailScreen() {
                   donation replace the old placeholder text. */}
               <RecipientAskPanel
                 donationId={donationId}
+                confirmingDelivery={confirmingRecipient}
+                onConfirmDelivery={confirmRecipientForDelivery}
                 onChatRecipient={(ask: DonationAsk) => {
                   const id = getDonationId(donation);
                   if (!id) return;
@@ -1730,6 +1776,29 @@ export default function DonationDetailScreen() {
                   }
                 >
                   Open Rescue Chat
+                </Text>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.featureActiveButton}
+                onPress={openDeliveryVolunteerSuggestions}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name="bicycle-outline"
+                  size={17}
+                  color="#FFFFFF"
+                />
+
+                <Text style={styles.featureActiveButtonText}>
+                  Suggest Delivery Volunteer
                 </Text>
 
                 <Ionicons

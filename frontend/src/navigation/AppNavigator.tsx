@@ -244,6 +244,8 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen
           name="ChatList"
           component={ChatListScreen}
+        />
+
         <Stack.Screen
           name="VolunteerSuggestions"
           component={VolunteerSuggestionsScreen}

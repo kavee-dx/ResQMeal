@@ -1019,7 +1019,7 @@ function RequestDetailModal({
               onPress={() => onDonate(item)}
             >
               <Text style={s.modalDonateBtnText}>
-                Donate to this request
+                Donate & choose volunteer
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -1235,10 +1235,7 @@ export default function FoodRescueRequestsScreen({
     setSelected(null);
     setClaimed(null);
 
-    navigation.navigate(
-      'CreateDonation' as any,
-      { requestId: item.id } as any
-    );
+    navigation.navigate('CreateDonation', { requestId: item.id });
   };
 
   const handleClaim = async (item: FoodRequest) => {

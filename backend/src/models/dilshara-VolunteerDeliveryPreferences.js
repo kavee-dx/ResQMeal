@@ -8,6 +8,8 @@ const mongoose = require("mongoose");
 const { Schema } = mongoose;
 
 const MAX_DELIVERY_DISTANCE_KM = 100;
+const MIN_DELIVERY_DISTANCE_KM = 0.1;
+const DEFAULT_MAX_DELIVERY_DISTANCE_KM = 10;
 
 const volunteerDeliveryPreferencesSchema = new Schema(
   {
@@ -21,9 +23,19 @@ const volunteerDeliveryPreferencesSchema = new Schema(
 
     maxDeliveryDistance: {
       type: Number,
-      min: [0.1, "Maximum delivery distance must be greater than 0."],
+      min: [
+        MIN_DELIVERY_DISTANCE_KM,
+        `Maximum delivery distance must be at least ${MIN_DELIVERY_DISTANCE_KM} km.`,
+      ],
       max: [MAX_DELIVERY_DISTANCE_KM, `Maximum delivery distance cannot exceed ${MAX_DELIVERY_DISTANCE_KM} km.`],
-      default: null,
+      default: DEFAULT_MAX_DELIVERY_DISTANCE_KM,
+      set: (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+          return DEFAULT_MAX_DELIVERY_DISTANCE_KM;
+        }
+        return Math.min(numeric, MAX_DELIVERY_DISTANCE_KM);
+      },
     },
 
     // Base location used ONLY for matching. Live GPS during a delivery
@@ -40,3 +52,5 @@ const volunteerDeliveryPreferencesSchema = new Schema(
 module.exports = mongoose.model("VolunteerDeliveryPreferences", volunteerDeliveryPreferencesSchema);
 
 module.exports.MAX_DELIVERY_DISTANCE_KM = MAX_DELIVERY_DISTANCE_KM;
+module.exports.MIN_DELIVERY_DISTANCE_KM = MIN_DELIVERY_DISTANCE_KM;
+module.exports.DEFAULT_MAX_DELIVERY_DISTANCE_KM = DEFAULT_MAX_DELIVERY_DISTANCE_KM;

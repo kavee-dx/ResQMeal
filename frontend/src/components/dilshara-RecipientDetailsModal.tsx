@@ -1,6 +1,6 @@
 // frontend/src/components/dilshara-RecipientDetailsModal.tsx
 import React from "react";
-import { Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
+import { ActivityIndicator, Modal, View, Text, ScrollView, TouchableOpacity, StyleSheet } from "react-native";
 import { Colors, Spacing, Radius, Typography } from "@/constants/theme";
 import type { RecipientSuggestion } from "../services/dilshara-recipientSuggestionService";
 import { formatExpiresIn } from "./dilshara-RecipientSuggestionCard";
@@ -9,6 +9,9 @@ type Props = {
   item: RecipientSuggestion | null;
   onClose: () => void;
   onSuggest: (item: RecipientSuggestion) => void;
+  // True while the selection is being confirmed with the server, so the sheet
+  // cannot be dismissed or double-submitted mid-request.
+  busy?: boolean;
 };
 
 function Row({ label, value }: { label: string; value?: string | null }) {
@@ -23,9 +26,9 @@ function Row({ label, value }: { label: string; value?: string | null }) {
 
 const pretty = (s: string) => s.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
-export default function RecipientDetailsModal({ item, onClose, onSuggest }: Props) {
+export default function RecipientDetailsModal({ item, onClose, onSuggest, busy = false }: Props) {
   return (
-    <Modal visible={!!item} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={!!item} animationType="slide" transparent onRequestClose={busy ? undefined : onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           {item ? (
@@ -51,11 +54,20 @@ export default function RecipientDetailsModal({ item, onClose, onSuggest }: Prop
                 <Row label="Expiry" value={formatExpiresIn(item.expiresAt)} />
               </ScrollView>
 
-              <TouchableOpacity style={styles.primary} onPress={() => onSuggest(item)}>
-                <Text style={styles.primaryText}>Suggest Recipient</Text>
+              <TouchableOpacity
+                style={[styles.primary, busy && styles.primaryBusy]}
+                onPress={() => onSuggest(item)}
+                disabled={busy}
+                accessibilityState={{ busy, disabled: busy }}
+              >
+                {busy ? (
+                  <ActivityIndicator color={Colors.light.textOnSecondary} />
+                ) : (
+                  <Text style={styles.primaryText}>Select Recipient</Text>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.secondary} onPress={onClose}>
-                <Text style={styles.secondaryText}>Close</Text>
+              <TouchableOpacity style={styles.secondary} onPress={onClose} disabled={busy}>
+                <Text style={[styles.secondaryText, busy && styles.secondaryTextBusy]}>Close</Text>
               </TouchableOpacity>
             </>
           ) : null}
@@ -83,7 +95,9 @@ const styles = StyleSheet.create({
     height: 52, borderRadius: Radius.md, backgroundColor: Colors.light.secondary,
     alignItems: "center", justifyContent: "center",
   },
+  primaryBusy: { opacity: 0.7 },
   primaryText: { ...Typography.button, color: Colors.light.textOnSecondary },
   secondary: { height: 44, alignItems: "center", justifyContent: "center", marginTop: Spacing.two },
   secondaryText: { ...Typography.button, color: Colors.light.textSecondary },
+  secondaryTextBusy: { opacity: 0.5 },
 });

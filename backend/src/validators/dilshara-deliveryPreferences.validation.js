@@ -1,7 +1,10 @@
 // Validation for volunteer delivery preferences payloads.
 // Owner: Dilshara
 
-const { MAX_DELIVERY_DISTANCE_KM } = require("../models/dilshara-VolunteerDeliveryPreferences");
+const {
+  MAX_DELIVERY_DISTANCE_KM,
+  MIN_DELIVERY_DISTANCE_KM,
+} = require("../models/dilshara-VolunteerDeliveryPreferences");
 
 function isFiniteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
@@ -28,8 +31,8 @@ function validateDeliveryPreferencesPayload(body) {
     }
   }
 
-  if (!isFiniteNumber(maxDeliveryDistance) || maxDeliveryDistance <= 0) {
-    return "Maximum delivery distance must be a positive number.";
+  if (!isFiniteNumber(maxDeliveryDistance) || maxDeliveryDistance < MIN_DELIVERY_DISTANCE_KM) {
+    return `Maximum delivery distance must be at least ${MIN_DELIVERY_DISTANCE_KM} km.`;
   }
   if (maxDeliveryDistance > MAX_DELIVERY_DISTANCE_KM) {
     return `Maximum delivery distance cannot exceed ${MAX_DELIVERY_DISTANCE_KM} km.`;

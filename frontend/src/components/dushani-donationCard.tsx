@@ -61,6 +61,8 @@ type Props = {
   onToggle: () => void;
   /** Sends the ask for this donation; resolves once the donor has it. */
   onAsk: (note: string) => Promise<void>;
+  /** Opens the rescue chat for this donation. Only shown once they have asked. */
+  onChat?: () => void;
 };
 
 /**
@@ -68,7 +70,7 @@ type Props = {
  * is, which of the recipient's own requests it answers, and whether they have
  * already asked this donor for it.
  */
-export default function DonationCard({ donation, expanded, onToggle, onAsk }: Props) {
+export default function DonationCard({ donation, expanded, onToggle, onAsk, onChat }: Props) {
   const T = useAppTypography();
   const [composing, setComposing] = useState(false);
   const [note, setNote] = useState('');
@@ -217,6 +219,25 @@ export default function DonationCard({ donation, expanded, onToggle, onAsk }: Pr
                   and your request on their donation page.
                 </Text>
               </View>
+            )}
+
+            {donation.asked && !composing && onChat && (
+              <TouchableOpacity
+                onPress={onChat}
+                activeOpacity={0.88}
+                style={styles.chatButton}
+                accessibilityLabel={`Chat with ${donation.donorName}`}
+              >
+                <Ionicons
+                  name="chatbubbles-outline"
+                  size={15}
+                  color={C.teal}
+                  style={{ marginRight: Spacing.two }}
+                />
+                <Text style={{ ...T.buttonSmall, color: C.teal }}>
+                  Chat with {donation.donorName}
+                </Text>
+              </TouchableOpacity>
             )}
 
             {composing ? (
@@ -471,6 +492,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    paddingVertical: 2,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginTop: Spacing.two,
     paddingVertical: 2,
   },
 });

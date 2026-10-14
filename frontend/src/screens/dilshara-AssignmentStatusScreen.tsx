@@ -7,14 +7,29 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius, Spacing, Shadows, ComponentSizes } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import VolunteerBottomNav from '../components/dilshara-VolunteerBottomNav';
-import { getCurrentAssignment, updateAssignmentStatus, Assignment } from '@/services/dilshara-assignmentService';
+import {
+  getCurrentAssignmentDetail,
+  updateAssignmentStatus,
+  Assignment,
+  AssignmentStatus,
+  DeliveryView,
+} from '@/services/dilshara-assignmentService';
 
-const NEXT_STATUS: Record<string, { next: Assignment['status']; label: string } | null> = {
+// Mirrors the backend lifecycle map for which action to offer. The backend
+// still enforces every transition — this only decides what the app shows.
+const NEXT_STEP: Record<string, { next: AssignmentStatus; label: string } | null> = {
   ASSIGNED: { next: 'ACCEPTED', label: 'Accept Assignment' },
   ACCEPTED: { next: 'PICKING_UP', label: 'Start Pickup' },
   PICKING_UP: { next: 'IN_TRANSIT', label: 'Mark In Transit' },
   IN_TRANSIT: { next: 'DELIVERED', label: 'Mark Delivered' },
   DELIVERED: null,
+};
+
+const SUCCESS_MESSAGE: Record<string, string> = {
+  ACCEPTED: 'Assignment accepted. Head to the pickup when you are ready.',
+  PICKING_UP: 'Pickup started — collect the food from the donor.',
+  IN_TRANSIT: 'On your way. The recipient can see that delivery has started.',
+  DELIVERED: 'Delivery completed. Thank you for rescuing this food.',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -28,9 +43,125 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STEPS: Assignment['status'][] = ['ASSIGNED', 'ACCEPTED', 'PICKING_UP', 'IN_TRANSIT', 'DELIVERED'];
 
+const MATCH_FACTORS: { key: 'distance' | 'area' | 'time' | 'urgency'; label: string }[] = [
+  { key: 'distance', label: 'Distance' },
+  { key: 'area', label: 'Preferred area' },
+  { key: 'time', label: 'Time availability' },
+  { key: 'urgency', label: 'Urgency fit' },
+];
+
+type DestructiveAction = {
+  label: string;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  successText: string;
+};
+
+// Where the backend allows a cancellation, and what the volunteer should be
+// told before it is sent. IN_TRANSIT and finished deliveries never cancel.
+function destructiveAction(status: AssignmentStatus): DestructiveAction | null {
+  if (status === 'ASSIGNED') {
+    return {
+      label: 'Decline',
+      title: 'Decline this delivery?',
+      message: 'It will be offered to another eligible volunteer.',
+      confirmLabel: 'Decline',
+      successText: 'Delivery declined — it goes back to matching.',
+    };
+  }
+  if (status === 'ACCEPTED') {
+    return {
+      label: 'Cancel Assignment',
+      title: 'Cancel this delivery?',
+      message: 'Cancelling before pickup lets the system look for another volunteer.',
+      confirmLabel: 'Cancel delivery',
+      successText: 'Delivery cancelled.',
+    };
+  }
+  if (status === 'PICKING_UP') {
+    return {
+      label: 'Cancel Assignment',
+      title: 'Cancel this delivery?',
+      message:
+        'You may already have the food, so it will not be offered to anyone else automatically — the donor and recipient will be told to coordinate the handover.',
+      confirmLabel: 'Cancel delivery',
+      successText: 'Delivery cancelled — the donor and recipient have been told to coordinate.',
+    };
+  }
+  return null;
+}
+
 function getErrorMessage(err: unknown, fallback: string): string {
   const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
   return message ?? fallback;
+}
+
+function formatRouteDistance(
+  km: number | null | undefined,
+  precision: string | null | undefined
+): string | null {
+  if (km == null) return null;
+  // Approximate routes are estimates between district centres — do not dress
+  // them up with decimal precision.
+  return precision === 'APPROXIMATE' ? `~${Math.round(km)} km (approximate)` : `${km} km`;
+}
+
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+// Joins a place label with its district, dropping the district when the label
+// already names it — "Colombo 05" + "Colombo" must not print twice.
+function areaText(label: string | null | undefined, district: string | null | undefined): string {
+  const first = label?.trim();
+  const rest = district?.trim();
+  if (!first) return rest ?? '';
+  if (!rest || first.toLowerCase().includes(rest.toLowerCase())) return first;
+  return `${first}, ${rest}`;
+}
+
+function ActionButton(props: {
+  label: string;
+  tone: 'primary' | 'danger';
+  loading: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const theme = Colors.light;
+  const T = useAppTypography();
+  const { label, tone, loading, disabled, onPress } = props;
+  const isPrimary = tone === 'primary';
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={{
+        width: '100%',
+        height: ComponentSizes.buttonHeight,
+        borderRadius: Radius.md,
+        backgroundColor: isPrimary ? theme.primary : theme.errorSoft,
+        borderWidth: isPrimary ? 0 : 1,
+        borderColor: theme.error,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.7 : 1,
+        ...(isPrimary ? Shadows.button : {}),
+      }}
+    >
+      {loading ? (
+        <ActivityIndicator color={isPrimary ? theme.textOnPrimary : theme.error} />
+      ) : (
+        <Text style={{ ...T.button, color: isPrimary ? theme.textOnPrimary : theme.error }}>
+          {label}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
 }
 
 export default function AssignmentStatusScreen() {
@@ -39,15 +170,21 @@ export default function AssignmentStatusScreen() {
   const insets = useSafeAreaInsets();
 
   const [assignment, setAssignment] = useState<Assignment | null>(null);
+  const [delivery, setDelivery] = useState<DeliveryView | null>(null);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<AssignmentStatus | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { keepNotice?: boolean }) => {
+    if (!options?.keepNotice) setNotice(null);
     try {
-      const data = await getCurrentAssignment();
-      setAssignment(data);
+      const result = await getCurrentAssignmentDetail();
+      setAssignment(result.assignment);
+      setDelivery(result.assignment ? result.delivery : null);
+      setLoadError(null);
     } catch (err) {
-      Alert.alert('Error', 'Could not load your assignment.');
+      setLoadError(getErrorMessage(err, 'Could not load your assignment.'));
     } finally {
       setLoading(false);
     }
@@ -59,20 +196,42 @@ export default function AssignmentStatusScreen() {
     }, [load])
   );
 
-  const handleAdvance = async () => {
+  const submit = async (nextStatus: AssignmentStatus, successText: string) => {
     if (!assignment) return;
-    const step = NEXT_STATUS[assignment.status];
-    if (!step) return;
 
-    setUpdating(true);
+    setPendingAction(nextStatus);
+    setNotice(null);
     try {
-      const updated = await updateAssignmentStatus(assignment._id, step.next);
-      setAssignment(updated);
+      const { requestSync } = await updateAssignmentStatus(assignment._id, nextStatus);
+      // Requirement: refresh from the server after every action — a decline
+      // can hand the delivery to someone else, a completion empties the list.
+      await load({ keepNotice: true });
+      if (requestSync?.status === 'FAILED') {
+        // The assignment change stands; the recipient's progress update needs
+        // recovery and is logged server-side.
+        setNotice({
+          tone: 'warning',
+          text: "Status saved, but the recipient's request could not be updated — it is logged for recovery.",
+        });
+      } else {
+        setNotice({ tone: 'success', text: successText });
+      }
     } catch (err) {
-      Alert.alert('Error', getErrorMessage(err, 'Could not update status.'));
+      Alert.alert('Could not update status', getErrorMessage(err, 'Check your connection and try again.'));
     } finally {
-      setUpdating(false);
+      setPendingAction(null);
     }
+  };
+
+  const confirmDestructive = (action: DestructiveAction) => {
+    Alert.alert(action.title, action.message, [
+      { text: 'Never mind', style: 'cancel' },
+      {
+        text: action.confirmLabel,
+        style: 'destructive',
+        onPress: () => submit('CANCELLED', action.successText),
+      },
+    ]);
   };
 
   const cardStyle = {
@@ -85,11 +244,106 @@ export default function AssignmentStatusScreen() {
     ...Shadows.card,
   };
 
+  const renderNotice = () => {
+    if (!notice) return null;
+    const good = notice.tone === 'success';
+    return (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          backgroundColor: good ? theme.successSoft : theme.warningSoft,
+          borderRadius: Radius.md,
+          padding: Spacing.three,
+          marginBottom: Spacing.three,
+        }}
+      >
+        <Ionicons
+          name={good ? 'checkmark-circle' : 'alert-circle'}
+          size={18}
+          color={good ? theme.success : theme.warning}
+          style={{ marginTop: 1 }}
+        />
+        <Text style={{ ...T.bodySmall, color: theme.text, flex: 1, marginLeft: Spacing.two }}>
+          {notice.text}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderActions = (status: AssignmentStatus) => {
+    const step = NEXT_STEP[status];
+    const destructive = destructiveAction(status);
+
+    if (!step && !destructive) return null;
+
+    const busy = pendingAction !== null;
+
+    if (step && destructive) {
+      return (
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1 }}>
+            <ActionButton
+              label={destructive.label}
+              tone="danger"
+              loading={pendingAction === 'CANCELLED'}
+              disabled={busy}
+              onPress={() => confirmDestructive(destructive)}
+            />
+          </View>
+          <View style={{ flex: 1, marginLeft: Spacing.two }}>
+            <ActionButton
+              label={step.label}
+              tone="primary"
+              loading={pendingAction === step.next}
+              disabled={busy}
+              onPress={() => submit(step.next, SUCCESS_MESSAGE[step.next] ?? 'Status updated.')}
+            />
+          </View>
+        </View>
+      );
+    }
+
+    const single = step
+      ? { label: step.label, tone: 'primary' as const, loading: pendingAction === step.next, onPress: () => submit(step.next, SUCCESS_MESSAGE[step.next] ?? 'Status updated.') }
+      : { label: destructive!.label, tone: 'danger' as const, loading: pendingAction === 'CANCELLED', onPress: () => confirmDestructive(destructive!) };
+
+    return (
+      <ActionButton label={single.label} tone={single.tone} loading={single.loading} disabled={busy} onPress={single.onPress} />
+    );
+  };
+
   const renderBody = () => {
     if (loading) {
       return (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator size="large" color={theme.primary} />
+        </View>
+      );
+    }
+
+    if (loadError && !assignment) {
+      return (
+        <View style={cardStyle}>
+          <View style={{ alignItems: 'center', paddingVertical: Spacing.three }}>
+            <Ionicons name="cloud-offline-outline" size={30} color={theme.error} />
+            <Text style={{ ...T.h1, fontSize: 18, lineHeight: 24, color: theme.text, marginTop: Spacing.two }}>
+              Could not load your assignment
+            </Text>
+            <Text style={{ ...T.bodySmall, color: theme.textSecondary, textAlign: 'center', marginTop: Spacing.one, marginBottom: Spacing.three }}>
+              {loadError}
+            </Text>
+            <ActionButton
+              label="Try again"
+              tone="primary"
+              loading={false}
+              disabled={false}
+              onPress={() => {
+                setLoading(true);
+                load();
+              }}
+            />
+          </View>
         </View>
       );
     }
@@ -121,9 +375,21 @@ export default function AssignmentStatusScreen() {
     }
 
     const donation = assignment.donationId;
-    const step = NEXT_STATUS[assignment.status];
     const currentIndex = STEPS.indexOf(assignment.status);
-    const pickupText = [donation?.pickupAddress, donation?.pickupDistrict].filter(Boolean).join(', ');
+    const contact = delivery?.recipientContact ?? null;
+    const dropoffText = delivery?.dropoff
+      ? areaText(delivery.dropoff.label, delivery.dropoff.district)
+      : '';
+    const pickupText =
+      areaText(delivery?.pickup?.label, delivery?.pickup?.district) ||
+      areaText(donation?.pickupAddress, donation?.pickupDistrict);
+    const routeText = formatRouteDistance(assignment.routeDistanceKm, assignment.locationPrecision);
+    const breakdown = assignment.matchBreakdown;
+    const hasMatchInfo =
+      assignment.matchScore != null ||
+      routeText != null ||
+      (assignment.matchReasons?.length ?? 0) > 0 ||
+      MATCH_FACTORS.some((factor) => breakdown?.[factor.key]);
 
     return (
       <>
@@ -155,9 +421,25 @@ export default function AssignmentStatusScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
             <Ionicons name="location-outline" size={18} color={theme.textMuted} style={{ marginTop: 1 }} />
             <Text style={{ ...T.bodySmall, color: theme.textSecondary, flex: 1, marginLeft: Spacing.two }}>
-              Pickup: {pickupText || 'N/A'}
+              Pickup: {pickupText || 'Not available'}
             </Text>
           </View>
+
+          {dropoffText.length > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: Spacing.two }}>
+              <Ionicons name="navigate-outline" size={18} color={theme.textMuted} style={{ marginTop: 1 }} />
+              <Text style={{ ...T.bodySmall, color: theme.textSecondary, flex: 1, marginLeft: Spacing.two }}>
+                Drop-off: {dropoffText}
+                {delivery?.dropoff && !delivery.dropoff.exact ? ' (approximate area)' : ''}
+              </Text>
+            </View>
+          )}
+
+          {assignment.status === 'ASSIGNED' && dropoffText.length > 0 && !contact && (
+            <Text style={{ ...T.caption, color: theme.textMuted, marginTop: Spacing.two }}>
+              Recipient contact details appear once you accept.
+            </Text>
+          )}
         </View>
 
         <View style={cardStyle}>
@@ -194,28 +476,99 @@ export default function AssignmentStatusScreen() {
           )}
         </View>
 
-        {step && (
-          <TouchableOpacity
-            onPress={handleAdvance}
-            disabled={updating}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={step.label}
-            style={{
-              height: ComponentSizes.buttonHeight,
-              borderRadius: Radius.md,
-              backgroundColor: theme.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: updating ? 0.7 : 1,
-              ...Shadows.button,
-            }}
-          >
-            <Text style={{ ...T.button, color: theme.textOnPrimary }}>
-              {updating ? 'Updating...' : step.label}
+        {contact && (
+          <View style={cardStyle}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.two }}>
+              <Ionicons name="call-outline" size={16} color={theme.textSecondary} />
+              <Text style={{ ...T.label, color: theme.textSecondary, marginLeft: Spacing.two }}>
+                Recipient contact
+              </Text>
+            </View>
+            <Text style={{ ...T.label, fontSize: 16, lineHeight: 22, color: theme.text }}>
+              {contact.name ?? 'ResQMeal recipient'}
             </Text>
-          </TouchableOpacity>
+            <Text style={{ ...T.h1, fontSize: 18, lineHeight: 24, color: theme.primary, marginTop: Spacing.one }}>
+              {contact.phone}
+            </Text>
+          </View>
         )}
+
+        {hasMatchInfo && (
+          <View style={cardStyle}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ ...T.label, color: theme.textSecondary }}>Why you matched</Text>
+              {assignment.matchScore != null && (
+                <View
+                  style={{
+                    backgroundColor: theme.secondarySoft,
+                    borderRadius: Radius.pill,
+                    paddingHorizontal: Spacing.two,
+                    paddingVertical: Spacing.half,
+                  }}
+                >
+                  <Text style={{ ...T.caption, color: theme.secondaryDark }}>
+                    Match score {round1(assignment.matchScore)} / 100
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {routeText && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: Spacing.two }}>
+                <Ionicons name="map-outline" size={16} color={theme.textMuted} />
+                <Text style={{ ...T.bodySmall, color: theme.textSecondary, marginLeft: Spacing.two }}>
+                  Route distance: {routeText}
+                </Text>
+              </View>
+            )}
+
+            {MATCH_FACTORS.some((factor) => breakdown?.[factor.key]) && (
+              <View style={{ marginTop: Spacing.three }}>
+                {MATCH_FACTORS.map((factor) => {
+                  const factorData = breakdown?.[factor.key];
+                  if (!factorData) return null;
+                  const points = Math.max(0, Math.min(100, factorData.points ?? factorData.score ?? 0));
+                  return (
+                    <View key={factor.key} style={{ marginBottom: Spacing.two }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.half }}>
+                        <Text style={{ ...T.caption, color: theme.textSecondary }}>{factor.label}</Text>
+                        <Text style={{ ...T.caption, color: theme.textMuted }}>{round1(points)} pts</Text>
+                      </View>
+                      <View style={{ height: 6, borderRadius: 3, backgroundColor: theme.border }}>
+                        <View
+                          style={{
+                            width: `${points}%`,
+                            height: 6,
+                            borderRadius: 3,
+                            backgroundColor: theme.secondary,
+                          }}
+                        />
+                      </View>
+                    </View>
+                  );
+                })}
+                <Text style={{ ...T.caption, color: theme.textMuted }}>
+                  Bars show each factor's weighted contribution.
+                </Text>
+              </View>
+            )}
+
+            {(assignment.matchReasons?.length ?? 0) > 0 && (
+              <View style={{ marginTop: Spacing.three }}>
+                {assignment.matchReasons!.map((reason, index) => (
+                  <View key={`${index}-${reason}`} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: Spacing.one }}>
+                    <Ionicons name="checkmark-circle" size={14} color={theme.success} style={{ marginTop: 2 }} />
+                    <Text style={{ ...T.bodySmall, color: theme.textSecondary, flex: 1, marginLeft: Spacing.two }}>
+                      {reason}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {renderActions(assignment.status)}
       </>
     );
   };
@@ -236,6 +589,7 @@ export default function AssignmentStatusScreen() {
           Track and update your active delivery.
         </Text>
 
+        {renderNotice()}
         {renderBody()}
       </ScrollView>
 

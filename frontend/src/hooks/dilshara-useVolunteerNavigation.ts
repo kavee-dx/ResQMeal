@@ -3,7 +3,6 @@
 // Owner: Dilshara
 
 import { useCallback } from "react";
-import { Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
@@ -45,9 +44,8 @@ export function useVolunteerNavigation() {
           navigation.navigate("Profile");
           break;
         case "map":
-          // Map screen belongs to another member. When it exists, replace
-          // this alert with navigation.navigate("<MapRouteName>").
-          Alert.alert("Map", "The map view will be available soon.");
+          // Shared Food Rescue Map — same screen the other roles use.
+          navigation.navigate("FoodRescueMap");
           break;
       }
     },

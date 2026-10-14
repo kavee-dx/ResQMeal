@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { Colors, Radius, Shadows, Spacing, Typography } from '@/constants/theme';
 import api from '@/services/api';
 import { CAMPAIGN_CATEGORIES, CampaignPost } from '@/types/amasha-campaign';
@@ -39,6 +40,7 @@ export default function AmashaCampaignFeedSection({
   const colors = Colors[scheme];
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const { width } = useWindowDimensions();
+  const navigation = useNavigation<any>();
 
   const [campaigns, setCampaigns] = useState<CampaignPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,6 +117,18 @@ export default function AmashaCampaignFeedSection({
         {campaigns.map((c) => {
           const ended = new Date(c.endDate).getTime() < Date.now();
           const icon = categoryIcon[c.category] ?? 'megaphone-outline';
+
+          const openCampaignChat = () => {
+            if (!c.ngoId) return; // ngoId required to open a 1-on-1 chat
+            navigation.navigate('Chat', {
+              contextType: 'campaign',
+              contextId: c._id,
+              peerId: c.ngoId,
+              title: c.title,
+              subtitle: `Campaign chat · ${c.ngoName ?? 'NGO'}`,
+            });
+          };
+
           return (
             <View key={c._id} style={[styles.card, { width: cardWidth }]}>
               {c.imageUrl ? (
@@ -201,6 +215,19 @@ export default function AmashaCampaignFeedSection({
                     </Text>
                   </View>
                 ) : null}
+
+                <TouchableOpacity
+                  style={styles.chatButton}
+                  onPress={openCampaignChat}
+                  activeOpacity={0.85}
+                  accessibilityLabel={`Open chat about ${c.title}`}
+                >
+                  <Ionicons name="chatbubbles-outline" size={15} color={colors.primary} />
+                  <Text style={styles.chatButtonText}>
+                    Interested? Chat with {c.ngoName ?? 'the NGO'}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+                </TouchableOpacity>
               </View>
             </View>
           );
@@ -307,4 +334,22 @@ const makeStyles = (c: (typeof Colors)['light'] | (typeof Colors)['dark']) =>
       backgroundColor: c.secondarySoft,
     },
     targetText: { ...Typography.label, fontSize: 12 },
+    chatButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: Spacing.one,
+      paddingHorizontal: Spacing.two,
+      paddingVertical: 9,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.primarySoft,
+    },
+    chatButtonText: {
+      ...Typography.labelStrong,
+      fontSize: 12,
+      color: c.primary,
+      flex: 1,
+    },
   });

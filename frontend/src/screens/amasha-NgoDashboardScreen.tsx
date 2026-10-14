@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useColorScheme } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import CommunityStatsSection from "@/components/communityMonitoring/amasha-CommunityStatsSection";
 import DonationStatusSection from "@/components/communityMonitoring/amasha-DonationStatusSection";
 import RequestStatusSection from "@/components/communityMonitoring/amasha-RequestStatusSection";
 import AmashaCampaignPostsSection from "@/components/communityMonitoring/amasha-CampaignPostsSection";
+import AmashaChatSection from "@/components/communityMonitoring/amasha-ChatSection";
+import AmashaHomeNotificationBell from "@/components/amasha-HomeNotificationBell";
 import { Colors, Radius, Shadows, Spacing, Typography } from "@/constants/theme";
 import api from "@/services/api";
 import FoodRescueTrendsSection from "@/components/communityMonitoring/amasha-FoodRescueTrendsSection";
@@ -47,6 +49,17 @@ export default function NgoDashboardScreen() {
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ paddingBottom: Spacing.six }}
     >
+      {/* Chat / campaign alerts, same feed as the NGO home bell */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "flex-end",
+          marginHorizontal: Spacing.three,
+          marginTop: Spacing.three,
+        }}
+      >
+        <AmashaHomeNotificationBell />
+      </View>
       <Pressable
         style={[styles.mapButton, { backgroundColor: colors.primary }, Shadows.button]}
         onPress={() => navigation.navigate("FoodRescueMap")}
@@ -60,6 +73,7 @@ export default function NgoDashboardScreen() {
       </Pressable>
       <CommunityStatsSection stats={stats} loading={loading} />
       <AmashaCampaignPostsSection />
+      <AmashaChatSection />
       <RequestStatusSection />
       <DonationStatusSection />
       <FoodRescueTrendsSection />

@@ -4,8 +4,10 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { CreateDonationFlowParamList } from './kaveesha-createDonationFlow.types';
+import type { RootStackParamList } from './types';
 import { CreateDonationProvider } from '../context/kaveesha-CreateDonationContext';
 
 import TypeSelectScreen from '../screens/donation-flow/kaveesha-TypeSelectScreen';
@@ -16,7 +18,11 @@ import ReviewScreen from '../screens/donation-flow/kaveesha-ReviewScreen';
 const Stack =
   createNativeStackNavigator<CreateDonationFlowParamList>();
 
-export default function KaveeshaCreateDonationNavigator() {
+type Props = NativeStackScreenProps<RootStackParamList, 'CreateDonation'>;
+
+export default function KaveeshaCreateDonationNavigator({ route }: Props) {
+  const requestId = route.params?.requestId;
+
   return (
     <CreateDonationProvider>
       <Stack.Navigator
@@ -44,6 +50,7 @@ export default function KaveeshaCreateDonationNavigator() {
         <Stack.Screen
           name="Review"
           component={ReviewScreen}
+          initialParams={requestId ? { requestId } : undefined}
         />
       </Stack.Navigator>
     </CreateDonationProvider>

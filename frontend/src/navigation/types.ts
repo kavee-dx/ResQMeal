@@ -62,6 +62,8 @@ export type RootStackParamList = {
   MyDonations:
     | { justPublished?: { code?: string; foodType?: string } }
     | undefined;
+  CreateDonation: { requestId?: string } | undefined;
+  MyDonations: undefined;
   DonationDetail: { donationId: string };
   EditDonation: { donationId: string };
 
@@ -87,6 +89,20 @@ export type RootStackParamList = {
 
   // Recipient suggestions
   RecipientSuggestions: { donationId: string };
+
+  // In-app chat — donation rescue chats and campaign chats (1-on-1)
+  Chat: {
+    contextType: "donation" | "campaign";
+    contextId: string;
+    peerId: string;
+    title: string;
+    subtitle?: string;
+  };
+
+  // The signed-in user's chat list (all roles)
+  ChatList: undefined;
+  // Donor selects an eligible volunteer after choosing a recipient.
+  VolunteerSuggestions: { donationId: string };
 };
 
 export type HomeRouteName =

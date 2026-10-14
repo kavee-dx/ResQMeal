@@ -40,6 +40,11 @@ const DELIVERY_STATUS_LABEL: Record<CurrentDeliveryStatus, string> = {
   IN_TRANSIT: 'Delivery in progress',
 };
 
+function getErrorMessage(err: unknown, fallback: string): string {
+  const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  return message ?? (err instanceof Error ? err.message : fallback);
+}
+
 export default function VolunteerAvailabilityScreen({ navigation }: Props) {
   const [form, setForm] = useState<AvailabilityFormState>({
     availabilityStatus: 'UNAVAILABLE',
@@ -66,7 +71,10 @@ export default function VolunteerAvailabilityScreen({ navigation }: Props) {
           availableTo: data.availableTo,
         });
       } catch (err) {
-        Alert.alert('Error', 'Could not load your saved availability.');
+        Alert.alert(
+          'Could not load availability',
+          getErrorMessage(err, 'Could not load your saved availability.'),
+        );
       } finally {
         setLoading(false);
       }
@@ -127,7 +135,10 @@ export default function VolunteerAvailabilityScreen({ navigation }: Props) {
       await updateAvailability(payload);
       Alert.alert('Saved', 'Your availability has been updated.');
     } catch (err) {
-      Alert.alert('Error', 'Could not save your availability. Please try again.');
+      Alert.alert(
+        'Could not save availability',
+        getErrorMessage(err, 'Could not save your availability. Please try again.'),
+      );
     } finally {
       setSaving(false);
     }

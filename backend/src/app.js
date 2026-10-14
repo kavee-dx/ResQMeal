@@ -151,6 +151,12 @@ app.use(
   require("./routes/amasha-TrendRoutes")
 );
 
+// NGO dashboard monitoring routes (requests / donations / community stats)
+app.use(
+  "/api/ngo",
+  require("./routes/amasha-ngoMonitoringRoutes")
+);
+
 // Campaign routes
 app.use(
   "/api/campaigns",
@@ -161,6 +167,12 @@ app.use(
 app.use(
   "/api/notifications",
   require("./routes/amasha-notificationRoutes")
+);
+
+// In-app chat routes (donation rescue chats + campaign chats)
+app.use(
+  "/api/chat",
+  require("./routes/amasha-chatRoutes")
 );
 
 // Push notification routes

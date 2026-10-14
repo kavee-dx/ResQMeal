@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 const FoodRequest = require('../models/dushani-foodRequestModel');
 const Donation = require('../models/kaveesha-Donation');
 const { effectiveStatus } = require('./dushani-requestProgressService');
+// Matching engine (owner: Dilshara, step 11) — a cancellation must end any
+// live delivery for the request and tell the donor their donation is free
+// again. Imports only; the calls live inside cancelFoodRequest below.
+const { cancelActiveAssignmentsForRequest } = require('./dilshara-assignmentLifecycle.service');
+const { notifyRequestCancelled } = require('./amasha-requestNotifications');
 
 // Sprint item 09 — cancelling closes a request the recipient no longer needs.
 // Deleting (see dushani-deleteFoodRequestService) is only for a request nobody
@@ -45,6 +50,21 @@ async function cancelFoodRequest(recipientId, requestId) {
   );
 
   if (!updated) fail('This request has moved on — refresh to see its latest status', 409);
+
+  // --- Delivery and notification coordination (owner: Dilshara — step 11 of
+  // the matching engine). The cancellation is already saved, and only the
+  // first cancel gets here (the atomic filter above), so nothing below can
+  // run twice. Ending the live delivery must never block or undo the
+  // cancellation; problems are logged for recovery.
+  try {
+    await cancelActiveAssignmentsForRequest(updated._id);
+  } catch (error) {
+    console.error(`Could not end the live delivery for request ${updated._id}:`, error);
+  }
+
+  // Existing request-notification helper: the donor (if any) hears the
+  // donation is available again. notify() itself never throws.
+  await notifyRequestCancelled(updated);
 
   // Sprint item 10 — the donation the claiming donor set aside for this request
   // is searchable again the moment the request stops being live: the hold is

@@ -38,11 +38,14 @@ import RequestProgressScreen from "../screens/dushani-requestProgressScreen";
 import AssignmentStatusScreen from "../screens/dilshara-AssignmentStatusScreen";
 import RequestHistoryScreen from "../screens/dushani-requestHistoryScreen";
 import RecipientSuggestionsScreen from "../screens/dilshara-recipientSuggestionsScreen";
+import VolunteerSuggestionsScreen from "../screens/dilshara-VolunteerSuggestionsScreen";
 // Community monitoring (adjust file names if yours differ)
 import MonitoringMapScreen from "../screens/amasha-MonitoringMapScreen";
 import NgoDashboardScreen from "../screens/amasha-NgoDashboardScreen";
 import NgoCampaignScreen from "../screens/amasha-NgoCampaignScreen";
 import FoodRescueMapScreen from "../screens/amasha-FoodRescueMapScreen";
+import ChatScreen from "../screens/amasha-ChatScreen";
+import ChatListScreen from "../screens/amasha-ChatListScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -229,6 +232,25 @@ export default function AppNavigator({ initialAuth }: Props) {
         <Stack.Screen
           name="RecipientSuggestions"
           component={RecipientSuggestionsScreen}
+        />
+
+        {/* In-app chat (donation rescue chats + campaign chats) */}
+        <Stack.Screen
+          name="Chat"
+          component={ChatScreen}
+        />
+
+       
+        {/* The signed-in user's chat list (all roles) */}
+        <Stack.Screen
+          name="ChatList"
+          component={ChatListScreen}
+        />
+
+        {/* Volunteer Suggestions */}
+        <Stack.Screen
+          name="VolunteerSuggestions"
+          component={VolunteerSuggestionsScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -126,6 +126,8 @@ async function listCampaigns(req, res) {
 
     const withNgoName = campaigns.map(({ ngoId, ...campaign }) => ({
       ...campaign,
+      // Expose the NGO user id so the frontend can open a 1-on-1 chat with them
+      ngoId: String(ngoId?._id ?? ngoId),
       ngoName:
         orgNames.get(String(ngoId?._id)) ?? ngoId?.fullName ?? "NGO",
     }));

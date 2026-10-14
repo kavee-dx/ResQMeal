@@ -5,6 +5,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   RefreshControl,
@@ -33,6 +34,10 @@ import { colors } from "../styles/kaveesha-theme";
 import { LinearGradient } from "expo-linear-gradient";
 
 import RecipientAskPanel from "../components/dushani-recipientAskPanel";
+import {
+  acceptFoodRequest,
+  type DonationAsk,
+} from "../services/dushani-foodRequestApi";
 
 /* =========================================================
    PREMIUM DESIGN TOKENS
@@ -587,6 +592,11 @@ export default function DonationDetailScreen() {
     setActionLoading,
   ] = useState(false);
 
+  const [
+    confirmingRecipient,
+    setConfirmingRecipient,
+  ] = useState(false);
+
   /*
    * Live clock used by the expiry countdown.
    *
@@ -1054,6 +1064,47 @@ export default function DonationDetailScreen() {
         donationId: id,
       },
     );
+  };
+
+  const openRescueChat = () => {
+    // Navigate to the donor's full chat list — each recipient's conversation
+    // is 1-on-1 and can be opened from "My chats" or the per-ask button below.
+    navigation.navigate("ChatList");
+  };
+
+  const openDeliveryVolunteerSuggestions = () => {
+    const id = getDonationId(donation);
+    if (!id) return;
+
+    navigation.navigate("VolunteerSuggestions", {
+      donationId: id,
+    });
+  };
+
+  const confirmRecipientForDelivery = async (ask: DonationAsk) => {
+    const id = getDonationId(donation);
+    if (!id || !ask.requestId || confirmingRecipient) return;
+
+    setConfirmingRecipient(true);
+    try {
+      const accepted = await acceptFoodRequest(ask.requestId, id);
+      if (!accepted.linkedDonation?.id) {
+        throw new Error(
+          "The recipient request was accepted, but it was not linked to this donation. Please contact support before assigning a volunteer.",
+        );
+      }
+      navigation.navigate("VolunteerSuggestions", {
+        donationId: accepted.linkedDonation.id,
+      });
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        (error instanceof Error ? error.message : "Please try again.");
+      Alert.alert("Could not confirm recipient", message);
+    } finally {
+      setConfirmingRecipient(false);
+    }
   };
 
   return (
@@ -1543,9 +1594,11 @@ export default function DonationDetailScreen() {
             {/* AI Recipient Matching */}
 
             <View
-              style={
-                styles.rescueFeatureCard
-              }
+              style={[
+                styles.rescueFeatureCard,
+                isDesktop &&
+                  styles.rescueFeatureCardDesktop,
+              ]}
             >
               <View
                 style={
@@ -1680,9 +1733,11 @@ export default function DonationDetailScreen() {
             {/* Recipient & Chat */}
 
             <View
-              style={
-                styles.rescueFeatureCard
-              }
+              style={[
+                styles.rescueFeatureCard,
+                isDesktop &&
+                  styles.rescueFeatureCardDesktop,
+              ]}
             >
               <View
                 style={
@@ -1749,37 +1804,75 @@ export default function DonationDetailScreen() {
 
               {/* Sprint item 39 (Dushani): the real recipient asks for this
                   donation replace the old placeholder text. */}
-              <RecipientAskPanel donationId={donationId} />
+              <RecipientAskPanel
+                donationId={donationId}
+                confirmingDelivery={confirmingRecipient}
+                onConfirmDelivery={confirmRecipientForDelivery}
+                onChatRecipient={(ask: DonationAsk) => {
+                  const id = getDonationId(donation);
+                  if (!id) return;
+                  navigation.navigate("Chat", {
+                    contextType: "donation",
+                    contextId: id,
+                    peerId: ask.recipientId,
+                    title: donation.foodType || "Rescue Chat",
+                    subtitle: `Chat · ${ask.recipientName}`,
+                  });
+                }}
+              />
 
               <TouchableOpacity
                 style={
-                  styles.featureDisabledButton
+                  styles.featureActiveButton
                 }
-                disabled
-                activeOpacity={1}
+                onPress={
+                  openRescueChat
+                }
+                activeOpacity={
+                  0.85
+                }
               >
                 <Ionicons
                   name="chatbubble-outline"
                   size={17}
-                  color={
-                    colors.textMuted
-                  }
+                  color="#FFFFFF"
                 />
 
                 <Text
                   style={
-                    styles.featureDisabledButtonText
+                    styles.featureActiveButtonText
                   }
                 >
                   Open Rescue Chat
                 </Text>
 
                 <Ionicons
-                  name="lock-closed-outline"
+                  name="chevron-forward"
                   size={14}
-                  color={
-                    colors.textMuted
-                  }
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.featureActiveButton}
+                onPress={openDeliveryVolunteerSuggestions}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+              >
+                <Ionicons
+                  name="bicycle-outline"
+                  size={17}
+                  color="#FFFFFF"
+                />
+
+                <Text style={styles.featureActiveButtonText}>
+                  Suggest Delivery Volunteer
+                </Text>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color="#FFFFFF"
                 />
               </TouchableOpacity>
             </View>
@@ -3876,10 +3969,19 @@ const baseStyles: Record<string, any> = {
     minWidth: 0,
     backgroundColor: C.background,
     borderRadius: 20,
+    width: "100%",
+    backgroundColor:
+      colors.background,
+    borderRadius: 19,
     padding: 16,
     borderWidth: 1,
     borderColor: C.hairline,
     marginBottom: 12,
+  },
+
+  rescueFeatureCardDesktop: {
+    flex: 1,
+    minWidth: 0,
   },
 
   featureTopRow: {

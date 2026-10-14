@@ -53,10 +53,20 @@ function neededBy(iso: string | null): string {
 
 /**
  * The recipient asks on a donor's own donation: who asked, what they need and
- * what they wrote. Nothing here is a chat — a recipient's contact number is
- * only ever released to the donor who accepts their request.
+ * what they wrote. Each ask row can show a "Chat" button when `onChatRecipient`
+ * is supplied (the donor taps it to open a 1-on-1 rescue chat with that recipient).
  */
-export default function RecipientAskPanel({ donationId }: { donationId: string }) {
+export default function RecipientAskPanel({
+  donationId,
+  onChatRecipient,
+  onConfirmDelivery,
+  confirmingDelivery = false,
+}: {
+  donationId: string;
+  onChatRecipient?: (ask: DonationAsk) => void;
+  onConfirmDelivery?: (ask: DonationAsk) => void;
+  confirmingDelivery?: boolean;
+}) {
   const T = useAppTypography();
   const [asks, setAsks] = useState<DonationAsk[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,8 +218,39 @@ export default function RecipientAskPanel({ donationId }: { donationId: string }
 
           {ask.note ? (
             <Text style={{ ...T.bodySmall, fontSize: 12, color: C.navy, marginTop: 5 }}>
-              {`“${ask.note}”`}
+              {`"${ask.note}"`}
             </Text>
+          ) : null}
+        
+          {/* 1-on-1 rescue chat button — visible only while the ask is still open */}
+          {onChatRecipient && ask.stillWaiting ? (
+            <TouchableOpacity
+              style={styles.chatBtn}
+              onPress={() => onChatRecipient(ask)}
+              activeOpacity={0.85}
+              accessibilityLabel={`Chat with ${ask.recipientName}`}
+            >
+              <Ionicons name="chatbubble-outline" size={14} color={C.teal} />
+              <Text style={{ ...T.buttonSmall, fontSize: 12, color: C.teal }}>
+                {`Chat with ${ask.recipientName}`}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {onConfirmDelivery && ask.stillWaiting && ask.requestId ? (
+            <TouchableOpacity
+              style={styles.confirmBtn}
+              onPress={() => onConfirmDelivery(ask)}
+              activeOpacity={0.85}
+              disabled={confirmingDelivery}
+              accessibilityRole="button"
+              accessibilityLabel={`Confirm ${ask.recipientName} and suggest a delivery volunteer`}
+            >
+              <Ionicons name="bicycle-outline" size={14} color={C.white} />
+              <Text style={{ ...T.buttonSmall, fontSize: 12, color: C.white }}>
+                Confirm recipient & suggest volunteer
+              </Text>
+            </TouchableOpacity>
           ) : null}
         </View>
         );
@@ -223,9 +264,9 @@ export default function RecipientAskPanel({ donationId }: { donationId: string }
           style={{ marginRight: Spacing.two }}
         />
         <Text style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, flex: 1 }}>
-          To answer one, open Food rescue requests and accept that recipient’s
-          request — you then get their contact number to arrange the pickup.
-          In-app chat is not built yet.
+          Chat with the recipient, then confirm their request to link it to this
+          donation and find delivery volunteers. Confirming also provides the
+          recipient contact details needed to arrange pickup.
         </Text>
       </View>
     </View>
@@ -322,6 +363,24 @@ const styles = StyleSheet.create({
     backgroundColor: C.tealSoft,
     borderRadius: Radius.sm,
     padding: Spacing.three - 4,
+    marginTop: Spacing.two,
+  },
+  chatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: Spacing.two,
+  },
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+    backgroundColor: C.teal,
+    borderRadius: Radius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.three,
     marginTop: Spacing.two,
   },
 });

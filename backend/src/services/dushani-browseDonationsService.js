@@ -116,6 +116,7 @@ function donationView(donation, donorName, viewer, now) {
     distanceTier: distance.tier,
     inOwnDistrict: distance.ownDistrict,
     donorName,
+    donorId: `${donation.donor}`,
   };
 }
 

@@ -1027,6 +1027,16 @@ function RequestDetailModal({
             {!!claimError && (
               <Text style={s.claimError}>{claimError}</Text>
             )}
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={s.modalDonateBtn}
+              onPress={() => onDonate(item)}
+            >
+              <Text style={s.modalDonateBtnText}>
+                Donate & choose volunteer
+              </Text>
+            </TouchableOpacity>
           </ScrollView>
         </View>
       </View>
@@ -1245,6 +1255,13 @@ export default function FoodRescueRequestsScreen({
     setSelected(null);
     setClaimed(null);
     setClaimError(null);
+  };
+
+  const handleDonate = (item: FoodRequest) => {
+    setSelected(null);
+    setClaimed(null);
+
+    navigation.navigate('CreateDonation', { requestId: item.id });
   };
 
   const handleClaim = async (item: FoodRequest) => {

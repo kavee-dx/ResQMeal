@@ -29,6 +29,7 @@ type Day = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
 
 const ALL_DAYS: Day[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const MIN_DISTANCE_KM = 0.1;
 const MAX_DISTANCE_KM = 100;
 
 interface FormState {
@@ -42,7 +43,7 @@ interface FormState {
 
 function getErrorMessage(err: unknown, fallback: string): string {
   const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-  return message ?? fallback;
+  return message ?? (err instanceof Error ? err.message : fallback);
 }
 
 export default function VolunteerDeliveryPreferencesScreen() {
@@ -96,8 +97,16 @@ export default function VolunteerDeliveryPreferencesScreen() {
               ? String(preferences.maxDeliveryDistance)
               : '',
         });
-      } catch {
-        if (active) Alert.alert('Error', 'Could not load your saved preferences.');
+      } catch (error) {
+        if (active) {
+          Alert.alert(
+            'Could not load preferences',
+            getErrorMessage(
+              error,
+              'Could not load your saved availability and delivery preferences.',
+            ),
+          );
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -116,7 +125,7 @@ export default function VolunteerDeliveryPreferencesScreen() {
   const distanceValid =
     form.maxDeliveryDistance.trim() !== '' &&
     Number.isFinite(distance) &&
-    distance > 0 &&
+    distance >= MIN_DISTANCE_KM &&
     distance <= MAX_DISTANCE_KM;
   const preferencesComplete = area.length > 0 && distanceValid;
 
@@ -143,7 +152,7 @@ export default function VolunteerDeliveryPreferencesScreen() {
         return '"Available from" must be earlier than "available until".';
       }
       if (!preferencesComplete) {
-        return `Enter your preferred area and a maximum distance between 0 and ${MAX_DISTANCE_KM} km so we can match deliveries near you.`;
+        return `Enter your preferred area and a maximum distance between ${MIN_DISTANCE_KM} and ${MAX_DISTANCE_KM} km so we can match deliveries near you.`;
       }
     } else if (
       (area || form.maxDeliveryDistance.trim()) &&

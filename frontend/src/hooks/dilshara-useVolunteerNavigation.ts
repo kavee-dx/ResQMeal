@@ -44,8 +44,7 @@ export function useVolunteerNavigation() {
           navigation.navigate("Profile");
           break;
         case "map":
-          // Existing all-roles map screen (Amasha's FoodRescueMap route) —
-          // the volunteer opens the same screen every role uses.
+          // Shared Food Rescue Map — same screen the other roles use.
           navigation.navigate("FoodRescueMap");
           break;
       }

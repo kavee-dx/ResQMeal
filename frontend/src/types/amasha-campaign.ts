@@ -39,4 +39,5 @@ export interface CampaignPost {
   createdAt: string;
   // Present in the community feed (public endpoint) only
   ngoName?: string;
+  ngoId?: string; // User id of the NGO — used as peerId when opening a 1-on-1 campaign chat
 }

@@ -82,6 +82,18 @@ export type RootStackParamList = {
 
   // Recipient suggestions
   RecipientSuggestions: { donationId: string };
+
+  // In-app chat — donation rescue chats and campaign chats (1-on-1)
+  Chat: {
+    contextType: "donation" | "campaign";
+    contextId: string;
+    peerId: string;
+    title: string;
+    subtitle?: string;
+  };
+
+  // The signed-in user's chat list (all roles)
+  ChatList: undefined;
 };
 
 export type HomeRouteName =

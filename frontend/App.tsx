@@ -13,6 +13,7 @@ import {
 
 import AppNavigator from "./src/navigation/AppNavigator";
 import { getToken, getRole, getFullName } from "./src/utils/kaveesha-authStorage";
+import { useChatNotificationListener } from "./src/hooks/amasha-useChatNotification";
 import type { Role } from "./src/navigation/types";
 
 // Keep the native splash screen visible until fonts are ready.
@@ -21,6 +22,11 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function App() {
+  // Subscribe to realtime chat notifications as soon as the component mounts.
+  // Safe to run before auth is resolved — connectGlobalSocket() handles no-token
+  // gracefully; the socket reconnects once a token is stored.
+  useChatNotificationListener();
+
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_500Medium,

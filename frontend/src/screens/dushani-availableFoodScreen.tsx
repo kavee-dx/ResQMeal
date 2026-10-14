@@ -471,6 +471,18 @@ export default function AvailableFoodScreen({ navigation }: Props) {
                   expanded={openId === donation.id}
                   onToggle={() => setOpenId((current) => (current === donation.id ? null : donation.id))}
                   onAsk={(note) => handleAsk(donation, note)}
+                  onChat={
+                    donation.asked && donation.donorId
+                      ? () =>
+                          navigation.navigate('Chat', {
+                            contextType: 'donation',
+                            contextId: donation.id,
+                            peerId: donation.donorId,
+                            title: donation.foodType || 'Rescue Chat',
+                            subtitle: `Chat · ${donation.donorName}`,
+                          })
+                      : undefined
+                  }
                 />
               ))}
             </View>

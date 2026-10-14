@@ -53,10 +53,16 @@ function neededBy(iso: string | null): string {
 
 /**
  * The recipient asks on a donor's own donation: who asked, what they need and
- * what they wrote. Nothing here is a chat — a recipient's contact number is
- * only ever released to the donor who accepts their request.
+ * what they wrote. Each ask row can show a "Chat" button when `onChatRecipient`
+ * is supplied (the donor taps it to open a 1-on-1 rescue chat with that recipient).
  */
-export default function RecipientAskPanel({ donationId }: { donationId: string }) {
+export default function RecipientAskPanel({
+  donationId,
+  onChatRecipient,
+}: {
+  donationId: string;
+  onChatRecipient?: (ask: DonationAsk) => void;
+}) {
   const T = useAppTypography();
   const [asks, setAsks] = useState<DonationAsk[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -208,8 +214,23 @@ export default function RecipientAskPanel({ donationId }: { donationId: string }
 
           {ask.note ? (
             <Text style={{ ...T.bodySmall, fontSize: 12, color: C.navy, marginTop: 5 }}>
-              {`“${ask.note}”`}
+              {`"${ask.note}"`}
             </Text>
+          ) : null}
+        
+          {/* 1-on-1 rescue chat button — visible only while the ask is still open */}
+          {onChatRecipient && ask.stillWaiting ? (
+            <TouchableOpacity
+              style={styles.chatBtn}
+              onPress={() => onChatRecipient(ask)}
+              activeOpacity={0.85}
+              accessibilityLabel={`Chat with ${ask.recipientName}`}
+            >
+              <Ionicons name="chatbubble-outline" size={14} color={C.teal} />
+              <Text style={{ ...T.buttonSmall, fontSize: 12, color: C.teal }}>
+                {`Chat with ${ask.recipientName}`}
+              </Text>
+            </TouchableOpacity>
           ) : null}
         </View>
         );
@@ -224,8 +245,8 @@ export default function RecipientAskPanel({ donationId }: { donationId: string }
         />
         <Text style={{ ...T.bodySmall, fontSize: 12, color: C.textMuted, flex: 1 }}>
           To answer one, open Food rescue requests and accept that recipient’s
-          request — you then get their contact number to arrange the pickup.
-          In-app chat is not built yet.
+          request — you then get their contact number to arrange the pickup. You
+          can also coordinate right away with Open Rescue Chat below.
         </Text>
       </View>
     </View>
@@ -323,5 +344,18 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     padding: Spacing.three - 4,
     marginTop: Spacing.two,
+  },
+  chatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 5,
+    marginTop: Spacing.two,
+    paddingHorizontal: Spacing.three - 4,
+    paddingVertical: 5,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: C.teal,
+    backgroundColor: 'transparent',
   },
 });

@@ -54,6 +54,7 @@ import type { RootStackParamList } from "../navigation/types";
 import { registerForPushNotificationsAsync } from "@/services/kaveesha-pushNotificationService";
 import api from "@/services/api";
 import type { CampaignPost } from "@/types/amasha-campaign";
+import AmashaCampaignFeedSection from "@/components/amasha-CampaignFeedSection";
 
 import {
   Colors,
@@ -86,6 +87,16 @@ import {
   markAllExpiryAlertsAsRead,
   type ExpiryAlert,
 } from "../services/kaveesha-donationApi";
+
+import {
+  getAppNotifications,
+  getAppUnreadCount,
+  markAppNotificationRead,
+  markAllAppNotificationsRead,
+  type AppNotification,
+} from "../services/amasha-notificationApi";
+
+import { onNewNotification } from "../services/amasha-chatSocket";
 
 /* ========================================================= */
 /* TYPES + CONSTANTS                                          */
@@ -1852,9 +1863,16 @@ function formatNotificationTime(value?: string | Date) {
 /* NOTIFICATION MODAL                                        */
 /* ========================================================= */
 
+// One row in the merged sheet: an expiry alert OR a persisted app
+// notification (new chat message, campaign alert, ...), newest first.
+type MergedNotification =
+  | { kind: "expiry"; at: string; alert: ExpiryAlert }
+  | { kind: "chat"; at: string; chat: AppNotification };
+
 function NotificationModal({
   visible,
   alerts,
+  chatItems,
   unreadCount,
   loading,
   markingAll,
@@ -1863,9 +1881,11 @@ function NotificationModal({
   onMarkRead,
   onMarkAllRead,
   onNotificationPress,
+  onChatPress,
 }: {
   visible: boolean;
   alerts: ExpiryAlert[];
+  chatItems: AppNotification[];
   unreadCount: number;
   loading: boolean;
   markingAll: boolean;
@@ -1874,8 +1894,22 @@ function NotificationModal({
   onMarkRead: (alert: ExpiryAlert) => void;
   onMarkAllRead: () => void;
   onNotificationPress: (alert: ExpiryAlert) => void;
+  onChatPress: (item: AppNotification) => void;
 }) {
   const { c, accent, s } = useTheme();
+
+  const mergedItems: MergedNotification[] = [
+    ...alerts.map((alert) => ({
+      kind: "expiry" as const,
+      at: alert.createdAt || alert.triggeredAt,
+      alert,
+    })),
+    ...chatItems.map((chat) => ({
+      kind: "chat" as const,
+      at: chat.createdAt,
+      chat,
+    })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
   return (
     <Modal
@@ -1939,7 +1973,7 @@ function NotificationModal({
                 Loading notifications...
               </Text>
             </View>
-          ) : alerts.length === 0 ? (
+          ) : mergedItems.length === 0 ? (
             <View style={s.notificationEmpty}>
               <View style={s.notificationEmptyIcon}>
                 <Ionicons
@@ -1952,8 +1986,8 @@ function NotificationModal({
               <Text style={s.notificationEmptyTitle}>You're all caught up</Text>
 
               <Text style={s.notificationEmptyText}>
-                No rescue-window alerts right now. We'll let you know when a
-                donation needs attention.
+                No alerts or new chat messages right now. We'll let you know
+                when something needs your attention.
               </Text>
             </View>
           ) : (
@@ -1962,7 +1996,98 @@ function NotificationModal({
               contentContainerStyle={s.notificationList}
               showsVerticalScrollIndicator
             >
-              {alerts.map((alert) => {
+              {mergedItems.map((entry) => {
+                // ----- new chat message / campaign alert -------------------
+                if (entry.kind === "chat") {
+                  const chat = entry.chat;
+                  const unread = !chat.readAt;
+
+                  return (
+                    <TouchableOpacity
+                      key={`chat-${String(chat._id)}`}
+                      activeOpacity={0.82}
+                      style={[
+                        s.notificationCard,
+                        {
+                          backgroundColor: unread ? c.infoSoft : c.surface,
+                          borderColor: c.borderLight,
+                        },
+                        unread && s.notificationCardUnread,
+                      ]}
+                      onPress={() => onChatPress(chat)}
+                    >
+                      <View style={s.notificationCardTop}>
+                        <View
+                          style={[
+                            s.notificationCardIcon,
+                            { backgroundColor: c.primarySoft },
+                          ]}
+                        >
+                          <Ionicons
+                            name="chatbubble-ellipses-outline"
+                            size={21}
+                            color={c.info}
+                          />
+                        </View>
+
+                        <View style={s.notificationCardTitleWrap}>
+                          <Text
+                            style={[
+                              s.notificationCardTitle,
+                              { color: c.info },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {chat.title}
+                          </Text>
+
+                          {unread && (
+                            <View
+                              style={[
+                                s.notificationUnreadBadge,
+                                { backgroundColor: c.info },
+                              ]}
+                            >
+                              <Text style={s.notificationUnreadBadgeText}>
+                                NEW
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+
+                      <Text style={s.notificationCardMessage} numberOfLines={2}>
+                        {chat.body}
+                      </Text>
+
+                      <View style={s.notificationCardBottom}>
+                        <Text style={s.notificationCardTime}>
+                          {formatNotificationTime(chat.createdAt)}
+                        </Text>
+
+                        <View style={s.notificationCardAction}>
+                          <Text
+                            style={[
+                              s.notificationCardActionText,
+                              { color: c.info },
+                            ]}
+                          >
+                            Open chat
+                          </Text>
+
+                          <Ionicons
+                            name="chevron-forward"
+                            size={16}
+                            color={c.info}
+                          />
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }
+
+                // ----- expiry alert (original rich card) --------------------
+                const alert = entry.alert;
                 const appearance = getNotificationAppearance(alert.type);
 
                 const foodName =
@@ -3055,6 +3180,11 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
 
   const [notifications, setNotifications] = useState<ExpiryAlert[]>([]);
 
+  // Chat / campaign alerts from the persisted /api/notifications feed.
+  const [chatNotifications, setChatNotifications] = useState<AppNotification[]>(
+    [],
+  );
+
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const [notificationsLoading, setNotificationsLoading] = useState(false);
@@ -3069,20 +3199,24 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
         setNotificationsLoading(true);
       }
 
-      const [alertData, unreadCount] = await Promise.all([
+      const [alertData, unreadCount, chatData, chatUnread] = await Promise.all([
         getExpiryAlerts({
           limit: 20,
         }),
         getUnreadExpiryAlertCount(),
+        getAppNotifications({ limit: 20 }),
+        getAppUnreadCount(),
       ]);
 
       console.log("🔔 EXPIRY ALERTS:", alertData);
 
-      console.log("🔔 UNREAD COUNT:", unreadCount);
+      console.log("🔔 UNREAD COUNT:", unreadCount, "CHAT UNREAD:", chatUnread);
 
       setNotifications(alertData ?? []);
 
-      setUnreadNotificationCount(Number(unreadCount) || 0);
+      setChatNotifications(chatData ?? []);
+
+      setUnreadNotificationCount((Number(unreadCount) || 0) + chatUnread);
     } catch (error) {
       console.error("[DonorHome] Failed to load expiry notifications:", error);
     } finally {
@@ -3093,16 +3227,24 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
   }, []);
 
   /*
-   * Refresh both donations and notifications
+   * Refresh donations and notifications
    * whenever Donor Home receives focus.
    */
   useFocusEffect(
     useCallback(() => {
       loadDonations();
       loadNotifications(false);
-      loadCampaigns();
-    }, [loadDonations, loadNotifications, loadCampaigns]),
+    }, [loadDonations, loadNotifications]),
   );
+
+  // Realtime: bump the bell as soon as a peer's message push arrives.
+  useEffect(() => {
+    const unsubscribe = onNewNotification(() => {
+      loadNotifications(false);
+    });
+
+    return unsubscribe;
+  }, [loadNotifications]);
 
   const openNotifications = useCallback(() => {
     setNotificationModalOpen(true);
@@ -3148,6 +3290,15 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
       setMarkingAllNotifications(true);
 
       await markAllExpiryAlertsAsRead();
+
+      await markAllAppNotificationsRead();
+
+      setChatNotifications((current) =>
+        current.map((item) => ({
+          ...item,
+          readAt: item.readAt ?? new Date().toISOString(),
+        })),
+      );
 
       setNotifications((current) =>
         current.map((item) => ({
@@ -3216,6 +3367,62 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
         });
       } catch (error) {
         console.error("[DonorHome] Failed to open notification:", error);
+      }
+    },
+    [navigation],
+  );
+
+  // Tapping a chat alert opens that exact 1-on-1 conversation.
+  const handleChatNotificationPress = useCallback(
+    async (item: AppNotification) => {
+      try {
+        if (!item.readAt) {
+          await markAppNotificationRead(String(item._id));
+
+          setChatNotifications((current) =>
+            current.map((n) =>
+              String(n._id) === String(item._id)
+                ? { ...n, readAt: new Date().toISOString() }
+                : n,
+            ),
+          );
+
+          setUnreadNotificationCount((count) => Math.max(0, count - 1));
+        }
+
+        const data = item.data ?? {};
+
+        if (
+          item.type === "CHAT_NEW_MESSAGE" &&
+          data.contextType &&
+          data.contextId &&
+          data.senderId
+        ) {
+          setNotificationModalOpen(false);
+
+          navigation.navigate("Chat", {
+            contextType: data.contextType,
+            contextId: String(data.contextId),
+            peerId: String(data.senderId),
+            title:
+              data.contextType === "campaign"
+                ? String(data.title || "Campaign chat")
+                : "Rescue chat",
+            subtitle: data.senderName
+              ? `Chat · ${String(data.senderName)}`
+              : undefined,
+          });
+          return;
+        }
+
+        // Alerts saved before senderId existed still lead to the chat list.
+        if (item.target?.type === "chat") {
+          setNotificationModalOpen(false);
+
+          navigation.navigate("ChatList");
+        }
+      } catch (error) {
+        console.error("[DonorHome] Failed to open chat notification:", error);
       }
     },
     [navigation],
@@ -4001,7 +4208,49 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
               )}
             </View>
 
-            {/* NGO campaigns */}
+            {/* My chats — shortcut to the donor's full rescue chat history */}
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate("ChatList")}
+              style={{
+                marginTop: sectionGap,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 14,
+                padding: Spacing.four,
+                borderRadius: Radius.md,
+                backgroundColor: c.surface,
+                borderWidth: 1,
+                borderColor: c.borderLight,
+                ...Shadows.card,
+              }}
+              accessibilityLabel="Open my chats"
+            >
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: c.primarySoft,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Ionicons name="chatbubbles-outline" size={22} color={c.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ ...Typography.h3, color: c.text, fontSize: 16 }}>
+                  My chats
+                </Text>
+                <Text style={{ ...Typography.bodySmall, color: c.textMuted, marginTop: 2 }}>
+                  Every rescue conversation with recipients who asked for your donations
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={c.textMuted} />
+            </TouchableOpacity>
+
+            {/* NGO campaigns — shared component, includes the chat button */}
 
             <View
               style={{
@@ -4009,46 +4258,10 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
               }}
               onLayout={track("campaigns")}
             >
-              <SectionHeader
+              <AmashaCampaignFeedSection
                 title="NGO campaigns"
-                large={!L.isMobile}
-                onViewAll={() => {}}
+                subtitle="Food drives, surplus pickups and awareness events near you"
               />
-
-              {campaignsLoading ? (
-                <ActivityIndicator
-                  color={c.primary}
-                  style={{ marginTop: Spacing.four }}
-                />
-              ) : (
-                renderCards(
-                  campaigns.map((campaign) => ({ ...campaign, id: campaign._id })),
-                  (campaign, width) => (
-                    <InfoCard
-                      key={campaign._id}
-                      width={width}
-                      icon="hand-left"
-                      title={campaign.title}
-                      subtitle={campaign.ngoName ?? "NGO"}
-                      metaIcon="location-outline"
-                      metaText={campaign.location}
-                      footerText={
-                        campaign.targetMeals
-                          ? `Target: ${campaign.targetMeals} meals`
-                          : `${new Date(campaign.startDate).toLocaleDateString(
-                              "en-GB",
-                              { day: "numeric", month: "short" },
-                            )} – ${new Date(campaign.endDate).toLocaleDateString(
-                              "en-GB",
-                              { day: "numeric", month: "short" },
-                            )}`
-                      }
-                      badgeLabel="NGO"
-                    />
-                  ),
-                  "No campaigns yet.",
-                )
-              )}
             </View>
 
             {/* Recipients */}
@@ -4191,6 +4404,7 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
       <NotificationModal
         visible={notificationModalOpen}
         alerts={notifications}
+        chatItems={chatNotifications}
         unreadCount={unreadNotificationCount}
         loading={notificationsLoading}
         markingAll={markingAllNotifications}
@@ -4199,6 +4413,7 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
         onMarkRead={handleMarkNotificationRead}
         onMarkAllRead={handleMarkAllNotificationsRead}
         onNotificationPress={handleNotificationPress}
+        onChatPress={handleChatNotificationPress}
       />
 
       {/* Bottom tabs */}

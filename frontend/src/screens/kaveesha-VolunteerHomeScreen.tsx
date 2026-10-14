@@ -20,6 +20,7 @@ import VolunteerStatCard from "../components/dilshara-VolunteerStatCard";
 import VolunteerBottomNav from "../components/dilshara-VolunteerBottomNav";
 import VolunteerDrawer from "../components/dilshara-VolunteerDrawer";
 import AmashaCampaignFeedSection from "@/components/amasha-CampaignFeedSection";
+import AmashaHomeNotificationBell from "@/components/amasha-HomeNotificationBell";
 
 type Props = NativeStackScreenProps<RootStackParamList, "VolunteerHome">;
 
@@ -101,6 +102,10 @@ export default function VolunteerHomeScreen({ route }: Props) {
               {displayName}
             </Text>
             <Text style={{ ...T.bodySmall, color: theme.textMuted }}>Volunteer</Text>
+          </View>
+
+          <View style={{ marginRight: Spacing.two }}>
+            <AmashaHomeNotificationBell />
           </View>
 
           <TouchableOpacity

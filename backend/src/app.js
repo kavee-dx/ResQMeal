@@ -163,6 +163,12 @@ app.use(
   require("./routes/amasha-notificationRoutes")
 );
 
+// In-app chat routes (donation rescue chats + campaign chats)
+app.use(
+  "/api/chat",
+  require("./routes/amasha-chatRoutes")
+);
+
 // Push notification routes
 app.use(
   "/api/notifications",

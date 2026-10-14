@@ -4,7 +4,8 @@ const Notification = require("../models/amasha-Notification");
 exports.list = async (req, res) => {
   try {
     const { limit = 20, before, unread, category, targetId } = req.query;
-    const q = { userId: req.user._id };
+    // req.user is the decoded JWT payload: { id, role } — there is no _id.
+    const q = { userId: req.user.id };
 
     if (before) q.createdAt = { $lt: new Date(before) };
     if (unread === "true") q.readAt = null;
@@ -27,7 +28,7 @@ exports.list = async (req, res) => {
 exports.unreadCount = async (req, res) => {
   try {
     const count = await Notification.countDocuments({
-      userId: req.user._id,
+      userId: req.user.id,
       readAt: null,
     });
     res.json({ count });
@@ -41,7 +42,7 @@ exports.unreadCount = async (req, res) => {
 exports.markRead = async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user._id, readAt: null },
+      { _id: req.params.id, userId: req.user.id, readAt: null },
       { readAt: new Date() },
       { new: true }
     );
@@ -56,7 +57,7 @@ exports.markRead = async (req, res) => {
 exports.markAllRead = async (req, res) => {
   try {
     const result = await Notification.updateMany(
-      { userId: req.user._id, readAt: null },
+      { userId: req.user.id, readAt: null },
       { readAt: new Date() }
     );
     res.json({ updated: result.modifiedCount });

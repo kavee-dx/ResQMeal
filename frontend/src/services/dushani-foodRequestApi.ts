@@ -339,6 +339,8 @@ export interface BrowseDonation {
   distanceTier: number;
   inOwnDistrict: boolean;
   donorName: string;
+  /** User id of the donor — used as peerId to open a 1-on-1 rescue chat. */
+  donorId: string;
   answering: DonationAnswer | null;
   /** This recipient has already put in an ask for it. */
   asked: boolean;

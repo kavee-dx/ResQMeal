@@ -32,6 +32,7 @@ import {
 import { colors, fonts } from "../styles/kaveesha-theme";
 
 import RecipientAskPanel from "../components/dushani-recipientAskPanel";
+import type { DonationAsk } from "../services/dushani-foodRequestApi";
 
 type Donation = {
   _id?: string;
@@ -976,6 +977,12 @@ export default function DonationDetailScreen() {
     );
   };
 
+  const openRescueChat = () => {
+    // Navigate to the donor's full chat list — each recipient's conversation
+    // is 1-on-1 and can be opened from "My chats" or the per-ask button below.
+    navigation.navigate("ChatList");
+  };
+
   return (
     <View style={styles.screen}>
       <StatusBar
@@ -1475,9 +1482,11 @@ export default function DonationDetailScreen() {
             {/* AI Recipient Matching */}
 
             <View
-              style={
-                styles.rescueFeatureCard
-              }
+              style={[
+                styles.rescueFeatureCard,
+                isDesktop &&
+                  styles.rescueFeatureCardDesktop,
+              ]}
             >
               <View
                 style={
@@ -1612,9 +1621,11 @@ export default function DonationDetailScreen() {
             {/* Recipient & Chat */}
 
             <View
-              style={
-                styles.rescueFeatureCard
-              }
+              style={[
+                styles.rescueFeatureCard,
+                isDesktop &&
+                  styles.rescueFeatureCardDesktop,
+              ]}
             >
               <View
                 style={
@@ -1681,37 +1692,50 @@ export default function DonationDetailScreen() {
 
               {/* Sprint item 39 (Dushani): the real recipient asks for this
                   donation replace the old placeholder text. */}
-              <RecipientAskPanel donationId={donationId} />
+              <RecipientAskPanel
+                donationId={donationId}
+                onChatRecipient={(ask: DonationAsk) => {
+                  const id = getDonationId(donation);
+                  if (!id) return;
+                  navigation.navigate("Chat", {
+                    contextType: "donation",
+                    contextId: id,
+                    peerId: ask.recipientId,
+                    title: donation.foodType || "Rescue Chat",
+                    subtitle: `Chat · ${ask.recipientName}`,
+                  });
+                }}
+              />
 
               <TouchableOpacity
                 style={
-                  styles.featureDisabledButton
+                  styles.featureActiveButton
                 }
-                disabled
-                activeOpacity={1}
+                onPress={
+                  openRescueChat
+                }
+                activeOpacity={
+                  0.85
+                }
               >
                 <Ionicons
                   name="chatbubble-outline"
                   size={17}
-                  color={
-                    colors.textMuted
-                  }
+                  color="#FFFFFF"
                 />
 
                 <Text
                   style={
-                    styles.featureDisabledButtonText
+                    styles.featureActiveButtonText
                   }
                 >
                   Open Rescue Chat
                 </Text>
 
                 <Ionicons
-                  name="lock-closed-outline"
+                  name="chevron-forward"
                   size={14}
-                  color={
-                    colors.textMuted
-                  }
+                  color="#FFFFFF"
                 />
               </TouchableOpacity>
             </View>
@@ -3837,8 +3861,7 @@ const styles = StyleSheet.create({
   },
 
   rescueFeatureCard: {
-    flex: 1,
-    minWidth: 0,
+    width: "100%",
     backgroundColor:
       colors.background,
     borderRadius: 19,
@@ -3847,6 +3870,11 @@ const styles = StyleSheet.create({
     borderColor:
       colors.border,
     marginBottom: 12,
+  },
+
+  rescueFeatureCardDesktop: {
+    flex: 1,
+    minWidth: 0,
   },
 
   featureTopRow: {

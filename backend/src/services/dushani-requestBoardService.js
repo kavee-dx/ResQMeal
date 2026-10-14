@@ -158,7 +158,9 @@ async function resolveLinkedDonation({ donorId, donationId }) {
 
 /**
  * A donor claims an open request. The status filter makes the write atomic, so
- * two donors tapping Accept at the same moment cannot both take it.
+ * two donors tapping Accept at the same moment cannot both take it. If a
+ * donation is linked, the client can next show volunteer suggestions and let
+ * the donor choose before an assignment is created.
  */
 async function acceptFoodRequest({ donorId, role, requestId, donationId = null }) {
   if (!donorId || !requestId) fail('donorId and requestId are required', 400);

@@ -85,6 +85,7 @@ export interface AcceptedFoodRequest {
   urgency: FoodRequestUrgency;
   preferredAt: string | null;
   acceptedAt: string;
+  linkedDonation?: { id: string; foodType: string; numberOfPortions: number | null } | null;
 }
 
 // POST /api/recipient/food-requests
@@ -146,12 +147,16 @@ export async function getOpenFoodRequests(): Promise<OpenFoodRequest[]> {
 }
 
 // POST /api/recipient/food-requests/:id/accept
-// Donors only. A request another donor claimed returns a 409.
+// Donors only. A request another donor claimed returns a 409. Naming one of
+// the donor's own live donations links it to the request and starts volunteer
+// matching; without it the claim is recorded but no delivery is set up.
 export async function acceptFoodRequest(
   requestId: string,
+  donationId?: string,
 ): Promise<AcceptedFoodRequest> {
   const response = await api.post<AcceptedFoodRequest>(
     `/recipient/food-requests/${requestId}/accept`,
+    donationId ? { donationId } : {},
   );
   return response.data;
 }

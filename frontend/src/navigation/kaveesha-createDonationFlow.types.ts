@@ -6,5 +6,5 @@ export type CreateDonationFlowParamList = {
   Details: undefined;
   Analysis: undefined;
   Safety: undefined;
-  Review: undefined;
+  Review: { requestId?: string } | undefined;
 };

@@ -240,10 +240,14 @@ export default function AppNavigator({ initialAuth }: Props) {
           component={ChatScreen}
         />
 
+       
         {/* The signed-in user's chat list (all roles) */}
         <Stack.Screen
           name="ChatList"
           component={ChatListScreen}
+        />
+
+        {/* Volunteer Suggestions */}
         <Stack.Screen
           name="VolunteerSuggestions"
           component={VolunteerSuggestionsScreen}

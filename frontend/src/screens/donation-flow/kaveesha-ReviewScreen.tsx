@@ -6,6 +6,7 @@
 // It does not confirm that food is safe or unsafe.
 
 import React, { useMemo, useState } from 'react';
+import type { NavigationProp } from '@react-navigation/native';
 
 import {
   ActivityIndicator,
@@ -25,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import type { CreateDonationFlowParamList } from '../../navigation/kaveesha-createDonationFlow.types';
+import type { RootStackParamList } from '../../navigation/types';
 
 import {
   colors,
@@ -39,6 +41,7 @@ import KaveeshaStepProgress from '../../components/kaveesha-StepProgress';
 import { useCreateDonation } from '../../context/kaveesha-CreateDonationContext';
 
 import { createDonation } from '../../services/kaveesha-donationApi';
+import { acceptFoodRequest } from '../../services/dushani-foodRequestApi';
 
 type Props = NativeStackScreenProps<
   CreateDonationFlowParamList,
@@ -105,6 +108,7 @@ type SafetyConcern = {
 
 export default function ReviewScreen({
   navigation,
+  route,
 }: Props) {
   const { state, reset } = useCreateDonation();
 
@@ -251,12 +255,26 @@ export default function ReviewScreen({
 
     setPublishing(true);
 
+    let createdDonation: Awaited<ReturnType<typeof createDonation>> | null = null;
+
     try {
-      const donation = await createDonation(state);
+      createdDonation = await createDonation(state);
 
       setPublishedDonationCode(
-        donation?.donationCode ?? null,
+        createdDonation.donationCode ?? null,
       );
+
+      const requestId = route.params?.requestId;
+      if (requestId) {
+        await acceptFoodRequest(requestId, createdDonation.id);
+        reset();
+        navigation
+          .getParent<NavigationProp<RootStackParamList>>()
+          ?.navigate('VolunteerSuggestions', {
+            donationId: createdDonation.id,
+          });
+        return;
+      }
 
       setShowSuccess(true);
     } catch (error: any) {
@@ -264,6 +282,24 @@ export default function ReviewScreen({
         '[ReviewScreen] Publish failed:',
         error,
       );
+
+      if (createdDonation) {
+        Alert.alert(
+          'Donation published',
+          'Your donation was saved, but the request could not be linked. You can manage it from My Donations.',
+          [
+            { text: 'Stay here', style: 'cancel' },
+            {
+              text: 'My Donations',
+              onPress: () =>
+                navigation
+                  .getParent<NavigationProp<RootStackParamList>>()
+                  ?.navigate('MyDonations'),
+            },
+          ],
+        );
+        return;
+      }
 
       const message =
         error?.response?.data?.message ||

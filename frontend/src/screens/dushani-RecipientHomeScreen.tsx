@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
-import { useIsWide } from '../hooks/dushani-useWideLayout';
+import { useIsWide, useBreakpoints } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import LogoutButton from '../components/kaveesha-LogoutButton';
 import AmashaCampaignFeedSection from '@/components/amasha-CampaignFeedSection';
@@ -61,12 +61,14 @@ function StatPill({
   label,
   tone,
   loading,
+  wide,
 }: {
   icon: IconName;
   value: number;
   label: string;
   tone: 'teal' | 'navy' | 'amber' | 'success';
   loading: boolean;
+  wide?: boolean;
 }) {
   const T = useAppTypography();
   const meta = {
@@ -77,7 +79,7 @@ function StatPill({
   }[tone];
 
   return (
-    <View style={[styles.statPill, { backgroundColor: meta.background }]}>
+    <View style={[styles.statPill, wide && styles.statPillWide, { backgroundColor: meta.background }]}>
       <View style={styles.statBadge}>
         <Ionicons name={icon} size={18} color={meta.color} />
       </View>
@@ -182,6 +184,7 @@ function BigTile({
 export default function RecipientHomeScreen({ navigation, route }: Props) {
   const T = useAppTypography();
   const wide = useIsWide();
+  const { isMobile, isTablet } = useBreakpoints();
   const displayName = useDisplayName(route.params?.fullName || 'there');
 
   const [counts, setCounts] = useState({
@@ -245,7 +248,7 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
       >
         <View style={styles.masthead}>
           <MastheadGlow />
-          <View style={[styles.page, wide && styles.pageWide]}>
+          <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
             <View style={styles.heroRow}>
               <View style={{ flex: 1 }}>
                 <View style={styles.eyebrowRow}>
@@ -287,7 +290,7 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-        <View style={[styles.page, wide && styles.pageWide]}>
+        <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
           <View style={styles.strip}>
             {error ? (
               <View style={styles.errorBox}>
@@ -315,13 +318,14 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
             ) : (
-              <View style={styles.stripRow}>
+              <View style={[styles.stripRow, wide && styles.stripRowWide]}>
                 <StatPill
                   icon="paper-plane-outline"
                   value={counts.open}
                   label="Waiting for a donor"
                   tone="teal"
                   loading={loading}
+                  wide={wide}
                 />
                 <StatPill
                   icon="car-outline"
@@ -329,6 +333,7 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                   label="On the way"
                   tone="amber"
                   loading={loading}
+                  wide={wide}
                 />
                 <StatPill
                   icon="checkmark-done-outline"
@@ -336,6 +341,7 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                   label="Food received"
                   tone="success"
                   loading={loading}
+                  wide={wide}
                 />
                 <StatPill
                   icon="megaphone-outline"
@@ -343,6 +349,7 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                   label="Open across ResQMeal"
                   tone="navy"
                   loading={loading}
+                  wide={wide}
                 />
               </View>
             )}
@@ -354,7 +361,7 @@ export default function RecipientHomeScreen({ navigation, route }: Props) {
                 style={{
                   ...T.caption,
                   color: C.textMuted,
-                  marginTop: Spacing.five,
+                  marginTop: wide ? 0 : Spacing.five,
                   marginBottom: Spacing.three,
                 }}
               >
@@ -485,6 +492,9 @@ const styles = StyleSheet.create({
     maxWidth: 1160,
     paddingHorizontal: Spacing.five,
   },
+  pageMobile: {
+    paddingHorizontal: Spacing.three,
+  },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -521,17 +531,24 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     gap: Spacing.three,
   },
+  stripRowWide: {
+    // Override statPill flexBasis for wide screens
+  },
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    flexBasis: '23%',
+    flexBasis: '48%',
     flexGrow: 1,
-    minWidth: 210,
+    minWidth: 150,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: C.cardBorder,
     padding: Spacing.three,
+  },
+  statPillWide: {
+    flexBasis: '23%',
+    minWidth: 210,
   },
   statBadge: {
     width: 38,

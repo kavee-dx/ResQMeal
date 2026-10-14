@@ -14,7 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
-import { useIsWide } from '../hooks/dushani-useWideLayout';
+import { useIsWide, useBreakpoints } from '../hooks/dushani-useWideLayout';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
 import CancelRequestAction from '../components/dushani-cancelRequestAction';
@@ -92,6 +92,7 @@ function Backdrop() {
 export default function RequestProgressScreen({ navigation, route }: Props) {
   const T = useAppTypography();
   const wide = useIsWide();
+  const { isMobile } = useBreakpoints();
   const displayName = useDisplayName();
   const requestId = route.params?.requestId;
 
@@ -166,7 +167,7 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
           />
         }
       >
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -182,8 +183,8 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        <View style={[styles.page, wide && styles.pageWide]}>
-          <View style={styles.card}>
+        <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
+          <View style={[styles.card, isMobile && styles.cardMobile]}>
             {loading ? (
               <View style={styles.centered}>
                 <ActivityIndicator size="large" color={C.teal} />
@@ -344,7 +345,7 @@ export default function RequestProgressScreen({ navigation, route }: Props) {
                   </View>
 
                   <View style={wide ? styles.sideColumn : undefined}>
-                  {!wide && <View style={styles.divider} />}
+                  {!wide && <View style={[styles.divider, isMobile && styles.dividerMobile]} />}
 
                   <DetailRow icon="location-outline" label="Delivery address" value={request.location} />
                   {request.preferredAt ? (
@@ -532,6 +533,9 @@ const styles = StyleSheet.create({
     maxWidth: 1160,
     paddingHorizontal: Spacing.five,
   },
+  pageMobile: {
+    paddingHorizontal: Spacing.three,
+  },
   columns: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -554,6 +558,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.five,
     marginBottom: Spacing.five,
+  },
+  topBarMobile: {
+    paddingHorizontal: Spacing.three,
   },
   backButton: {
     width: 44,
@@ -580,6 +587,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 26,
     elevation: 10,
+  },
+  cardMobile: {
+    padding: Spacing.four,
   },
   summaryHead: {
     flexDirection: 'row',
@@ -659,6 +669,10 @@ const styles = StyleSheet.create({
     backgroundColor: C.cardBorder,
     marginTop: Spacing.four,
     marginBottom: Spacing.four,
+  },
+  dividerMobile: {
+    marginTop: Spacing.three,
+    marginBottom: Spacing.three,
   },
   primaryButton: {
     flexDirection: 'row',

@@ -55,7 +55,7 @@ export type RootStackParamList = {
   AdminLogin: undefined;
   AdminDashboard: undefined;
 
-  CreateDonation: undefined;
+  CreateDonation: { requestId?: string } | undefined;
   MyDonations: undefined;
   DonationDetail: { donationId: string };
   EditDonation: { donationId: string };
@@ -94,6 +94,8 @@ export type RootStackParamList = {
 
   // The signed-in user's chat list (all roles)
   ChatList: undefined;
+  // Donor selects an eligible volunteer after choosing a recipient.
+  VolunteerSuggestions: { donationId: string };
 };
 
 export type HomeRouteName =

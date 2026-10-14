@@ -10,6 +10,12 @@ const { heldDonationIds, isHeld } = require('./dushani-donationHoldService');
 const PUBLIC_FIELDS =
   'foodType quantity location details urgency priority status createdAt expiresAt preferredAt recipient';
 
+// A donor's own claimed requests are read back with the recipient's phone and
+// the stage timestamps, so the post stays on the donor's board after a refresh
+// and can show how far the delivery has come.
+const CLAIMED_FIELDS =
+  'foodType quantity location details contactNumber urgency priority status createdAt expiresAt preferredAt acceptedAt dispatchedAt fulfilledAt recipient acceptedBy';
+
 // The same statuses the recipient's own search treats as live food.
 const DONATION_POOL_STATUSES = ['active', 'expiring', 'pending'];
 
@@ -61,7 +67,7 @@ async function posterNames(recipients) {
   return names;
 }
 
-async function getOpenRequests() {
+async function getOpenRequests({ donorId = null } = {}) {
   const requests = await FoodRequest.find({
     status: 'PENDING',
     expiresAt: { $gt: new Date() },
@@ -71,13 +77,43 @@ async function getOpenRequests() {
     .populate({ path: 'recipient', select: 'fullName' })
     .lean();
 
-  const names = await posterNames(requests.map((request) => request.recipient));
+  // The requests this donor already committed to. They no longer appear in the
+  // open (PENDING) pool, but the donor still needs to see them and their
+  // progress, so they are merged back into the same board, newest activity
+  // first. Passing a non-donor id simply matches nothing.
+  const claims = donorId
+    ? await FoodRequest.find({
+        acceptedBy: donorId,
+        status: { $in: ['MATCHED', 'DISPATCHED', 'FULFILLED'] },
+      })
+        .sort({ updatedAt: -1 })
+        .select(CLAIMED_FIELDS)
+        .populate({ path: 'recipient', select: 'fullName' })
+        .lean()
+    : [];
+
+  const names = await posterNames([
+    ...requests.map((request) => request.recipient),
+    ...claims.map((request) => request.recipient),
+  ]);
+
+  const claimViews = claims.map((request) => ({
+    ...toPublicView(request, names),
+    contactNumber: request.contactNumber ?? '',
+    acceptedAt: request.acceptedAt ?? null,
+    dispatchedAt: request.dispatchedAt ?? null,
+    fulfilledAt: request.fulfilledAt ?? null,
+    claimedByMe: true,
+  }));
 
   // Emergency requests go to the top of the list, newest first within a tier.
-  return [
+  const openViews = [
     ...requests.filter((request) => request.urgency === 'URGENT'),
     ...requests.filter((request) => request.urgency !== 'URGENT'),
   ].map((request) => toPublicView(request, names));
+
+  // A donor's own live contributions lead the board, then the open requests.
+  return [...claimViews, ...openViews];
 }
 
 function fail(message, statusCode) {
@@ -122,7 +158,9 @@ async function resolveLinkedDonation({ donorId, donationId }) {
 
 /**
  * A donor claims an open request. The status filter makes the write atomic, so
- * two donors tapping Accept at the same moment cannot both take it.
+ * two donors tapping Accept at the same moment cannot both take it. If a
+ * donation is linked, the client can next show volunteer suggestions and let
+ * the donor choose before an assignment is created.
  */
 async function acceptFoodRequest({ donorId, role, requestId, donationId = null }) {
   if (!donorId || !requestId) fail('donorId and requestId are required', 400);

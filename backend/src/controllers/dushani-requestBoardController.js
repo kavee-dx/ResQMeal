@@ -8,7 +8,11 @@ const {
 // GET /api/recipient/food-requests/open
 async function getOpenRequestsHandler(req, res) {
   try {
-    return res.json(await getOpenRequests());
+    // A donor also sees the requests they already claimed (with progress), so
+    // pass their id; other roles simply match no claims.
+    const donorId =
+      req.user?.role === 'DONOR' ? req.user?.id ?? null : null;
+    return res.json(await getOpenRequests({ donorId }));
   } catch (error) {
     const statusCode = error.statusCode || 500;
     return res

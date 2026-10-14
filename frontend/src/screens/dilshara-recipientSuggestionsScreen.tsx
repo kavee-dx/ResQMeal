@@ -13,6 +13,7 @@ import {
   type RecipientSuggestion,
   type SuggestionCriteria,
 } from "../services/dilshara-recipientSuggestionService";
+import { acceptFoodRequest } from "../services/dushani-foodRequestApi";
 type Props = NativeStackScreenProps<RootStackParamList, "RecipientSuggestions">;
 
 export default function RecipientSuggestionsScreen({ route, navigation }: Props) {
@@ -23,6 +24,7 @@ export default function RecipientSuggestionsScreen({ route, navigation }: Props)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<RecipientSuggestion | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   // Ignores late responses if the donor switches tabs quickly.
   const requestSeq = useRef(0);
@@ -51,12 +53,29 @@ export default function RecipientSuggestionsScreen({ route, navigation }: Props)
     load(selectedCriteria);
   }, [selectedCriteria, load]);
 
-  const handleSuggest = (item: RecipientSuggestion) => {
-    // TODO: hand item.requestId (and optionally item.recipientId) to the
-    // teammate's flow once the endpoint/action is agreed.
-    console.log("Suggest Recipient ->", { donationId, requestId: item.requestId });
-    setSelectedItem(null);
-    Alert.alert("Recipient selected", `${item.displayName} has been selected for this donation.`);
+  // Claims and links the request first; volunteer suggestions are then shown
+  // before the donor commits to an assignment.
+  const handleSuggest = async (item: RecipientSuggestion) => {
+    if (confirming) return;
+    setConfirming(true);
+    try {
+      await acceptFoodRequest(item.requestId, donationId);
+      setSelectedItem(null);
+      load(selectedCriteria);
+      navigation.navigate("VolunteerSuggestions", {
+        donationId,
+      });
+    } catch (e: any) {
+      Alert.alert(
+        "Could not select this recipient",
+        e?.response?.data?.message ?? "Please try again.",
+      );
+      // 409 means someone moved the request on (claimed, cancelled or expired)
+      // — refresh so the list reflects its real state.
+      if (e?.response?.status === 409) load(selectedCriteria);
+    } finally {
+      setConfirming(false);
+    }
   };
 
   return (
@@ -100,6 +119,7 @@ export default function RecipientSuggestionsScreen({ route, navigation }: Props)
         item={selectedItem}
         onClose={() => setSelectedItem(null)}
         onSuggest={handleSuggest}
+        busy={confirming}
       />
     </View>
   );

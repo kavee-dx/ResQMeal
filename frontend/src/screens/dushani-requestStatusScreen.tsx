@@ -13,7 +13,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useAppTypography } from '../hooks/kaveesha-useAppTypography';
-import { useIsWide } from '../hooks/dushani-useWideLayout';
+import { useIsWide, useBreakpoints } from '../hooks/dushani-useWideLayout';
 import { useDisplayName } from '../hooks/dushani-useDisplayName';
 import type { RootStackParamList } from '../navigation/types';
 import EmergencyStatusBadge from '../components/dushani-emergencyStatusBadge';
@@ -158,6 +158,7 @@ function Backdrop() {
 export default function RequestStatusScreen({ navigation }: Props) {
   const T = useAppTypography();
   const wide = useIsWide();
+  const { isMobile } = useBreakpoints();
   const displayName = useDisplayName();
 
   const [requests, setRequests] = useState<FoodRequest[]>([]);
@@ -536,7 +537,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
           />
         }
       >
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, isMobile && styles.topBarMobile]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backButton}
@@ -559,8 +560,8 @@ export default function RequestStatusScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.page, wide && styles.pageWide]}>
-          <View style={styles.card}>
+        <View style={[styles.page, wide && styles.pageWide, isMobile && styles.pageMobile]}>
+          <View style={[styles.card, isMobile && styles.cardMobile]}>
             <View style={styles.cardHead}>
               <View style={{ flex: 1 }}>
                 <Text style={{ ...T.labelStrong, fontSize: 13, color: C.navy }}>
@@ -594,7 +595,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
             </View>
 
             {!loading && !error && (
-              <View style={styles.tabs}>
+              <View style={[styles.tabs, isMobile && styles.tabsMobile]}>
                 {TABS.map((entry) => {
                   const active = entry.key === tab;
                   const count = countFor(entry.statuses);
@@ -603,7 +604,7 @@ export default function RequestStatusScreen({ navigation }: Props) {
                       key={entry.key}
                       onPress={() => setTab(entry.key)}
                       activeOpacity={0.85}
-                      style={[styles.tab, active && styles.tabActive]}
+                      style={[styles.tab, isMobile && styles.tabMobile, active && styles.tabActive]}
                       accessibilityRole="tab"
                       accessibilityState={{ selected: active }}
                     >
@@ -820,6 +821,9 @@ const styles = StyleSheet.create({
     maxWidth: 1160,
     paddingHorizontal: Spacing.five,
   },
+  pageMobile: {
+    paddingHorizontal: Spacing.three,
+  },
   listGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -839,6 +843,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.five,
     marginBottom: Spacing.five,
+  },
+  topBarMobile: {
+    paddingHorizontal: Spacing.three,
   },
   backButton: {
     width: 44,
@@ -879,6 +886,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.14,
     shadowRadius: 26,
     elevation: 10,
+  },
+  cardMobile: {
+    padding: Spacing.four,
   },
   cardHead: {
     flexDirection: 'row',
@@ -1049,6 +1059,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginBottom: Spacing.four,
   },
+  tabsMobile: {
+    gap: Spacing.one,
+  },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1063,6 +1076,11 @@ const styles = StyleSheet.create({
     backgroundColor: C.offWhite,
     paddingHorizontal: Spacing.two,
     gap: Spacing.two,
+  },
+  tabMobile: {
+    flexBasis: '48%',
+    minWidth: 80,
+    paddingHorizontal: Spacing.one,
   },
   tabActive: {
     backgroundColor: C.teal,

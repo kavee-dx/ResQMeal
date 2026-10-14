@@ -1,31 +1,24 @@
-﻿const request = require("supertest");
+﻿// The in-memory MongoDB connection comes from the shared tests/setup.js.
+// This suite used to start its own MongoMemoryServer, which double-connected
+// mongoose against the global setup and made every test fail.
+// JWT_SECRET must be set before the app (and kaveesha-jwt) is required.
+process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+
+const request = require("supertest");
 const mongoose = require("mongoose");
-const { MongoMemoryServer } = require("mongodb-memory-server");
 const jwt = require("jsonwebtoken");
 
 const app = require("../src/app");
 const VolunteerAvailability = require("../src/models/dilshara-VolunteerAvailability");
 
-let mongoServer;
-
-const JWT_SECRET = process.env.JWT_SECRET || "test-secret";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function makeToken(userId, role = "VOLUNTEER") {
   return jwt.sign({ id: userId, role }, JWT_SECRET, { expiresIn: "1h" });
 }
 
-beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
-  await mongoose.connect(mongoServer.getUri());
-});
-
 afterEach(async () => {
   await VolunteerAvailability.deleteMany({});
-});
-
-afterAll(async () => {
-  await mongoose.disconnect();
-  await mongoServer.stop();
 });
 
 describe("GET /api/volunteer-profile/availability", () => {

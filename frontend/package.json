@@ -67,13 +67,10 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
-  },
-  "jest": {
-    "preset": "jest-expo",
-    "testMatch": [
-      "<rootDir>/tests/**/*.test.{ts,tsx}"
-    ]
+    "test": "jest",
+    "test:unit": "jest --testPathPattern \"unit\\.test\\.tsx?$\"",
+    "test:kaveesha": "jest --testPathPattern kaveesha --runInBand",
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }

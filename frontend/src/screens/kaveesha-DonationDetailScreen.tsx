@@ -3967,12 +3967,9 @@ const baseStyles: Record<string, any> = {
   rescueFeatureCard: {
     flex: 1,
     minWidth: 0,
+    width: "100%",
     backgroundColor: C.background,
     borderRadius: 20,
-    width: "100%",
-    backgroundColor:
-      colors.background,
-    borderRadius: 19,
     padding: 16,
     borderWidth: 1,
     borderColor: C.hairline,

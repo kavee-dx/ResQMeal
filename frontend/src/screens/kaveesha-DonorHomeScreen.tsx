@@ -31,6 +31,7 @@ import {
   useWindowDimensions,
   Platform,
   ActivityIndicator,
+  Image,
 } from "react-native";
 
 import type {
@@ -67,17 +68,26 @@ import {
 
 import type { ThemeColor } from "../constants/theme";
 
-import {
-  MOCK_CATEGORIES,
-  MOCK_COMMUNITY_POSTS,
-  MOCK_IMPACT,
-  MOCK_RECIPIENTS,
-} from "../constants/kaveesha-mockData";
+import type { Donation } from "../types/kaveesha-donation.types";
 
-import type {
-  Donation,
-  DonationUrgency,
-} from "../types/kaveesha-donation.types";
+/*
+  The feed rules live in a dependency-free module so they can be unit tested
+  on their own and stay identical wherever the home page uses them.
+*/
+import {
+  DONATION_FOOT_NOTE,
+  buildDonorFeed,
+  countToneFilters,
+  donationExpiryLabel,
+  donationPostedLabel,
+  donationRouteId,
+  donationStatusMeta,
+  isVisibleInDonorFeed,
+  isUrgentDonation,
+  summarizeDonorImpact,
+  type FeedFilterId,
+  type StatusTone,
+} from "../utils/kaveesha-donationFeed";
 
 import {
   getDonations,
@@ -114,14 +124,72 @@ type ExtraNavKey = "FoodRequests" | "NGOCommunities";
 
 type SidebarKey = TabKey | ExtraNavKey;
 
-type SectionKey = "impact" | "donations" | "campaigns" | "recipients" | "posts";
+type SectionKey = "impact" | "donations" | "campaigns";
 
 const LOGOUT_ROUTE = "Login";
 
 const CONTENT_MAX = 1200;
 const SIDEBAR_WIDTH = 264;
-const GRID_GAP = 16;
-const MOBILE_CARD_WIDTH = 260;
+
+/* Gap between posts in the donation feed. */
+const POST_GAP = 16;
+
+/* Only two ways to slice the home feed: time-critical posts and the rest. */
+const FEED_FILTERS: Array<{
+  id: FeedFilterId;
+  label: string;
+  icon: IconName;
+}> = [
+  {
+    id: "urgent",
+    label: "Urgent",
+    icon: "flash-outline",
+  },
+  {
+    id: "normal",
+    label: "Normal",
+    icon: "pulse-outline",
+  },
+];
+
+type QuickActionId =
+  | "create"
+  | "posts"
+  | "requests"
+  | "campaigns"
+  | "map";
+
+const QUICK_ACTIONS: Array<{
+  id: QuickActionId;
+  label: string;
+  icon: IconName;
+}> = [
+  {
+    id: "create",
+    label: "Donate food",
+    icon: "add-circle-outline",
+  },
+  {
+    id: "posts",
+    label: "My posts",
+    icon: "gift-outline",
+  },
+  {
+    id: "requests",
+    label: "Rescue requests",
+    icon: "people-circle-outline",
+  },
+  {
+    id: "campaigns",
+    label: "NGO campaigns",
+    icon: "megaphone-outline",
+  },
+  {
+    id: "map",
+    label: "Rescue map",
+    icon: "map-outline",
+  },
+];
 
 type NavItem = {
   key: Exclude<TabKey, "Create">;
@@ -1041,15 +1109,6 @@ function makeStyles(c: Palette, accent: string) {
       ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : {}),
     },
 
-    filterButton: {
-      width: ComponentSizes.inputHeight,
-      height: ComponentSizes.inputHeight,
-      borderRadius: Radius.md,
-      backgroundColor: c.primary,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
     /* ---------------- Hero ---------------- */
 
     heroWrap: {
@@ -1295,12 +1354,6 @@ function makeStyles(c: Palette, accent: string) {
       color: accent,
     },
 
-    grid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: GRID_GAP,
-    },
-
     /* ---------------- Quick actions ---------------- */
 
     quickWrap: {
@@ -1361,134 +1414,486 @@ function makeStyles(c: Palette, accent: string) {
       marginTop: 8,
     },
 
-    /* ---------------- Info card ---------------- */
+    /* ---------------- Donation post feed ---------------- */
 
-    card: {
-      backgroundColor: c.surface,
-      borderRadius: Radius.lg,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: c.border,
-      ...Shadows.card,
+    postFilterRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginBottom: 16,
     },
 
-    cardTop: {
+    postFilterChip: {
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 14,
+      gap: 6,
+      paddingHorizontal: 13,
+      paddingVertical: 8,
+      borderRadius: Radius.pill,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
     },
 
-    cardIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
+    postFilterChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+      shadowColor: "#023047",
+      shadowOffset: { width: 0, height: 5 },
+      shadowOpacity: 0.18,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+
+    /* The urgent chip keeps its amber warning colour when selected */
+
+    postFilterChipActiveWarn: {
+      backgroundColor: c.secondary,
+      borderColor: c.secondary,
+      shadowColor: c.secondaryDark,
+    },
+
+    postFilterChipText: {
+      ...Typography.label,
+      fontSize: 12,
+      color: c.textSecondary,
+    },
+
+    /* Dark text on the amber chip, which white would wash out */
+
+    postFilterChipOnWarn: {
+      color: c.primaryDark,
+    },
+
+    postFilterChipTextActive: {
+      color: "#FFFFFF",
+    },
+
+    postFilterCount: {
+      ...Typography.label,
+      fontSize: 11,
+      color: c.textMuted,
+    },
+
+    postFilterCountActive: {
+      color: "rgba(255,255,255,0.8)",
+    },
+
+    /* Clears the active urgency chip and returns to every post */
+
+    postFilterClear: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: Radius.pill,
+      backgroundColor: c.surfaceSoft,
+    },
+
+    postFilterClearText: {
+      ...Typography.label,
+      fontSize: 11.5,
+      color: c.textSecondary,
+    },
+
+    /* Horizontal strip; the padding leaves room for the card shadows. */
+    postFeed: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: POST_GAP,
+      paddingVertical: 8,
+    },
+
+    postCard: {
+      backgroundColor: c.surface,
+      borderRadius: 26,
+      borderWidth: 1,
+      borderColor: c.borderLight,
+      overflow: "hidden",
+      shadowColor: "#023047",
+      shadowOffset: { width: 0, height: 14 },
+      shadowOpacity: 0.12,
+      shadowRadius: 28,
+      elevation: 10,
+    },
+
+    /* Amber hairline that marks an urgent post before anything else */
+
+    postAccent: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 4,
+      zIndex: 3,
+    },
+
+    postHead: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 11,
+      paddingHorizontal: 18,
+      paddingTop: 16,
+      paddingBottom: 15,
+    },
+
+    postAvatarRing: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
       backgroundColor: c.primarySoft,
       alignItems: "center",
       justifyContent: "center",
     },
 
-    badge: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      borderRadius: Radius.pill,
-    },
-
-    badgeText: {
-      ...Typography.label,
-      fontSize: 12,
-    },
-
-    cardTitle: {
-      ...Typography.h3,
-      fontSize: 17,
-      lineHeight: 24,
-      color: c.text,
-    },
-
-    cardSubtitle: {
-      ...Typography.bodySmall,
-      color: c.textSecondary,
-      marginTop: 2,
-      minHeight: 40,
-    },
-
-    cardDivider: {
-      height: 1,
-      backgroundColor: c.borderLight,
-      marginVertical: 12,
-    },
-
-    cardMeta: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-
-    cardMetaText: {
-      ...Typography.bodySmall,
-      color: c.textSecondary,
-      flex: 1,
-    },
-
-    cardFooter: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 8,
-      marginTop: 12,
-    },
-
-    cardFooterPill: {
-      backgroundColor: c.surfaceSoft,
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: Radius.pill,
-      flexShrink: 1,
-    },
-
-    cardFooterText: {
-      ...Typography.label,
-      color: c.text,
-    },
-
-    /* ---------------- Segment filter ---------------- */
-
-    segmentWrap: {
-      alignSelf: "flex-start",
-      flexDirection: "row",
-      padding: 4,
-      borderRadius: Radius.md,
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      marginBottom: 14,
-    },
-
-    segmentButton: {
-      minWidth: 92,
-      height: 36,
-      paddingHorizontal: 14,
-      borderRadius: Radius.sm,
-      flexDirection: "row",
+    postAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
-      gap: 6,
+      overflow: "hidden",
     },
 
-    segmentText: {
-      ...Typography.label,
-      color: c.textSecondary,
-    },
-
-    segmentTextActive: {
+    postAvatarText: {
+      ...Typography.labelStrong,
+      fontSize: 16,
       color: "#FFFFFF",
     },
 
-    segmentDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
+    postAuthorCol: {
+      flex: 1,
+      gap: 2,
+    },
+
+    postAuthorName: {
+      ...Typography.bodyMedium,
+      fontSize: 14,
+      lineHeight: 19,
+      color: c.text,
+    },
+
+    postAuthorMeta: {
+      ...Typography.bodySmall,
+      fontSize: 12,
+      lineHeight: 16,
+      color: c.textMuted,
+    },
+
+    postStatusPill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: Radius.pill,
+      maxWidth: "46%",
+    },
+
+    postStatusText: {
+      ...Typography.label,
+      fontSize: 11,
+      letterSpacing: 0.2,
+    },
+
+    postPhotoBox: {
+      width: "100%",
+      aspectRatio: 4 / 3,
+      backgroundColor: c.surfaceSoft,
+      overflow: "hidden",
+    },
+
+    postPhotoFallback: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+    },
+
+    postPhotoFallbackRing: {
+      width: 62,
+      height: 62,
+      borderRadius: 31,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.34)",
+      backgroundColor: "rgba(255,255,255,0.10)",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+
+    postPhotoFallbackText: {
+      ...Typography.bodySmall,
+      fontSize: 12,
+      color: "rgba(255,255,255,0.86)",
+    },
+
+    postPhotoScrim: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: "58%",
+      pointerEvents: "none",
+    },
+
+    /* Hairline that separates the photo from the card edge */
+
+    postPhotoEdge: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.16)",
+      pointerEvents: "none",
+    },
+
+    postChipRow: {
+      position: "absolute",
+      left: 12,
+      right: 12,
+      bottom: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 8,
+      pointerEvents: "none",
+    },
+
+    postChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 11,
+      paddingVertical: 6,
+      borderRadius: Radius.pill,
+      backgroundColor: "rgba(1,28,46,0.6)",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.24)",
+      maxWidth: "58%",
+    },
+
+    postChipText: {
+      ...Typography.label,
+      fontSize: 11,
+      color: "#FFFFFF",
+    },
+
+    postChipWarn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+      borderRadius: Radius.pill,
+      backgroundColor: c.secondary,
+    },
+
+    postChipWarnText: {
+      ...Typography.labelStrong,
+      fontSize: 10,
+      letterSpacing: 0.7,
+      color: c.primaryDark,
+    },
+
+    postBody: {
+      padding: 18,
+      gap: 10,
+    },
+
+    postTitle: {
+      ...Typography.h3,
+      fontSize: 19,
+      lineHeight: 26,
+      letterSpacing: -0.4,
+      color: c.text,
+    },
+
+    postCaption: {
+      ...Typography.body,
+      fontSize: 13.5,
+      lineHeight: 21,
+      color: c.textSecondary,
+    },
+
+    /* One stat bar with value over label, instead of loose floating pills */
+
+    postStatBar: {
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: 10,
+      marginTop: 6,
+      paddingVertical: 11,
+      paddingHorizontal: 12,
+      borderRadius: 18,
+      backgroundColor: c.surfaceSoft,
+      borderWidth: 1,
+      borderColor: c.borderLight,
+    },
+
+    postStat: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "center",
+      gap: 3,
+    },
+
+    postStatValue: {
+      ...Typography.labelStrong,
+      fontSize: 12.5,
+      lineHeight: 17,
+      color: c.text,
+      alignSelf: "stretch",
+      textAlign: "center",
+    },
+
+    postStatLabel: {
+      ...Typography.bodySmall,
+      fontSize: 10,
+      lineHeight: 14,
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      color: c.textMuted,
+    },
+
+    postStatDivider: {
+      width: 1,
+      alignSelf: "stretch",
+      backgroundColor: c.border,
+    },
+
+    postFoot: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      marginTop: 8,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: c.borderLight,
+    },
+
+    postFootNoteRow: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      flexShrink: 1,
+    },
+
+    postFootDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+
+    postFootNote: {
+      ...Typography.bodySmall,
+      fontSize: 12,
+      lineHeight: 17,
+      color: c.textSecondary,
+      flexShrink: 1,
+    },
+
+    postViewBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+      paddingHorizontal: 16,
+      paddingVertical: 11,
+      borderRadius: Radius.pill,
+      shadowColor: "#023047",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.22,
+      shadowRadius: 12,
+      elevation: 4,
+    },
+
+    postViewText: {
+      ...Typography.labelStrong,
+      fontSize: 12,
+      color: "#FFFFFF",
+    },
+
+    /* Swipe affordance under the strip */
+
+    postStripHint: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      marginTop: 12,
+    },
+
+    postStripHintText: {
+      ...Typography.bodySmall,
+      fontSize: 12,
+      color: c.textMuted,
+    },
+
+    postEmpty: {
+      alignItems: "center",
+      paddingVertical: 30,
+      paddingHorizontal: 22,
+      borderRadius: 22,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderStyle: "dashed",
+      borderColor: c.border,
+      gap: 4,
+    },
+
+    postEmptyTitle: {
+      ...Typography.h3,
+      fontSize: 16,
+      lineHeight: 22,
+      color: c.text,
+      marginTop: 8,
+      textAlign: "center",
+    },
+
+    postEmptyText: {
+      ...Typography.bodySmall,
+      color: c.textMuted,
+      textAlign: "center",
+      maxWidth: 340,
+    },
+
+    postEmptyCta: {
+      marginTop: 14,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: Radius.pill,
+      backgroundColor: c.primary,
+    },
+
+    postEmptyCtaText: {
+      ...Typography.label,
+      fontSize: 13,
+      color: "#FFFFFF",
+    },
+
+    /* ---------------- Search action ---------------- */
+
+    searchAction: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      height: ComponentSizes.inputHeight,
+      paddingHorizontal: 16,
+      borderRadius: Radius.pill,
+      backgroundColor: c.primary,
+    },
+
+    searchActionText: {
+      ...Typography.label,
+      color: c.textOnPrimary,
     },
 
     /* ---------------- Empty state ---------------- */
@@ -2389,6 +2794,265 @@ function LogoutAction({
 }
 
 /* ========================================================= */
+/* DONATION POST                                              */
+/* ========================================================= */
+
+function DonationPost({
+  donation,
+  width,
+  authorName,
+  onView,
+}: {
+  donation: Donation;
+  width: number;
+  authorName: string;
+  onView: () => void;
+}) {
+  const { c, s } = useTheme();
+
+  const status = donationStatusMeta(donation.status);
+
+  const toneColor: Record<StatusTone, string> = {
+    success: c.success,
+    warning: c.secondaryDark,
+    info: c.info,
+    danger: c.error,
+    muted: c.textMuted,
+  };
+
+  const toneBg: Record<StatusTone, string> = {
+    success: c.successSoft,
+    warning: c.warningSoft,
+    info: c.infoSoft,
+    danger: c.errorSoft,
+    muted: c.surfaceSoft,
+  };
+
+  const expiry = donationExpiryLabel(donation);
+
+  const portions = donation.numberOfPortions ?? donation.portions ?? 0;
+
+  const location =
+    donation.pickupLocation || donation.pickupDistrict || "Pickup on request";
+
+  const urgent = isUrgentDonation(donation);
+
+  const caption =
+    donation.additionalDetails?.trim() ||
+    `${donation.category || "Food donation"} \u00b7 ${portions} ${
+      portions === 1 ? "portion" : "portions"
+    } ready for pickup`;
+
+  const title = donation.foodName || "Food donation";
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.88}
+      onPress={onView}
+      style={[s.postCard, { width }]}
+      accessibilityRole="button"
+      accessibilityLabel={`Open post: ${title}`}
+    >
+      {urgent ? (
+        <LinearGradient
+          colors={[c.secondary, c.warning]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={s.postAccent}
+        />
+      ) : null}
+
+      {/* Author strip - who posted it and when */}
+      <View style={s.postHead}>
+        <View style={s.postAvatarRing}>
+          <LinearGradient
+            colors={[c.primary, c.info]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.postAvatar}
+          >
+            <Text style={s.postAvatarText}>
+              {(authorName.trim().charAt(0) || "D").toUpperCase()}
+            </Text>
+          </LinearGradient>
+        </View>
+
+        <View style={s.postAuthorCol}>
+          <Text style={s.postAuthorName} numberOfLines={1}>
+            {authorName}
+          </Text>
+
+          <Text style={s.postAuthorMeta} numberOfLines={1}>
+            {`${donationPostedLabel(donation.createdAt)}${
+              donation.donationCode ? ` \u00b7 ${donation.donationCode}` : ""
+            }`}
+          </Text>
+        </View>
+
+        <View
+          style={[
+            s.postStatusPill,
+            {
+              backgroundColor: toneBg[status.tone],
+            },
+          ]}
+        >
+          <Ionicons
+            name={status.icon}
+            size={12}
+            color={toneColor[status.tone]}
+          />
+
+          <Text
+            style={[s.postStatusText, { color: toneColor[status.tone] }]}
+            numberOfLines={1}
+          >
+            {status.label}
+          </Text>
+        </View>
+      </View>
+
+      {/* Photo first, with the live facts floating on top of it */}
+      <View style={s.postPhotoBox}>
+        {donation.photoUrl ? (
+          <Image
+            source={{
+              uri: donation.photoUrl,
+            }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        ) : (
+          <LinearGradient
+            colors={[c.primaryDark, c.primary, c.info]}
+            locations={[0, 0.6, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.postPhotoFallback}
+          >
+            <View style={s.postPhotoFallbackRing}>
+              <MaterialCommunityIcons
+                name="food-apple-outline"
+                size={30}
+                color="rgba(255,255,255,0.92)"
+              />
+            </View>
+
+            <Text style={s.postPhotoFallbackText}>No photo shared yet</Text>
+          </LinearGradient>
+        )}
+
+        <LinearGradient
+          colors={[
+            "rgba(1,28,46,0)",
+            "rgba(1,28,46,0.55)",
+            "rgba(1,28,46,0.88)",
+          ]}
+          locations={[0, 0.55, 1]}
+          style={s.postPhotoScrim}
+        />
+
+        <View style={s.postPhotoEdge} />
+
+        <View style={s.postChipRow}>
+          {urgent ? (
+            <View style={s.postChipWarn}>
+              <Ionicons name="flash" size={11} color={c.primaryDark} />
+
+              <Text style={s.postChipWarnText}>URGENT</Text>
+            </View>
+          ) : null}
+
+          {expiry ? (
+            <View style={s.postChip}>
+              <Ionicons name="time-outline" size={12} color="#FFFFFF" />
+
+              <Text style={s.postChipText}>{expiry}</Text>
+            </View>
+          ) : null}
+
+          <View style={s.postChip}>
+            <Ionicons name="location-outline" size={12} color="#FFFFFF" />
+
+            <Text style={s.postChipText} numberOfLines={1}>
+              {location}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Caption and the numbers a rescuer acts on */}
+      <View style={s.postBody}>
+        <Text style={s.postTitle} numberOfLines={2}>
+          {title}
+        </Text>
+
+        <Text style={s.postCaption} numberOfLines={3}>
+          {caption}
+        </Text>
+
+        <View style={s.postStatBar}>
+          <View style={s.postStat}>
+            <Text style={s.postStatValue} numberOfLines={1}>
+              {`${donation.quantity} ${donation.quantityUnit ?? "units"}`}
+            </Text>
+
+            <Text style={s.postStatLabel}>Quantity</Text>
+          </View>
+
+          <View style={s.postStatDivider} />
+
+          <View style={s.postStat}>
+            <Text style={s.postStatValue} numberOfLines={1}>
+              {portions}
+            </Text>
+
+            <Text style={s.postStatLabel}>Portions</Text>
+          </View>
+
+          <View style={s.postStatDivider} />
+
+          <View style={s.postStat}>
+            <Text style={s.postStatValue} numberOfLines={1}>
+              {donation.category || "Mixed"}
+            </Text>
+
+            <Text style={s.postStatLabel}>Category</Text>
+          </View>
+        </View>
+
+        <View style={s.postFoot}>
+          <View style={s.postFootNoteRow}>
+            <View
+              style={[
+                s.postFootDot,
+                { backgroundColor: toneColor[status.tone] },
+              ]}
+            />
+
+            <Text style={s.postFootNote} numberOfLines={2}>
+              {DONATION_FOOT_NOTE[donation.status]}
+            </Text>
+          </View>
+
+          <LinearGradient
+            colors={[c.primaryDark, c.primary, c.info]}
+            locations={[0, 0.55, 1]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.postViewBtn}
+          >
+            <Text style={s.postViewText}>View post</Text>
+
+            <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+          </LinearGradient>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+/* ========================================================= */
 /* SECTION HEADER                                             */
 /* ========================================================= */
 
@@ -2509,121 +3173,6 @@ function StatCard({
       <Text style={s.statValue}>{value}</Text>
 
       <Text style={s.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-/* ========================================================= */
-/* INFO CARD                                                  */
-/* ========================================================= */
-
-type InfoCardProps = {
-  icon: IconName;
-  title: string;
-  subtitle: string;
-  metaIcon: IconName;
-  metaText: string;
-  footerText: string;
-  badgeLabel: string;
-  badgeBg?: string;
-  badgeColor?: string;
-  width: number;
-  onPress?: () => void;
-};
-
-function InfoCard({
-  icon,
-  title,
-  subtitle,
-  metaIcon,
-  metaText,
-  footerText,
-  badgeLabel,
-  badgeBg,
-  badgeColor,
-  width,
-  onPress,
-}: InfoCardProps) {
-  const { c, accent, s } = useTheme();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      disabled={!onPress}
-      onPress={onPress}
-      style={[s.card, { width }]}
-    >
-      <View style={s.cardTop}>
-        <View style={s.cardIcon}>
-          <Ionicons name={icon} size={21} color={accent} />
-        </View>
-
-        <View
-          style={[
-            s.badge,
-            {
-              backgroundColor: badgeBg ?? c.primarySoft,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              s.badgeText,
-              {
-                color: badgeColor ?? accent,
-              },
-            ]}
-          >
-            {badgeLabel}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={s.cardTitle} numberOfLines={1}>
-        {title}
-      </Text>
-
-      <Text style={s.cardSubtitle} numberOfLines={2}>
-        {subtitle}
-      </Text>
-
-      <View style={s.cardDivider} />
-
-      <View style={s.cardMeta}>
-        <Ionicons name={metaIcon} size={15} color={c.textMuted} />
-
-        <Text style={s.cardMetaText} numberOfLines={1}>
-          {metaText}
-        </Text>
-      </View>
-
-      <View style={s.cardFooter}>
-        <View style={s.cardFooterPill}>
-          <Text style={s.cardFooterText} numberOfLines={1}>
-            {footerText}
-          </Text>
-        </View>
-
-        {onPress && (
-          <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-/* ========================================================= */
-/* EMPTY STATE                                                */
-/* ========================================================= */
-
-function EmptyState({ text }: { text: string }) {
-  const { c, s } = useTheme();
-
-  return (
-    <View style={s.empty}>
-      <Ionicons name="leaf-outline" size={26} color={c.textMuted} />
-
-      <Text style={s.emptyText}>{text}</Text>
     </View>
   );
 }
@@ -2977,7 +3526,7 @@ function SiteFooter({
   onSection,
   onTop,
 }: {
-  onNavigate: (tab: TabKey) => void;
+  onNavigate: (tab: SidebarKey) => void;
   onSection: (key: SectionKey) => void;
   onTop: () => void;
 }) {
@@ -3035,6 +3584,13 @@ function SiteFooter({
 
             <TouchableOpacity
               activeOpacity={0.7}
+              onPress={() => onSection("donations")}
+            >
+              <Text style={s.footerLink}>Your donation posts</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
               onPress={() => onSection("campaigns")}
             >
               <Text style={s.footerLink}>NGO campaigns</Text>
@@ -3042,16 +3598,16 @@ function SiteFooter({
 
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => onSection("recipients")}
+              onPress={() => onNavigate("FoodRequests")}
             >
-              <Text style={s.footerLink}>Available recipients</Text>
+              <Text style={s.footerLink}>Food rescue requests</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => onSection("posts")}
+              onPress={() => onNavigate("NGOCommunities")}
             >
-              <Text style={s.footerLink}>Community posts</Text>
+              <Text style={s.footerLink}>NGO communities</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -3130,7 +3686,7 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
 
   const [search, setSearch] = useState("");
 
-  const [postFilter, setPostFilter] = useState<"HIGH" | "NORMAL">("HIGH");
+  const [feedFilter, setFeedFilter] = useState<FeedFilterId | null>(null);
 
   const [boxWidth, setBoxWidth] = useState(0);
 
@@ -3445,53 +4001,25 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
 
   const query = search.trim().toLowerCase();
 
-  const filteredDonations = useMemo(
-    () =>
-      donations.filter(
-        (d) =>
-          !query ||
-          d.foodName.toLowerCase().includes(query) ||
-          d.category.toLowerCase().includes(query),
-      ),
-    [donations, query],
+  /*
+    Expired posts stay off the home page, so the pool below is what every
+    label, chip count and empty state on this page is measured against.
+  */
+  const feedPool = useMemo(
+    () => donations.filter(isVisibleInDonorFeed),
+    [donations],
   );
 
-  const filteredPosts = useMemo(
-    () =>
-      MOCK_COMMUNITY_POSTS.filter(
-        (p) =>
-          p.urgency === postFilter &&
-          (!query || p.foodName.toLowerCase().includes(query)),
-      ),
-    [postFilter, query],
+  /* Chip counts come from the visible pool, so they match what a chip opens. */
+  const feedCounts = useMemo(() => countToneFilters(donations), [donations]);
+
+  /* Words plus the one active chip, newest first. Impact figures stay put. */
+  const filteredFeed = useMemo(
+    () => buildDonorFeed(donations, { query, filter: feedFilter }),
+    [donations, query, feedFilter],
   );
 
-  const urgencyBadge: Record<
-    DonationUrgency,
-    {
-      label: string;
-      bg: string;
-      text: string;
-    }
-  > = {
-    HIGH: {
-      label: "Urgent",
-      bg: c.errorSoft,
-      text: c.error,
-    },
-
-    MEDIUM: {
-      label: "Soon",
-      bg: c.warningSoft,
-      text: c.secondaryDark,
-    },
-
-    NORMAL: {
-      label: "Normal",
-      bg: c.infoSoft,
-      text: c.info,
-    },
-  };
+  const impact = useMemo(() => summarizeDonorImpact(donations), [donations]);
 
   const hour = new Date().getHours();
 
@@ -3508,11 +4036,15 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
       : Math.min(L.width - (L.isDesktop ? SIDEBAR_WIDTH : 0), CONTENT_MAX) -
         L.pad * 2;
 
-  const columns = innerWidth >= 1000 ? 4 : innerWidth >= 680 ? 3 : 2;
-
-  const cardWidth = Math.floor(
-    (innerWidth - GRID_GAP * (columns - 1)) / columns,
-  );
+  /*
+    Horizontal strip: one post fills most of a phone so the next card peeks
+    in and invites a swipe; larger screens get a fixed comfortable card.
+  */
+  const postCardWidth = L.isDesktop
+    ? 430
+    : L.isTablet
+      ? 380
+      : Math.min(Math.floor(innerWidth * 0.84), 380);
 
   const hero = {
     minHeight: L.isDesktop ? 340 : L.isTablet ? 270 : 225,
@@ -3629,48 +4161,34 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
     });
   };
 
-  /* ======================================================= */
-  /* REUSABLE CARD RENDERER                                  */
-  /* ======================================================= */
+  /* Every quick action leads somewhere real - a screen or a section below. */
+  const runQuickAction = (id: QuickActionId) => {
+    if (id === "create") {
+      navigation.navigate("CreateDonation");
 
-  function renderCards<
-    T extends {
-      id: React.Key;
-    },
-  >(
-    items: T[],
-    renderItem: (item: T, width: number) => React.ReactNode,
-    emptyText: string,
-  ) {
-    if (items.length === 0) {
-      return <EmptyState text={emptyText} />;
+      return;
     }
 
-    if (L.isMobile) {
-      return (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{
-            marginHorizontal: -L.pad,
-          }}
-          contentContainerStyle={{
-            paddingHorizontal: L.pad,
-            paddingVertical: 6,
-            gap: 12,
-          }}
-        >
-          {items.map((item) => renderItem(item, MOBILE_CARD_WIDTH))}
-        </ScrollView>
-      );
+    if (id === "posts") {
+      scrollToSection("donations");
+
+      return;
     }
 
-    return (
-      <View style={s.grid}>
-        {items.map((item) => renderItem(item, cardWidth))}
-      </View>
-    );
-  }
+    if (id === "campaigns") {
+      scrollToSection("campaigns");
+
+      return;
+    }
+
+    if (id === "requests") {
+      navigation.navigate("FoodRescueRequests");
+
+      return;
+    }
+
+    navigation.navigate("FoodRescueMap");
+  };
 
   /* ======================================================= */
   /* SEARCH                                                   */
@@ -3682,7 +4200,7 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
         <Ionicons name="search-outline" size={20} color={c.textMuted} />
 
         <TextInput
-          placeholder="Search donations..."
+          placeholder="Search your posts..."
           placeholderTextColor={c.inputPlaceholder}
           value={search}
           onChangeText={setSearch}
@@ -3696,8 +4214,16 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
         )}
       </View>
 
-      <TouchableOpacity activeOpacity={0.8} style={s.filterButton}>
-        <Ionicons name="options-outline" size={21} color={c.textOnPrimary} />
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={s.searchAction}
+        onPress={() => navigation.navigate("CreateDonation")}
+        accessibilityRole="button"
+        accessibilityLabel="Post a new donation"
+      >
+        <Ionicons name="add" size={20} color={c.textOnPrimary} />
+
+        {!L.isMobile && <Text style={s.searchActionText}>New post</Text>}
       </TouchableOpacity>
     </View>
   );
@@ -3897,36 +4423,42 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
             gap: 10,
           }}
         >
-          {MOCK_CATEGORIES.map((cat) => (
+          {QUICK_ACTIONS.map((action) => (
             <TouchableOpacity
-              key={cat.id}
+              key={action.id}
               activeOpacity={0.8}
               style={s.quickTileMobile}
+              onPress={() => runQuickAction(action.id)}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
             >
               <View style={s.quickIconMobile}>
-                <Ionicons name={cat.icon as any} size={24} color={accent} />
+                <Ionicons name={action.icon} size={24} color={accent} />
               </View>
 
               <Text style={s.quickLabelMobile} numberOfLines={2}>
-                {cat.label}
+                {action.label}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
       ) : (
         <View style={s.quickWrap}>
-          {MOCK_CATEGORIES.map((cat) => (
+          {QUICK_ACTIONS.map((action) => (
             <TouchableOpacity
-              key={cat.id}
+              key={action.id}
               activeOpacity={0.85}
               style={s.quickTile}
+              onPress={() => runQuickAction(action.id)}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
             >
               <View style={s.quickIcon}>
-                <Ionicons name={cat.icon as any} size={23} color={accent} />
+                <Ionicons name={action.icon} size={23} color={accent} />
               </View>
 
               <Text style={s.quickLabel} numberOfLines={2}>
-                {cat.label}
+                {action.label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -4129,7 +4661,7 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
               }}
               onLayout={track("impact")}
             >
-              <SectionHeader title="Every meal matters" large={!L.isMobile} />
+              <SectionHeader title="Your impact so far" large={!L.isMobile} />
 
               <View
                 style={[
@@ -4143,8 +4675,8 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
                   icon="restaurant"
                   tone="secondary"
                   horizontal={L.isDesktop}
-                  value={MOCK_IMPACT.mealsRescued}
-                  label="Meals rescued"
+                  value={impact.pledged}
+                  label="Portions pledged"
                   trailing={
                     <Ionicons name="trending-up" size={20} color={c.success} />
                   }
@@ -4154,23 +4686,23 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
                   icon="pulse"
                   tone="primary"
                   horizontal={L.isDesktop}
-                  value={MOCK_IMPACT.activeDonations}
-                  label="Active donations"
+                  value={impact.live}
+                  label="Open posts"
                   trailing={<View style={s.liveDot} />}
                 />
 
                 <StatCard
-                  icon="people"
+                  icon="checkmark-done"
                   tone="tertiary"
                   horizontal={L.isDesktop}
-                  value={MOCK_IMPACT.peopleHelped}
-                  label="People helped"
+                  value={impact.delivered}
+                  label="Portions delivered"
                   trailing={<Ionicons name="heart" size={18} color={c.info} />}
                 />
               </View>
             </View>
 
-            {/* Your donations */}
+            {/* Your donation posts */}
 
             <View
               style={{
@@ -4179,10 +4711,88 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
               onLayout={track("donations")}
             >
               <SectionHeader
-                title="Your donations"
+                title="Your donation posts"
                 large={!L.isMobile}
                 onViewAll={() => navigation.navigate("MyDonations")}
               />
+
+              {/* Urgency chips: tap one to narrow the strip, tap it again to undo */}
+              <View style={s.postFilterRow}>
+                {FEED_FILTERS.map(({ id, label, icon }) => {
+                  const active = feedFilter === id;
+
+                  /* The amber chip needs dark label text to stay readable */
+                  const onWarn = active && id === "urgent";
+
+                  return (
+                    <TouchableOpacity
+                      key={id}
+                      activeOpacity={0.8}
+                      style={[
+                        s.postFilterChip,
+                        active && s.postFilterChipActive,
+                        onWarn && s.postFilterChipActiveWarn,
+                      ]}
+                      onPress={() => {
+                        setFeedFilter(active ? null : id);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{
+                        selected: active,
+                      }}
+                      accessibilityLabel={
+                        active
+                          ? "Show all posts again"
+                          : `Show only ${label.toLowerCase()} posts`
+                      }
+                    >
+                      <Ionicons
+                        name={icon}
+                        size={13}
+                        color={
+                          active ? (onWarn ? c.primaryDark : "#FFFFFF") : c.textSecondary
+                        }
+                      />
+
+                      <Text
+                        style={[
+                          s.postFilterChipText,
+                          active && s.postFilterChipTextActive,
+                          onWarn && s.postFilterChipOnWarn,
+                        ]}
+                      >
+                        {label}
+                      </Text>
+
+                      <Text
+                        style={[
+                          s.postFilterCount,
+                          active && s.postFilterCountActive,
+                          onWarn && s.postFilterChipOnWarn,
+                        ]}
+                      >
+                        {feedCounts[id]}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+                {feedFilter ? (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={s.postFilterClear}
+                    onPress={() => {
+                      setFeedFilter(null);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Show all posts again"
+                  >
+                    <Ionicons name="close" size={12} color={c.textMuted} />
+
+                    <Text style={s.postFilterClearText}>Show all</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
 
               {donationsLoading ? (
                 <View style={s.empty}>
@@ -4190,37 +4800,126 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
 
                   <Text style={s.emptyText}>Loading your donations...</Text>
                 </View>
-              ) : (
-                renderCards(
-                  filteredDonations,
-                  (donation, width) => {
-                    const badge = urgencyBadge[donation.urgency];
+              ) : feedPool.length === 0 ? (
+                <View style={s.postEmpty}>
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={30}
+                    color={c.textMuted}
+                  />
 
-                    return (
-                      <InfoCard
-                        key={donation.id}
-                        width={width}
-                        icon="fast-food"
-                        title={donation.foodName}
-                        subtitle={donation.category}
-                        metaIcon="location-outline"
-                        metaText={donation.pickupLocation}
-                        footerText={`${donation.quantity} ${
-                          donation.quantityUnit ?? ""
-                        }`.trim()}
-                        badgeLabel={badge.label}
-                        badgeBg={badge.bg}
-                        badgeColor={badge.text}
-                        onPress={() =>
+                  <Text style={s.postEmptyTitle}>
+                    {donations.length === 0 ? "No posts yet" : "Nothing open right now"}
+                  </Text>
+
+                  <Text style={s.postEmptyText}>
+                    {donations.length === 0
+                      ? "Share the surplus you have and it appears here as a post recipients and NGOs can claim."
+                      : "Every post you made has reached the end of its pickup window. Share the next surplus and it appears here."}
+                  </Text>
+
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={s.postEmptyCta}
+                    onPress={() => navigation.navigate("CreateDonation")}
+                    accessibilityRole="button"
+                    accessibilityLabel="Post your first donation"
+                  >
+                    <Ionicons name="heart" size={16} color="#FFFFFF" />
+
+                    <Text style={s.postEmptyCtaText}>Donate food</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : filteredFeed.length === 0 ? (
+                <View style={s.postEmpty}>
+                  <Ionicons
+                    name="search-outline"
+                    size={28}
+                    color={c.textMuted}
+                  />
+
+                  <Text style={s.postEmptyTitle}>Nothing matches this view</Text>
+
+                  <Text style={s.postEmptyText}>
+                    {query
+                      ? `No post matches “${search.trim()}” in this view.`
+                      : feedFilter === "urgent"
+                        ? "None of your posts are flagged urgent right now."
+                        : "Every post you have open is flagged urgent."}
+                  </Text>
+
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={s.postEmptyCta}
+                    onPress={() => {
+                      setSearch("");
+
+                      setFeedFilter(null);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear the search and the urgency filter"
+                  >
+                    <Ionicons name="refresh" size={16} color="#FFFFFF" />
+
+                    <Text style={s.postEmptyCtaText}>Clear filters</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  {/* Swipe through the posts instead of scrolling down the page */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    indicatorStyle="black"
+                    style={{
+                      marginHorizontal: L.isDesktop ? 0 : -L.pad,
+                    }}
+                    contentContainerStyle={[
+                      s.postFeed,
+                      {
+                        paddingHorizontal: L.isDesktop ? 0 : L.pad,
+                      },
+                    ]}
+                  >
+                    {filteredFeed.map((donation, index) => (
+                      <DonationPost
+                        key={donationRouteId(donation) || `post-${index}`}
+                        donation={donation}
+                        width={postCardWidth}
+                        authorName={displayName}
+                        onView={() => {
+                          const donationId = donationRouteId(donation);
+
+                          if (!donationId) {
+                            return;
+                          }
+
                           navigation.navigate("DonationDetail", {
-                            donationId: donation.id,
-                          })
-                        }
+                            donationId,
+                          });
+                        }}
                       />
-                    );
-                  },
-                  "No donations match your search.",
-                )
+                    ))}
+                  </ScrollView>
+
+                  <View style={s.postStripHint}>
+                    <Ionicons
+                      name="swap-horizontal-outline"
+                      size={15}
+                      color={c.textMuted}
+                    />
+
+                    <Text style={s.postStripHintText}>
+                      {`Swipe through your ${filteredFeed.length} ${
+                        filteredFeed.length === 1 ? "post" : "posts"
+                      }${
+                        feedFilter
+                          ? ` \u00b7 ${feedFilter === "urgent" ? "urgent only" : "normal only"}`
+                          : ""
+                      }`}
+                    </Text>
+                  </View>
+                </>
               )}
             </View>
 
@@ -4278,128 +4977,6 @@ export default function DonorHomeScreen({ navigation, route }: Props) {
                 title="NGO campaigns"
                 subtitle="Food drives, surplus pickups and awareness events near you"
               />
-            </View>
-
-            {/* Recipients */}
-
-            <View
-              style={{
-                marginTop: sectionGap,
-              }}
-              onLayout={track("recipients")}
-            >
-              <SectionHeader
-                title="Available recipients"
-                large={!L.isMobile}
-                onViewAll={() => {}}
-              />
-
-              {renderCards(
-                MOCK_RECIPIENTS,
-                (recipient, width) => (
-                  <InfoCard
-                    key={recipient.id}
-                    width={width}
-                    icon="people"
-                    title={recipient.name}
-                    subtitle={recipient.needsText}
-                    metaIcon="navigate-outline"
-                    metaText={`${recipient.distanceKm} km away`}
-                    footerText={recipient.type}
-                    badgeLabel={recipient.type}
-                  />
-                ),
-                "No recipients nearby.",
-              )}
-            </View>
-
-            {/* Community posts */}
-
-            <View
-              style={{
-                marginTop: sectionGap,
-              }}
-              onLayout={track("posts")}
-            >
-              <SectionHeader title="Community posts" large={!L.isMobile} />
-
-              <View style={s.segmentWrap}>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[
-                    s.segmentButton,
-                    postFilter === "HIGH" && {
-                      backgroundColor: c.error,
-                    },
-                  ]}
-                  onPress={() => setPostFilter("HIGH")}
-                >
-                  <View
-                    style={[
-                      s.segmentDot,
-                      {
-                        backgroundColor:
-                          postFilter === "HIGH" ? "#FFFFFF" : c.error,
-                      },
-                    ]}
-                  />
-
-                  <Text
-                    style={[
-                      s.segmentText,
-                      postFilter === "HIGH" && s.segmentTextActive,
-                    ]}
-                  >
-                    Urgent
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[
-                    s.segmentButton,
-                    postFilter === "NORMAL" && {
-                      backgroundColor: c.primary,
-                    },
-                  ]}
-                  onPress={() => setPostFilter("NORMAL")}
-                >
-                  <Text
-                    style={[
-                      s.segmentText,
-                      postFilter === "NORMAL" && s.segmentTextActive,
-                    ]}
-                  >
-                    Normal
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {renderCards(
-                filteredPosts,
-                (post, width) => {
-                  const urgency: DonationUrgency = post.urgency;
-
-                  const badge = urgencyBadge[urgency];
-
-                  return (
-                    <InfoCard
-                      key={post.id}
-                      width={width}
-                      icon="restaurant-outline"
-                      title={post.foodName}
-                      subtitle={post.donorName}
-                      metaIcon="location-outline"
-                      metaText={post.location}
-                      footerText={`${post.quantity}, ${post.expiresInHours}h left`}
-                      badgeLabel={badge.label}
-                      badgeBg={badge.bg}
-                      badgeColor={badge.text}
-                    />
-                  );
-                },
-                "No community posts in this category.",
-              )}
             </View>
 
             {/* Desktop footer */}
